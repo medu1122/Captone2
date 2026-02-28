@@ -1,8 +1,9 @@
-# AIMAP – Production-Ready System Architecture (English)
+# AIMAP / MIMAS – Production-Ready System Architecture (English)
 
-**AIMAP = AI-Powered Marketing Automation Platform for Small Businesses**
+**AIMAP** = *AI-Powered Marketing Automation Platform for Small Businesses*  
+**MIMAS** = *Multi-Agent Intelligent Marketing Automation System* (Capstone Project 2 – International School, Duy Tan University)
 
-Scope: Branding & Image Generation | AI Website Builder (frontend-only) | Prompt-based Editing | Realtime Preview | Hosting (subdomain) | **One Docker container per shop**.
+**Scope (per Proposal):** Unified store information input | AI branding (logo, banner, cover) | AI marketing content (posts, product descriptions, captions, hashtags) | Automated visual post creation (Facebook-ready images) | **Facebook Page auto-publishing** (Meta Graph API, OAuth, token storage) | Website auto-generation & prompt-based editing | Realtime preview | Deployment (subdomain `shopname.aimap.app`) | **One Docker container per shop** | **Credit-based usage & Payment Gateway** | **Administrator** (user management, activity logs, revenue/credit monitoring, system dashboard).
 
 ---
 
@@ -67,21 +68,39 @@ flowchart TB
 
 **Logic flow (text):**
 
-- **User** signs in → **Frontend** (Dashboard).
-- **Branding:** User enters shop name, industry, brand style → **Branding API** → **Image AI** (logo, banner, marketing images) → save to **Asset Storage** (per user/shop); optional custom uploads.
-- **Website:** User creates site → **Site API** → **Config Store** (config + conversation history) → **Web AI** (generate/update config from prompt) → **Orchestrator** creates/updates **Docker** for that shop → **Preview** iframe points to the shop’s container.
+- **User** signs in → **Frontend** (Dashboard). **Store info** (business name, products, pricing, contact, branding preferences) is collected once as the single input source for the automation pipeline.
+- **Branding:** Branding Agent (Image AI) generates logo, banner, cover → save to **Asset Storage** (per user/shop); optional custom uploads.
+- **Content:** Content Agent (LLM) generates marketing posts, product descriptions, captions, hashtags from store info.
+- **Visual Post:** Visual Post Agent creates social-ready images (branding + product + text), export in Facebook dimensions.
+- **Website:** Website Builder Agent produces/updates site config from store + branding; user can edit by prompt (Web AI + conversation history). **Orchestrator** creates/updates **Docker** per shop → **Preview** iframe points to the shop’s container.
+- **Social Posting:** Social Posting Agent publishes content + images to authorized Facebook Page via **Meta Graph API** (OAuth, stored tokens).
+- **Credit & Payment:** Users consume credits for actions; **Payment Gateway** for purchasing credits; **Admin** manages users, views activity logs, revenue/credit reports, and system performance dashboard.
 - **Hosting:** One container per shop; **Reverse Proxy** routes `shopname.aimap.app` to the correct container; deploy = start container + update static content.
 
 ---
 
 ## II. Scope & Data Flow
 
+### 0. Unified Store Information Input
+
+- **Input:** Structured store information: business name, product details, pricing, contact information, branding preferences. Validated before starting the automation workflow.
+- **Role:** Single source of truth for Branding, Content, Visual Post, and Website Builder agents.
+
 ### 1. Branding & Image Generation
 
-- **Input:** Shop name, industry, brand style; optional custom image uploads.
+- **Input:** From store info: shop name, industry, brand style; optional custom image uploads.
 - **Output:** Logo, banner, marketing images; stored in **Asset Storage** with **per-user** (or per-shop) namespace: `users/:userId/assets/` or `shops/:shopId/assets/`.
 - **Reuse:** Website config JSON references assets by URL (backend returns signed URL or internal path); template renderer uses that URL for img/background.
 - **Flow:** User submits form → Backend calls **Image AI** (API or self-hosted) → saves files to object storage (S3/MinIO/local) → returns URL and saves metadata (name, type: logo/banner/marketing) → Dashboard shows asset library; when creating/editing website, user picks assets from library or AI attaches assets to config (imageUrl, logoUrl).
+
+**Additional features (per Proposal):**
+
+- **AI marketing content (Content Agent):** Generate advertising posts, product descriptions, captions, and hashtag suggestions (LLM) from store info.
+- **Automated visual post creation (Visual Post Agent):** Combine branding, product details, and promotional text into social media–ready images; export in Facebook-compatible dimensions.
+- **Facebook Page auto-publishing (Social Posting Agent):** OAuth via Meta Graph API; secure storage of Page Access Tokens; automatic publishing of generated content and images to the authorized Facebook Page.
+- **Multi-Agent orchestration:** Orchestrator coordinates Branding, Content, Visual Post, Website Builder, Deploy, and Social Posting agents; sequential execution and data consistency between agents.
+- **Credit-based usage & Payment Gateway:** Users purchase and spend credits for services; payment gateway integration for credit purchase; Admin monitors revenue and credit transactions.
+- **Administrator:** User account management, activity logs, revenue/credit monitoring, system performance dashboard (usage, API calls, publishing frequency).
 
 ### 2. Data Flow A – First-time website creation
 

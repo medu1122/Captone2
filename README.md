@@ -1,15 +1,30 @@
 ---
 name: AIMAP Full System Architecture
-overview: "Kiến trúc production-ready cho AIMAP: Branding & Image Generation, AI Website Builder (config-driven), Prompt-based Editing, Preview realtime, Hosting (shopname.aimap.app), mỗi shop = 1 Docker; bao gồm AI context, code strategy, preview strategy và AI model strategy."
+overview: "Kiến trúc production-ready cho AIMAP/MIMAS: Store info, Branding, Content, Visual Post, Website Builder, Deploy, Facebook Auto-Publish, Credit & Payment, Admin; mỗi shop = 1 Docker."
 todos: []
 isProject: false
 ---
 
-# AIMAP – Kiến trúc hệ thống production-ready
+# AIMAP / MIMAS – Kiến trúc hệ thống production-ready
 
-**AIMAP = AI-Powered Marketing Automation Platform for Small Businesses**
+**AIMAP** = *AI-Powered Marketing Automation Platform for Small Businesses*  
+**MIMAS** = *Multi-Agent Intelligent Marketing Automation System*  
+**Capstone Project 2** – International School, Duy Tan University | Mentor: Prof Dr Anand Nayyar | Team: C2SE.10
 
-Phạm vi: Branding & Image Generation | AI Website Builder (frontend-only) | Prompt-based Editing | Preview realtime | Hosting (subdomain) | **Mỗi 1 shop user tạo = 1 Docker riêng**.
+Phạm vi (theo Proposal): Thu thập store info | AI Branding (logo, banner, cover) | AI nội dung marketing (bài viết, mô tả, caption, hashtag) | Tạo ảnh bài đăng chuẩn MXH | Đăng tự động lên Facebook Page (Meta Graph API, OAuth) | Website auto-generation & prompt-based editing | Preview realtime | Deploy (subdomain `shopname.aimap.app`) | **Mỗi 1 shop = 1 Docker** | Credit-based usage & Payment Gateway | Admin (user, log, revenue, dashboard).
+
+---
+
+## Danh sách đầy đủ tính năng (theo Proposal – Key Features & Requirements)
+
+- **F1 – Unified Store Information Input:** Thu thập thông tin cửa hàng có cấu trúc (tên, sản phẩm, giá, liên hệ, sở thích thương hiệu) làm nguồn đầu vào duy nhất cho toàn bộ workflow.
+- **F2 – AI-Based Brand & Content Generation:** Tạo logo, banner, cover (AI); tạo nội dung marketing: bài viết quảng cáo, mô tả sản phẩm, caption, gợi ý hashtag (LLM).
+- **F3 – Automated Visual Post Creation:** Tạo ảnh bài đăng sẵn sàng MXH (branding + sản phẩm + text); export chuẩn kích thước Facebook.
+- **F4 – Facebook Page Auto-Publishing:** OAuth (Meta Graph API), lưu token an toàn, đăng nội dung + ảnh lên Facebook Page đã ủy quyền.
+- **F5 – Promotional Website Auto-Generation & Deployment:** Tạo landing page responsive từ store + branding; chỉnh sửa bằng prompt (AI hiểu context); preview realtime; deploy lên hosting (mỗi shop = 1 Docker); trả URL công khai (subdomain).
+- **F6 – Multi-Agent Orchestration:** Orchestrator điều phối Branding Agent, Content Agent, Visual Post Agent, Website Builder Agent, Deploy Agent, Social Posting Agent.
+- **Credit & Payment:** Mô hình sử dụng theo credit; tích hợp Payment Gateway để mua credit; Admin theo dõi doanh thu và giao dịch.
+- **Administrator:** Quản lý user, xem activity log, theo dõi revenue/credit, dashboard hiệu năng hệ thống.
 
 ---
 
@@ -233,4 +248,12 @@ AI không sửa file code trực tiếp; AI chỉ output **JSON layout config**.
 6. Branding: Image AI (logo, banner), Asset storage per user/shop, tích hợp URL asset vào config.
 7. Hosting: Reverse proxy, subdomain `shopname.aimap.app` → container; Deploy flow.
 8. Tối ưu: Tóm tắt history, retry/fallback model, preview srcdoc/WebSocket nếu cần.
+9. Các module theo Proposal: Store info input & validation; Content Agent (post, mô tả, caption, hashtag); Visual Post Agent; Social Posting Agent (Meta Graph API, OAuth, token); Credit & Payment Gateway; Admin (user, log, revenue, dashboard).
+
+---
+
+## Tài liệu kèm theo
+
+- **Đọc nhanh (chức năng + lợi ích + điểm nổi bật):** `AIMAP-Quick-Read.md`
+- **Kiến trúc tiếng Anh (cho reviewer quốc tế):** `AIMAP-Architecture-EN.md`
 
