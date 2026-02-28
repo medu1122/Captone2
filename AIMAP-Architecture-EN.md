@@ -1,7 +1,7 @@
-# AIMAP / MIMAS – Production-Ready System Architecture (English)
+# AIMAP – Production-Ready System Architecture (English)
 
 **AIMAP** = *AI-Powered Marketing Automation Platform for Small Businesses*  
-**MIMAS** = *Multi-Agent Intelligent Marketing Automation System* (Capstone Project 2 – International School, Duy Tan University)
+Capstone Project 2 – International School, Duy Tan University
 
 **Scope (per Proposal):** Unified store information input | AI branding (logo, banner, cover) | AI marketing content (posts, product descriptions, captions, hashtags) | Automated visual post creation (Facebook-ready images) | **Facebook Page auto-publishing** (Meta Graph API, OAuth, token storage) | Website auto-generation & prompt-based editing | Realtime preview | Deployment (subdomain `shopname.aimap.app`) | **One Docker container per shop** | **Credit-based usage & Payment Gateway** | **Administrator** (user management, activity logs, revenue/credit monitoring, system dashboard).
 

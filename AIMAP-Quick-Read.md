@@ -1,7 +1,7 @@
-# AIMAP / MIMAS – Đọc nhanh: Nền tảng Marketing & Website AI cho Shop nhỏ
+# AIMAP – Đọc nhanh: Nền tảng Marketing & Website AI cho Shop nhỏ
 
 **AIMAP** = *AI-Powered Marketing Automation Platform for Small Businesses*  
-**MIMAS** = *Multi-Agent Intelligent Marketing Automation System* (Capstone Project 2 – International School, Duy Tan University)
+Capstone Project 2 – International School, Duy Tan University
 
 **Một nền tảng SaaS cho phép chủ shop nhỏ nhập thông tin cửa hàng một lần → AI tạo thương hiệu, nội dung, bài đăng hình ảnh, website, đăng Facebook tự động và deploy lên mạng — không cần biết code.**
 
@@ -182,5 +182,6 @@ Hệ thống dùng **Orchestrator** điều phối nhiều agent chuyên biệt:
 
 ## Tài liệu kèm theo
 
+- **Đọc nhanh (English):** `AIMAP-Quick-Read-EN.md` — bản tiếng Anh của tài liệu này, cho reviewer quốc tế.
 - **Kiến trúc chi tiết (tiếng Việt):** Xem file plan trong `.cursor/plans` hoặc README chính.
-- **Kiến trúc (English):** `AIMAP-Architecture-EN.md` — dùng cho reviewer quốc tế hoặc tài liệu kỹ thuật.
+- **Kiến trúc (English):** `AIMAP-Architecture-EN.md` — tài liệu kỹ thuật tiếng Anh.

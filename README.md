@@ -1,15 +1,14 @@
 ---
 name: AIMAP Full System Architecture
-overview: "Kiến trúc production-ready cho AIMAP/MIMAS: Store info, Branding, Content, Visual Post, Website Builder, Deploy, Facebook Auto-Publish, Credit & Payment, Admin; mỗi shop = 1 Docker."
+overview: "Kiến trúc production-ready cho AIMAP: Store info, Branding, Content, Visual Post, Website Builder, Deploy, Facebook Auto-Publish, Credit & Payment, Admin; mỗi shop = 1 Docker."
 todos: []
 isProject: false
 ---
 
-# AIMAP / MIMAS – Kiến trúc hệ thống production-ready
+# AIMAP – Kiến trúc hệ thống production-ready
 
 **AIMAP** = *AI-Powered Marketing Automation Platform for Small Businesses*  
-**MIMAS** = *Multi-Agent Intelligent Marketing Automation System*  
-**Capstone Project 2** – International School, Duy Tan University | Mentor: Prof Dr Anand Nayyar | Team: C2SE.10
+Capstone Project 2 – International School, Duy Tan University | Mentor: Prof Dr Anand Nayyar | Team: C2SE.10
 
 Phạm vi (theo Proposal): Thu thập store info | AI Branding (logo, banner, cover) | AI nội dung marketing (bài viết, mô tả, caption, hashtag) | Tạo ảnh bài đăng chuẩn MXH | Đăng tự động lên Facebook Page (Meta Graph API, OAuth) | Website auto-generation & prompt-based editing | Preview realtime | Deploy (subdomain `shopname.aimap.app`) | **Mỗi 1 shop = 1 Docker** | Credit-based usage & Payment Gateway | Admin (user, log, revenue, dashboard).
 
