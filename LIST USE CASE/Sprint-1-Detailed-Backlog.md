@@ -229,3 +229,20 @@
 - **Diem:** Sprint planning, làm rõ requirement với team, giám sát tài liệu, review tích hợp cuối sprint.
 
 Tasks có thể có 2 người (ví dụ Dao + Thinh cho route phức tạp, Duong + Diem cho doc).
+
+---
+
+## Bảng tổng kết giờ đóng góp theo thành viên (Sprint 1)
+
+**Quy ước:** 1 task có 2 thành viên và 6h → mỗi thành viên đều được tính **6h** đóng góp (tổng giờ đóng góp = tổng theo từng người, không chia đôi).
+
+| Thành viên | Vai trò | Tổng giờ đóng góp (h) | Ghi chú |
+|------------|---------|------------------------|---------|
+| **Thinh** | Backend Developer & DevOps | **62** | Routes, migrations, auth middleware, payment gateway, admin/store API |
+| **Duc** | Frontend Developer & UI/UX | **45** | Toàn bộ UI: auth, profile, admin, credit, store form, payment flow |
+| **Dao** | Lead Backend & AI Integration | **34** | Kiến trúc DB, auth strategy, credit service, payment logic, lib LLM/Image/prompt |
+| **Duong** | Business Analyst & QA | **26** | Test cases, UAT, E2E, doc cấu hình |
+| **Diem** | Project Manager & Product Owner | **1** | Doc cấu hình (cùng Duong) |
+| **Tổng (theo đóng góp)** | | **168** | Lớn hơn 153h vì task 2 người tính đủ giờ cho từng người |
+
+**Tổng giờ công việc (task-hours):** 153h — tương ứng tổng điểm của toàn bộ task trong sprint.
