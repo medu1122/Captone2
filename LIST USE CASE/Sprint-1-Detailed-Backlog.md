@@ -29,8 +29,8 @@
 | T1.1.2 | Mount CORS, express.json() trong index.js | Backend | 1 | Thinh |
 | T1.1.3 | Route GET /health trả { ok, service } | Backend | 1 | Thinh |
 | T1.1.4 | Chọn stack DB (pg hoặc better-sqlite3), thêm dependency | Backend | 2 | Dao |
-| T1.1.5 | Tạo db/connection.js (pool), connect/close | Backend | 2 | Thinh |
-| T1.1.6 | Tạo thư mục migrations, script chạy migration | Backend | 2 | Thinh |
+| T1.1.5 | Tạo db/connection.js (pool), connect/close | Backend | 2 | Dao, Thinh |
+| T1.1.6 | Tạo thư mục migrations, script chạy migration | Backend | 2 | Dao, Thinh |
 | T1.1.7 | Smoke test: start app, gọi GET /health | Integration & Testing | 1 | Duong, Diem |
 | **P1.1 total** | | | **10** | |
 
@@ -66,7 +66,7 @@
 | T2.1.2 | Hash password (bcrypt/argon2), lưu users, trả 201 + user (không trả password_hash) | Backend | 2 | Dao, Thinh |
 | T2.1.3 | Xử lý email trùng → 409 | Backend | 1 | Thinh |
 | T2.1.4 | Trang Register: form email, password, name; gọi API | Frontend & Design | 3 | Duc |
-| T2.1.5 | UI hiển thị lỗi (trùng email, validation) | Frontend & Design | 1 | Duc |
+| T2.1.5 | UI hiển thị lỗi (trùng email, validation) | Frontend & Design | 1 | Diem |
 | T2.1.6 | Test case đăng ký thành công / email trùng / validation | Integration & Testing | 2 | Duong, Diem |
 | **P1.3 total** | | | **11** | |
 
@@ -75,7 +75,7 @@
 | Task ID | Task | Type | Points | Assignee(s) |
 |---------|------|------|--------|-------------|
 | T2.2.1 | Route POST /auth/login: so sánh hash, chọn JWT hoặc session | Backend | 3 | Dao, Thinh |
-| T2.2.2 | Trả 200 + token + user info; sai credential → 401 | Backend | 1 | Thinh |
+| T2.2.2 | Trả 200 + token + user info; sai credential → 401 | Backend | 1 | Dao, Thinh |
 | T2.2.3 | Middleware requireAuth: đọc token, gắn req.user | Backend | 2 | Thinh |
 | T2.2.4 | Trang Login: form email, password; gọi API; lưu token (localStorage/cookie) | Frontend & Design | 3 | Duc |
 | T2.2.5 | Redirect sau login thành công; hiển thị lỗi 401 | Frontend & Design | 1 | Duc |
@@ -87,7 +87,7 @@
 | Task ID | Task | Type | Points | Assignee(s) |
 |---------|------|------|--------|-------------|
 | T2.3.1 | Route POST /auth/logout (nếu session: destroy) | Backend | 1 | Thinh |
-| T2.3.2 | Nút Logout: xóa token, redirect về Login | Frontend & Design | 1 | Duc |
+| T2.3.2 | Nút Logout: xóa token, redirect về Login | Frontend & Design | 1 | Diem |
 | T2.3.3 | Test logout | Integration & Testing | 1 | Duong, Diem |
 | **P1.5 total** | | | **3** | |
 
@@ -129,7 +129,7 @@
 | Task ID | Task | Type | Points | Assignee(s) |
 |---------|------|------|--------|-------------|
 | T3.1.1 | Service/hàm lấy balance theo user_id từ credit_transactions | Backend | 2 | Dao |
-| T3.1.2 | Route GET /users/me/credits: balance + (optional) lịch sử gần | Backend | 2 | Thinh |
+| T3.1.2 | Route GET /users/me/credits: balance + (optional) lịch sử gần | Backend | 2 | Dao, Thinh |
 | T3.1.3 | UI hiển thị số dư credit (header/sidebar hoặc trang Credits) | Frontend & Design | 2 | Duc |
 | T3.1.4 | Test GET /users/me/credits | Integration & Testing | 1 | Duong, Diem |
 | **P1.8 total** | | | **7** | |
@@ -160,7 +160,7 @@
 | Task ID | Task | Type | Points | Assignee(s) |
 |---------|------|------|--------|-------------|
 | T3.4.1 | Route GET /users/me/transactions (paginate, filter) | Backend | 2 | Thinh |
-| T3.4.2 | UI: danh sách giao dịch (user) | Frontend & Design | 2 | Duc |
+| T3.4.2 | UI: danh sách giao dịch (user) | Frontend & Design | 2 | Diem |
 | T3.4.3 | Test danh sách giao dịch | Integration & Testing | 1 | Duong, Diem |
 | **P1.11 total** | | | **5** | |
 
@@ -181,9 +181,9 @@
 
 | Task ID | Task | Type | Points | Assignee(s) |
 |---------|------|------|--------|-------------|
-| T4.1.1 | Route POST /stores (hoặc /shops): validate, lưu DB | Backend | 3 | Thinh |
+| T4.1.1 | Route POST /stores (hoặc /shops): validate, lưu DB | Backend | 3 | Dao, Thinh |
 | T4.1.2 | Form nhập store: tên, ngành, mô tả, sản phẩm, liên hệ... | Frontend & Design | 4 | Duc |
-| T4.1.3 | Gọi API lưu store, hiển thị thành công/lỗi | Frontend & Design | 2 | Duc |
+| T4.1.3 | Gọi API lưu store, hiển thị thành công/lỗi | Frontend & Design | 2 | Diem |
 | T4.1.4 | Test case tạo store, validate input | Integration & Testing | 2 | Duong, Diem |
 | **P1.13 total** | | | **11** | |
 
@@ -252,11 +252,11 @@
 
 **Ghi chú phân công:**
 
-- **Dao:** Kiến trúc backend, DB logic, credit service, auth strategy (JWT/session), lib LLM/Image/promptBuilder.
+- **Dao:** Kiến trúc backend, DB logic, credit service, auth strategy (JWT/session), lib LLM/Image/promptBuilder; đồng tham gia connection/migration, auth response, credit route, store API với Thinh.
 - **Thinh:** Implement routes, migrations, payment gateway integration, middleware auth/admin.
-- **Duc:** Toàn bộ UI: auth pages, profile, admin, credit, store form, payment flow.
+- **Duc:** UI chính: auth pages, profile, admin, credit, store form, payment flow (một số task UI chia với Diem).
 - **Duong:** Test cases, UAT, kiểm tra E2E, tài liệu test, cập nhật use case/context nếu cần.
-- **Diem:** Sprint planning, làm rõ requirement với team, giám sát tài liệu, review tích hợp cuối sprint; đồng tham gia với QA (Duong) trong test/UAT và các task điều phối (E0).
+- **Diem:** Sprint planning, làm rõ requirement với team, giám sát tài liệu, review tích hợp cuối sprint; đồng tham gia QA & doc với Duong; đảm nhận một số task UI (error display, logout button, transaction list, store feedback).
 
 Tasks có thể có 2 người (ví dụ Dao + Thinh cho route phức tạp, Duong + Diem cho doc).
 
@@ -268,12 +268,12 @@ Tasks có thể có 2 người (ví dụ Dao + Thinh cho route phức tạp, Duo
 
 | Thành viên | Vai trò | Tổng giờ đóng góp (h) | % đóng góp | Ghi chú |
 |------------|---------|------------------------|------------|---------|
-| **Thinh** | Backend Developer & DevOps | **62** | ~31% | Routes, migrations, auth middleware, payment gateway, admin/store API |
-| **Duc** | Frontend Developer & UI/UX | **45** | ~22% | Toàn bộ UI: auth, profile, admin, credit, store form, payment flow |
-| **Dao** | Lead Backend & AI Integration | **34** | ~17% | Kiến trúc DB, auth strategy, credit service, payment logic, lib LLM/Image/prompt |
-| **Diem** | Project Manager & Product Owner | **37** | ~18% | PM/PO tasks (E0), đồng tham gia QA & doc với Duong |
-| **Duong** | Business Analyst & QA | **26** | ~13% | Test cases, UAT, E2E, doc cấu hình (đồng tham gia với Diem) |
-| **Tổng (theo đóng góp)** | | **204** | 100% | Task 2+ người: mỗi người tính đủ giờ task |
+| **Thinh** | Backend Developer & DevOps | **62** | ~29% | Routes, migrations, auth middleware, payment gateway, admin/store API |
+| **Dao** | Lead Backend & AI Integration | **44** | ~21% | Kiến trúc DB, auth strategy, credit service, payment logic, lib LLM/Image/prompt; đồng tham gia connection/migration, auth, credit route, store API |
+| **Diem** | Project Manager & Product Owner | **43** | ~20% | PM/PO tasks (E0), đồng tham gia QA & doc với Duong; UI error/logout/transaction list/store feedback |
+| **Duc** | Frontend Developer & UI/UX | **39** | ~18% | UI: auth pages, profile, admin, credit, store form, payment flow (một phần task chia với Diem) |
+| **Duong** | Business Analyst & QA | **26** | ~12% | Test cases, UAT, E2E, doc cấu hình (đồng tham gia với Diem) |
+| **Tổng (theo đóng góp)** | | **214** | 100% | Task 2+ người: mỗi người tính đủ giờ task |
 
-**Tổng giờ công việc (task-hours):** 164h (gồm E0). Cả 5 thành viên đều có đóng góp rõ ràng, không dưới ~13%.
+**Tổng giờ công việc (task-hours):** 164h (gồm E0). Tổng giờ đóng góp 214h (task 2+ người tính cho từng người). Cả 5 thành viên đều có đóng góp rõ ràng, không dưới ~12%.
   
