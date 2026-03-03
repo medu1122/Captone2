@@ -63,7 +63,10 @@ flowchart TB
   Proxy --> D1
   Proxy --> D2
   Proxy --> Dn
-  D1 --> AssetStore
+  Orchestrator -->|push web + assets| D1
+  Orchestrator -->|push web + assets| D2
+  Orchestrator -->|push web + assets| Dn
+  AssetStore --> Orchestrator
 ```
 
 **Logic flow (text):**
@@ -207,14 +210,42 @@ AI does not edit code files directly; AI only outputs **JSON layout config**. Ba
 
 ## VII. Storage Layer & Hosting (one Docker per shop)
 
-**Storage:**
+### Two Data Zones
 
-- **Asset storage (per user/shop):** Object storage (S3/MinIO) with prefix `users/:userId/` or `shops/:shopId/assets/`. Logo, banner, marketing images, uploads; returned URLs used in website config.
-- **Config + conversation:** DB (Postgres or SQLite) or files: `sites` table (siteId, shopId, config JSON, createdAt, updatedAt); `conversation_messages` (siteId, role, content, timestamp). Or one JSON file per shop for config + one for history (simpler for MVP).
+Each shop has **its own runtime zone** (web + images + content). The system splits two zones:
 
-**Hosting:**
+```mermaid
+flowchart TB
+  subgraph central [Centralized Zone - Source of truth]
+    DB[(Database)]
+    OBJ[Object Storage\nshops/:id/assets/]
+  end
 
-- **One Docker container per shop.** Orchestrator (backend or separate service) creates container when shop is created; container runs nginx (or small service) serving static HTML/assets.
+  subgraph runtime [Per-shop Docker Zone - Runtime]
+    C1[Container Shop 1\nHTML + images + content]
+    C2[Container Shop 2\nHTML + images + content]
+  end
+
+  central -->|deploy: render + copy| runtime
+```
+
+| Zone | Contents |
+|------|----------|
+| **Centralized** | DB (config, metadata, users, credits, …); Object Storage (source asset files). Backend reads from here to create/edit and manage. |
+| **Per-shop Docker** | Each container = **self-contained bundle**: rendered HTML/CSS/JS + **copy of images** (logo, banner, post) + static content. Nginx serves directly; no runtime calls to Object Storage. |
+
+**Deploy flow:** Backend reads config from DB and images from Object Storage → renders HTML → **copies images + HTML into the shop’s container** → container is self-sufficient; subdomain points to that container.
+
+---
+
+**Storage (Centralized):**
+
+- **Asset storage (per user/shop):** Object storage (S3/MinIO) with prefix `users/:userId/` or `shops/:shopId/assets/`. Logo, banner, marketing images, uploads; on deploy the backend **copies** required images into the shop’s container.
+- **Config + conversation:** DB (Postgres or SQLite): `sites` table (siteId, shopId, config JSON, …), `conversation_messages` (siteId, role, content, timestamp).
+
+**Hosting (Per-shop Docker):**
+
+- **One Docker container per shop.** Orchestrator creates the container when the shop is created; container runs nginx serving static **HTML + images + content** (pushed by the backend on deploy).
 - **Subdomain:** `shopname.aimap.app` → Reverse proxy (Nginx/Traefik/Caddy) routes by host to the right container (mapping shopname ↔ containerId).
 - **Preview:** Use `preview.aimap.app/sites/:siteId` (proxy to container) or per-container port; dashboard iframe points to that URL.
 - **Custom domain later:** Proxy reads Host header; map custom domain → shopId → same container.

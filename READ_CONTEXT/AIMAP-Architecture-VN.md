@@ -83,7 +83,10 @@ flowchart TB
   Proxy --> D1
   Proxy --> D2
   Proxy --> Dn
-  D1 --> AssetStore
+  Orchestrator -->|push web + ảnh| D1
+  Orchestrator -->|push web + ảnh| D2
+  Orchestrator -->|push web + ảnh| Dn
+  AssetStore --> Orchestrator
 ```
 
 
@@ -219,14 +222,42 @@ AI không sửa file code trực tiếp; AI chỉ output **JSON layout config**.
 
 ## VII. Storage Layer & Hosting (mỗi shop = 1 Docker)
 
-**Storage:**
+### Hai vùng dữ liệu (Data Zones)
 
-- **Asset storage (per user/shop):** Object storage (S3/MinIO) với prefix `users/:userId/` hoặc `shops/:shopId/assets/`. Logo, banner, ảnh marketing, upload; URL trả về dùng trong config website.
-- **Config + conversation:** DB (Postgres hoặc SQLite) hoặc file: `sites` table (siteId, shopId, config JSON, createdAt, updatedAt); `conversation_messages` (siteId, role, content, timestamp). Hoặc 1 file JSON per shop cho config + 1 file cho history (đơn giản cho MVP).
+Mỗi shop có **một vùng chứa riêng** gồm web, ảnh và content. Hệ thống tách hai vùng:
 
-**Hosting:**
+```mermaid
+flowchart TB
+  subgraph central [Vùng Centralized - Source of truth]
+    DB[(Database)]
+    OBJ[Object Storage\nshops/:id/assets/]
+  end
 
-- **Mỗi 1 shop = 1 Docker container.** Orchestrator (backend hoặc service riêng) tạo container khi tạo shop; container chạy nginx (hoặc service nhỏ) serve static HTML/assets.
+  subgraph runtime [Vùng Per-shop Docker - Runtime]
+    C1[Container Shop 1\nHTML + ảnh + content]
+    C2[Container Shop 2\nHTML + ảnh + content]
+  end
+
+  central -->|deploy: render + copy| runtime
+```
+
+| Vùng | Nội dung |
+|------|----------|
+| **Centralized** | DB (config, metadata, users, credits, …); Object Storage (file ảnh gốc). Backend đọc từ đây để tạo/sửa, quản lý. |
+| **Per-shop Docker** | Mỗi container = **một bó tự chứa**: HTML/CSS/JS đã render + **bản copy ảnh** (logo, banner, post) + static content. Nginx serve trực tiếp; không gọi ra Object Storage lúc runtime. |
+
+**Luồng deploy:** Backend lấy config từ DB, ảnh từ Object Storage → render HTML → **copy ảnh + HTML vào container** shop tương ứng → container tự đủ, subdomain trỏ tới container.
+
+---
+
+**Storage (Centralized):**
+
+- **Asset storage (per user/shop):** Object storage (S3/MinIO) với prefix `users/:userId/` hoặc `shops/:shopId/assets/`. Logo, banner, ảnh marketing, upload; khi deploy backend **copy** ảnh cần thiết vào container của shop.
+- **Config + conversation:** DB (Postgres hoặc SQLite): bảng `sites` (siteId, shopId, config JSON, …), `conversation_messages` (siteId, role, content, timestamp).
+
+**Hosting (Per-shop Docker):**
+
+- **Mỗi 1 shop = 1 Docker container.** Orchestrator tạo container khi tạo shop; container chạy nginx serve static **HTML + ảnh + content** (đã được push từ backend khi deploy).
 - **Subdomain:** `shopname.aimap.app` → Reverse proxy (Nginx/Traefik/Caddy) route theo host → container tương ứng (mapping shopname ↔ containerId).
 - **Preview:** Có thể dùng `preview.aimap.app/sites/:siteId` (proxy tới container) hoặc port riêng per container; dashboard iframe trỏ URL đó.
 - **Custom domain sau:** Proxy nhận request theo Host header; map custom domain → shopId → cùng container.

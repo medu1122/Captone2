@@ -33,6 +33,34 @@ isProject: false
 | **Lưu trữ ảnh / web**  | Ảnh: object storage (shops/:id/assets/). Source web: config trong DB; output trong container; snapshot optional trong object storage. | Architecture, Bước 5f                 |
 | **Đa ngôn ngữ (i18n)** | Hệ thống cho phép đổi ngôn ngữ giao diện: **Tiếng Việt** và **English**; ưu tiên lưu trong user_profiles.locale (vi \| en). | Bước 5g                              |
 
+---
+
+## 2b. Hai vùng dữ liệu (Data Zones)
+
+Hệ thống tách rõ **hai vùng dữ liệu**: (1) **Centralized** – nguồn gốc, quản lý; (2) **Per-shop Docker** – bản runtime tự chứa web + ảnh + content để serve.
+
+```mermaid
+flowchart LR
+  subgraph central [Vùng 1: Centralized - Source of truth]
+    DB[(Database\nPostgreSQL)]
+    OBJ[Object Storage\nshops/:id/assets/]
+  end
+
+  subgraph container [Vùng 2: Per-shop Docker - Runtime]
+    D1[Shop 1 Container\nHTML + ảnh + content]
+    D2[Shop 2 Container\nHTML + ảnh + content]
+  end
+
+  central -->|"deploy: copy + render"| container
+```
+
+| Vùng | Thành phần | Nội dung |
+|------|------------|----------|
+| **Centralized** | Database | logins, user_profiles, shops, sites (config_json), assets (metadata), credit_transactions, payments, site_deployments, activity_logs, … |
+| **Centralized** | Object Storage | File ảnh (logo, banner, post) tại `shops/:shopId/assets/`; snapshot web (optional). |
+| **Per-shop Docker** | Container filesystem | HTML/CSS/JS đã render; **bản copy ảnh** dùng cho website shop đó; static content. Nginx serve trực tiếp, không gọi ra ngoài. |
+
+**Luồng deploy:** Backend đọc config từ DB + file ảnh từ Object Storage → render HTML → **copy ảnh + HTML vào container** của shop → container tự đủ, user truy cập subdomain chỉ cần container.
 
 ---
 
@@ -120,8 +148,8 @@ Thêm bảng **prompt_templates** (kho prompt của hệ thống) cho AI image/c
 
 ### Bước 5f: Lưu trữ ảnh và source web – vị trí vật lý
 
-- **Ảnh (logo, banner, post):** Metadata trong bảng **assets** (storage_path_or_url, mime_type). File vật lý lưu ở **object storage** (S3, MinIO hoặc thư mục local): prefix **shops/:shopId/assets/** hoặc **users/:userId/assets/**. URL trả về cho frontend: backend generate signed URL (nếu S3/MinIO) hoặc serve qua route static (nếu local). Ghi rõ trong Design: "Ảnh: DB lưu metadata (assets); file lưu object storage tại shops/:shopId/assets/."
-- **Source web (HTML/static đã render):** Config nguồn trong **sites.config_json**. Output render (HTML, CSS, JS) được đẩy vào **Docker container** của shop (volume mount hoặc copy vào container khi build/deploy) — đây là "source web" đang chạy. Không lưu full HTML vào DB. Tùy chọn backup: lưu snapshot HTML vào object storage **shops/:shopId/site_snapshots/:timestamp/** (file index.html + assets) khi deploy thành công để rollback hoặc audit. Ghi rõ trong Design: "Source web: config trong sites.config_json; output render trong container của shop; backup snapshot (optional) trong object storage shop_snapshots."
+- **Ảnh (logo, banner, post):** Metadata trong bảng **assets** (storage_path_or_url, mime_type). File vật lý lưu ở **object storage** (S3, MinIO hoặc thư mục local): prefix **shops/:shopId/assets/** hoặc **users/:userId/assets/**. Khi **deploy**, backend **copy ảnh cần thiết** (theo config site) vào Docker container của shop → container tự chứa đủ ảnh để nginx serve, không gọi ra Object Storage lúc runtime. URL trả về cho dashboard/thư viện: backend generate signed URL hoặc serve qua route static.
+- **Source web (HTML/static đã render):** Config nguồn trong **sites.config_json**. Output render (HTML, CSS, JS) + **bản copy ảnh** được đẩy vào **Docker container** của shop (volume mount hoặc copy khi build/deploy) — mỗi shop = một bó (web + ảnh + content) độc lập. Không lưu full HTML vào DB. Tùy chọn backup: lưu snapshot HTML vào object storage **shops/:shopId/site_snapshots/:timestamp/** khi deploy thành công để rollback hoặc audit.
 
 ### Bước 5g: Đa ngôn ngữ – Tiếng Việt và English
 
@@ -144,6 +172,8 @@ Hệ thống cho phép người dùng **đổi ngôn ngữ giao diện** giữa 
 ---
 
 ## 5. Sơ đồ quan hệ (minh họa)
+
+Các bảng dưới đây thuộc **vùng Centralized** (Database). Vùng Per-shop Docker không có schema DB mà chỉ chứa file tĩnh (web + ảnh đã copy), xem mục **2b**.
 
 ```mermaid
 erDiagram
