@@ -23,7 +23,7 @@
 
 ---
 
-## Sprint 2 – AI Automation & Facebook (08-Mar → 28-Mar)
+## Sprint 2 – AI Automation & Facebook (15-Mar → 04-Apr)
 
 | ID | Product Backlog Item |
 |----|----------------------|
@@ -48,7 +48,7 @@
 
 ---
 
-## Sprint 3 – Website Builder, Deploy & Operations (29-Mar → 18-Apr)
+## Sprint 3 – Website Builder, Deploy & Operations (12-Apr → 02-May)
 
 | ID | Product Backlog Item |
 |----|----------------------|

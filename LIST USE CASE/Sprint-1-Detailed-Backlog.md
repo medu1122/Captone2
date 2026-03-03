@@ -234,6 +234,22 @@
 
 ---
 
+## Thời gian các công việc lớn (Sprint 1: 15-Feb-2026 → 07-Mar-2026)
+
+**Quy ước:** 1 point = 1 giờ; ước lượng ngày làm việc dựa trên phân công song song (nhiều thành viên). Sprint 1 = 3 tuần (~15 ngày làm việc).
+
+| Công việc lớn | Nội dung chính | Points | Số ngày (ước lượng) | Ngày bắt đầu | Ngày kết thúc |
+|---------------|----------------|--------|----------------------|--------------|---------------|
+| **E0 – PM/PO & Điều phối** | Kick-off, DoD, refinement, review prep, báo cáo | 11 | Suốt sprint | 15-Feb-2026 | 07-Mar-2026 |
+| **E1 – Backend & Database** | P1.1 Backend + DB config, P1.2 Env, Migrations (users, sites, credits) | 21 | 3 ngày | 15-Feb-2026 | 19-Feb-2026 |
+| **E2 – Authentication & User** | P1.3 Register, P1.4 Login, P1.5 Logout, P1.6 Profile, P1.7 Admin users, Protected routes | 50 | 5 ngày | 20-Feb-2026 | 26-Feb-2026 |
+| **E3 – Credit & Payment** | P1.8 Balance, P1.10 Deduct/add credit, P1.9 Payment gateway, P1.11/P1.12 Transactions (user + admin) | 44 | 4 ngày | 27-Feb-2026 | 02-Mar-2026 |
+| **Store & Lib** | P1.13 Enter/save store, P1.14 Edit store, P1.15 LLM + Image API + prompt builder (lib) | 28 | 3 ngày | 03-Mar-2026 | 07-Mar-2026 |
+
+**Lưu ý:** E2 và E3 có thể chồng lấn nhẹ (ví dụ Credit backend bắt đầu khi Auth gần xong). E0 chạy song song với toàn bộ sprint.
+
+---
+
 **Ghi chú phân công:**
 
 - **Dao:** Kiến trúc backend, DB logic, credit service, auth strategy (JWT/session), lib LLM/Image/promptBuilder.
