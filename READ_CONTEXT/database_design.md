@@ -1,15 +1,50 @@
 ---
 name: Database Design Analysis
-overview: "Kế hoạch thiết kế database AIMAP toàn hệ thống: tách logins/user_profiles, mở rộng shop, log từng công đoạn web, hỗ trợ admin (thu nhập, hoạt động, trạng thái), kho prompt_templates, lưu trữ ảnh và source web; schema Sprint 1–3, ER, migrations."
+overview: "Thiết kế database AIMAP toàn hệ thống: tách logins/user_profiles, mở rộng shop, log từng công đoạn web, admin, kho prompt_templates, lưu trữ ảnh và source web; schema Sprint 1–3, ER, migrations. Tài liệu đọc tham chiếu cho dev và prompt."
 todos: []
 isProject: false
 ---
 
-# Kế hoạch: Thiết kế phân tích hệ thống để làm Database
+# AIMAP – Thiết kế Database & Tài liệu đọc tham chiếu
+
+**AIMAP** = *AI-Powered Marketing Automation Platform for Small Businesses*
+
+Tài liệu này là **nguồn tham chiếu chính** cho thiết kế database của hệ thống AIMAP: entities, quan hệ, schema chi tiết (Sprint 1–3), hai vùng dữ liệu (Centralized vs Per-shop Docker), và danh sách migrations. Dùng cho dev implement và cho prompt/context khi làm backend, migrations hoặc tích hợp AI (kho prompt, assets theo model).
+
+**Tài liệu liên quan (READ_CONTEXT):**
+
+| File | Nội dung |
+|------|----------|
+| [AIMAP-Architecture-VN.md](AIMAP-Architecture-VN.md) / [AIMAP-Architecture-EN.md](AIMAP-Architecture-EN.md) | Kiến trúc tổng thể, Storage Layer, Hosting (1 shop = 1 Docker), Data Flow |
+| [AIMAP-Quick-ReadVN.md](AIMAP-Quick-ReadVN.md) / [AIMAP-Quick-Read-EN.md](AIMAP-Quick-Read-EN.md) | Chức năng, lợi ích người dùng, điểm nổi bật |
+| [AIMAP-3-Image-ModelsAI-VN.md](AIMAP-3-Image-ModelsAI-VN.md) | 3 model tạo ảnh (Imagen, DALL·E 3, FLUX), luồng Prompt Builder → Image API Client, metadata `model_source` cho assets |
+
+---
+
+## Bảng đọc nhanh (Quick reference – bảng theo Sprint)
+
+| Sprint | Bảng | Mục đích chính |
+|--------|------|-----------------|
+| **1** | logins | Tài khoản đăng nhập (email, password_hash, role, status) |
+| **1** | user_profiles | Thông tin cá nhân (name, phone, locale i18n, …); FK từ shops, credit, payment |
+| **1** | shops | Cửa hàng (mở rộng: address, social_links, opening_hours, logo_url, …) |
+| **1** | sites | Website: config_json, slug, shop_id, status (draft/deployed) |
+| **1** | credit_transactions | Giao dịch credit (amount, type, reference_type, reference_id) |
+| **1** | payments | Thanh toán nạp credit (gateway, gateway_txn_id, status) |
+| **2** | assets | Metadata ảnh (logo, banner, post); storage_path_or_url; metadata.model_source (imagen \| dall-e-3 \| flux) |
+| **2** | facebook_page_tokens | Token Facebook Page (OAuth, Meta Graph API) |
+| **2** | marketing_content | Nội dung AI (ad_post, product_description, caption_hashtag) |
+| **2** | pipeline_runs | Chạy pipeline (branding → content → visual → …); steps JSONB |
+| **2** | prompt_templates | Kho prompt hệ thống (logo, banner, post, …); dùng bởi Prompt Builder + 3 model ảnh |
+| **3** | conversation_messages | Lịch sử chỉnh website bằng prompt (site_id, role, content) |
+| **3** | site_deployments | Deploy: container_id, subdomain, status; 1 site → 1 container |
+| **3** | activity_logs | Log từng công đoạn (create_site, edit_site_prompt, build_site, deploy_site); severity, details JSONB |
+
+---
 
 ## 1. Mục tiêu giai đoạn
 
-- **Đầu vào:** Yêu cầu từ [AIMAP-Architecture-VN.md](d:\CAPTONE2\testKhaThi\READ_CONTEXT\AIMAP-Architecture-VN.md), [Product-Backlog.md](d:\CAPTONE2\testKhaThi\LIST USE CASE\Product-Backlog.md), [Sprint-1-Detailed-Backlog.md](d:\CAPTONE2\testKhaThi\LIST USE CASE\Sprint-1-Detailed-Backlog.md); **Sprint 2** P2.1–P2.18 (assets, content, pipeline, Facebook).
+- **Đầu vào:** Yêu cầu từ [AIMAP-Architecture-VN.md](AIMAP-Architecture-VN.md), [Product-Backlog.md](../LIST%20USE%20CASE/Product-Backlog.md), [Sprint-1-Detailed-Backlog.md](../LIST%20USE%20CASE/Sprint-1-Detailed-Backlog.md); **Sprint 2** P2.1–P2.18 (assets, content, pipeline, Facebook).
 - **Đầu ra:** Một tài liệu thiết kế database thống nhất cho **toàn bộ hệ thống** (entities, ER, schema, ràng buộc) và căn cứ để viết migrations cho **Sprint 1**, **Sprint 2** và **Sprint 3**.
 
 ---
@@ -26,7 +61,7 @@ isProject: false
 | **Credit**             | Balance = SUM(amount); từng giao dịch: user_id, amount (+/-), type, ref (payment_id hoặc action)                                      | P1.8–P1.12, Architecture              |
 | **Payment**            | Giao dịch nạp tiền: amount_money, credits, gateway, gateway_txn_id, status, callback_data                                             | P1.9, Architecture                    |
 | **Facebook**           | Page Access Token (hoặc link tới user/shop), refresh, page_id (Sprint 2)                                                              | P2.15–P2.18                           |
-| **Assets**             | Metadata ảnh (logo, banner, post): url/path, type, user/shop, tên (Sprint 2; file lưu object storage)                                 | Architecture, P2.3, P2.4              |
+| **Assets**             | Metadata ảnh (logo, banner, post): url/path, type, user/shop, tên; **model_source** (imagen \| dall-e-3 \| flux) cho ảnh AI sinh (Sprint 2; file lưu object storage) | Architecture, P2.3, P2.4, [AIMAP-3-Image-ModelsAI-VN](AIMAP-3-Image-ModelsAI-VN.md) |
 | **Deploy / Container** | Site deployment: container_id, subdomain, status, deployed_at (Sprint 3)                                                              | P3.6, P3.8, P3.9, P3.10, Architecture |
 | **Activity logs**      | Nhật ký hành động (mỗi công đoạn tạo web, lỗi): action, entity, details, severity (Sprint 3)                                          | P3.11, P3.13, P3.14                   |
 | **Prompt templates**   | Kho prompt hệ thống: type, content, variables (Sprint 2)                                                                              | Prompt Builder, P2.x                  |
@@ -71,7 +106,7 @@ flowchart LR
   - `sites`: id, user_id, name, slug, config_json, created_at
   - `credit_transactions`: user_id, amount, type, ref, created_at
   Thiếu: bảng **store/shop** (P1.13, P1.14), bảng **payments** (P1.9 callback), và `sites` đang FK `user_id` trong khi kiến trúc nói **shop** → 1 site (nên có `shop_id`).
-- **[Promp_AI/database_read.md](d:\CAPTONE2\testKhaThi\Promp_AI\database_read.md):** Schema chi tiết hơn: `logins` + `user_profiles` (tách đăng nhập / profile), `shops` (products JSONB, contact_info, brand_preferences), `sites` (shop_id, user_id, config_json), `credit_transactions`, `payments`. Chưa có: `conversation_messages`, bảng Facebook tokens, bảng assets metadata.
+- **Promp_AI/database_read.md** (nếu có): Nên đồng bộ schema với tài liệu này; đủ bảng Sprint 1–3, gồm `logins`, `user_profiles`, `shops` mở rộng, `sites`, `credit_transactions`, `payments`, `assets` (có model_source), `facebook_page_tokens`, `marketing_content`, `pipeline_runs`, `prompt_templates`, `conversation_messages`, `site_deployments`, `activity_logs`.
 
 **Đề xuất:** Thống nhất trên một **System Design – Database** duy nhất cho **cả hệ thống**: **tách bảng tài khoản (logins) và thông tin cá nhân (user_profiles)** với profile mở rộng đủ chất lượng; **mở rộng thông tin shop**; thêm bảng **payments**; thiết kế đầy đủ **Sprint 2** (assets, facebook_page_tokens, marketing_content, pipeline_runs), **Sprint 3** (conversation_messages, site_deployments, activity_logs); **log từng công đoạn tạo web**; **hỗ trợ admin** (thu nhập, hoạt động, trạng thái user); **kho prompt (prompt_templates)**; làm rõ **vị trí lưu ảnh và source web** (object storage + container).
 
@@ -108,7 +143,7 @@ flowchart LR
 
 Thiết kế đầy đủ các bảng dùng trong Sprint 2 (AI Automation & Facebook), khớp P2.1–P2.18:
 
-- **assets** (metadata ảnh): id (PK), user_id (FK), shop_id (FK), type (logo | banner | cover | post), name, storage_path_or_url, mime_type, metadata (JSONB, optional: dimensions, model_used), created_at. File thật lưu object storage; bảng này cho thư viện, tái sử dụng (P2.3, P2.4, P2.11). Index (shop_id, type), (user_id, created_at).
+- **assets** (metadata ảnh): id (PK), user_id (FK), shop_id (FK), type (logo | banner | cover | post), name, storage_path_or_url, mime_type, **model_source** (VARCHAR nullable: 'imagen' | 'dall-e-3' | 'flux' — nguồn model tạo ảnh, xem [AIMAP-3-Image-ModelsAI-VN](AIMAP-3-Image-ModelsAI-VN.md)), metadata (JSONB, optional: dimensions, prompt_ref), created_at. File thật lưu object storage; bảng này cho thư viện, tái sử dụng (P2.3, P2.4, P2.11). Index (shop_id, type), (user_id, created_at).
 - **facebook_page_tokens:** id (PK), user_id (FK), shop_id (FK, nullable), page_id (Meta Page ID), page_name, access_token (encrypted hoặc ref secret store), refresh_token (nếu có), expires_at, created_at, updated_at. Unique (user_id, shop_id, page_id) hoặc 1 page per shop. Cho P2.15–P2.18 (connect, save/refresh token, disconnect).
 - **marketing_content** (nội dung AI sinh): id (PK), shop_id (FK), type (ad_post | product_description | caption_hashtag), content (JSONB hoặc TEXT), source_prompt (TEXT, optional), created_at, updated_at. Để lưu bài quảng cáo, mô tả SP, caption/hashtag (P2.5–P2.8 view/edit). Index (shop_id, type).
 - **pipeline_runs** (tùy chọn): id (PK), shop_id (FK), user_id (FK), status (running | completed | failed), steps (JSONB: [{ step, status, result_ref }]), started_at, finished_at, error_message (TEXT). Cho P2.12, P2.14 (chạy pipeline Store → Branding → Content → Visual Post; xem trạng thái từng bước). Trừ credit vẫn dùng credit_transactions với reference_type = 'pipeline_run', reference_id = pipeline_runs.id (và có thể từng bước nhỏ trong description hoặc bảng con).
@@ -144,7 +179,7 @@ Không cần thêm bảng riêng cho admin; cần đảm bảo **activity_logs**
 
 Thêm bảng **prompt_templates** (kho prompt của hệ thống) cho AI image/content generation:
 
-- **prompt_templates:** id (PK), type (VARCHAR: logo | banner | cover | post | product_description | caption | …), name (VARCHAR, mô tả ngắn), content (TEXT: nội dung prompt, có placeholder như {{shop_name}}, {{industry}}), variables (JSONB: danh sách biến có thể thay thế), is_system (boolean: true = prompt hệ thống, false = có thể do user tạo sau), is_active (boolean), sort_order (integer, optional), created_at, updated_at. Index (type, is_active). Backend/Prompt Builder đọc theo type + is_active để build prompt cuối trước khi gọi API. Migration: Sprint 2 (hoặc Sprint 1 nếu lib prompt builder dùng sớm).
+- **prompt_templates:** id (PK), type (VARCHAR: logo | banner | cover | post | product_description | caption | …), name (VARCHAR, mô tả ngắn), content (TEXT: nội dung prompt, có placeholder như {{shop_name}}, {{industry}}), variables (JSONB: danh sách biến có thể thay thế), is_system (boolean: true = prompt hệ thống, false = có thể do user tạo sau), is_active (boolean), sort_order (integer, optional), created_at, updated_at. Index (type, is_active). Backend **Prompt Builder** đọc theo type + is_active để build prompt cuối trước khi gọi **Image API Client** (3 model: Imagen, DALL·E 3, FLUX — xem [AIMAP-3-Image-ModelsAI-VN](AIMAP-3-Image-ModelsAI-VN.md)). Migration: Sprint 2 (hoặc Sprint 1 nếu lib prompt builder dùng sớm).
 
 ### Bước 5f: Lưu trữ ảnh và source web – vị trí vật lý
 
@@ -165,9 +200,9 @@ Hệ thống cho phép người dùng **đổi ngôn ngữ giao diện** giữa 
 - Viết **một file thiết kế** (ví dụ `READ_CONTEXT/AIMAP-Database-Design.md`): mục đích, phạm vi; **logins + user_profiles** (tách tài khoản / thông tin cá nhân), **shops** mở rộng; schema **Sprint 1, 2, 3** (gồm **prompt_templates**, **activity_logs** với severity và log từng công đoạn web); ràng buộc; **vị trí lưu ảnh** (object storage) và **source web** (config trong DB, output trong container, snapshot optional).
 - Cập nhật **Sprint-1-Detailed-Backlog** (nếu cần): thêm migration bảng **stores/shops** và **payments** nếu hiện chỉ có users, sites, credit_transactions; đồng bộ tên cột với thiết kế (ví dụ reference_type, reference_id thay vì ref đơn).
 
-### Bước 7: Đồng bộ với database_read.md
+### Bước 7: Đồng bộ với database_read (nếu có file riêng)
 
-- Quyết định: **database_read.md** sẽ là “read reference” rút gọn từ AIMAP-Database-Design, hay Design là nguồn gốc và database_read chỉ copy schema chính. Đề xuất: Design là nguồn gốc; sau khi hoàn thành Design, cập nhật database_read.md cho khớp: logins, user_profiles, shops mở rộng, prompt_templates, activity_logs (severity), và ghi rõ lưu trữ ảnh (object storage) + source web (container + optional snapshot).
+- **Nguồn tham chiếu chính:** File này (**database_design.md**) là tài liệu thiết kế và đọc tham chiếu chính. Nếu có file riêng (ví dụ Promp_AI/database_read.md) thì đồng bộ với Design, gồm “read reference”  logins, user_profiles, shops mở rộng, assets (có model_source), prompt_templates, activity_logs (severity), lưu trữ ảnh (object storage) + source web (container + optional snapshot).
 
 ---
 
@@ -277,6 +312,7 @@ erDiagram
     string name
     string storage_path_or_url
     string mime_type
+    string model_source
     jsonb metadata
     timestamp created_at
   }
@@ -378,7 +414,7 @@ erDiagram
 | **Sprint 1 migrations**                                  | users, shops, sites, credit_transactions, payments; thống nhất tên cột (reference_type, reference_id); sites có shop_id.                                      |
 | **Sprint 2 migrations**                                  | assets, facebook_page_tokens, marketing_content, pipeline_runs (nếu dùng), **prompt_templates**; DDL hoặc migration script trong Design / thư mục migrations. |
 | **Sprint 3 migrations**                                  | conversation_messages, site_deployments, activity_logs; DDL hoặc migration script trong Design / thư mục migrations.                                          |
-| **Cập nhật database_read.md**                            | Đồng bộ với Design (schema đọc nhanh cho dev/prompt), gồm bảng **Sprint 1, Sprint 2 và Sprint 3**.                                                            |
+| **Tài liệu đọc DB (database_design.md)**                 | File này là tài liệu đọc tham chiếu chính; đồng bộ schema với migrations. Nếu có file riêng `database_read.md` (ví dụ Promp_AI/) thì sync từ Design (bảng Sprint 1, 2, 3, model_source trong assets). |
 
 
 ---
@@ -395,3 +431,11 @@ erDiagram
 8. Cập nhật Promp_AI/database_read.md theo bản Design đã chốt (**Sprint 1 + Sprint 2 + Sprint 3**).
 
 Sau giai đoạn này, thiết kế database **hoàn thiện cho cả hệ thống**; team implement migrations Sprint 1 ngay, Sprint 2 khi bắt đầu Sprint 2, Sprint 3 khi bắt đầu Sprint 3 theo Design.
+
+---
+
+## Tài liệu tham chiếu (READ_CONTEXT)
+
+- **Kiến trúc:** [AIMAP-Architecture-VN.md](AIMAP-Architecture-VN.md), [AIMAP-Architecture-EN.md](AIMAP-Architecture-EN.md) — Storage Layer, hai vùng dữ liệu (Centralized / Per-shop Docker), Data Flow.
+- **Đọc nhanh:** [AIMAP-Quick-ReadVN.md](AIMAP-Quick-ReadVN.md), [AIMAP-Quick-Read-EN.md](AIMAP-Quick-Read-EN.md) — chức năng, lợi ích, điểm nổi bật.
+- **3 model ảnh:** [AIMAP-3-Image-ModelsAI-VN.md](AIMAP-3-Image-ModelsAI-VN.md) — Imagen, DALL·E 3, FLUX; Prompt Builder → Image API Client; lưu **model_source** trong bảng **assets**.
