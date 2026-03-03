@@ -31,11 +31,12 @@ Tài liệu này là **nguồn tham chiếu chính** cho thiết kế database c
 | **1** | sites | Website: config_json, slug, shop_id, status (draft/deployed) |
 | **1** | credit_transactions | Giao dịch credit (amount, type, reference_type, reference_id) |
 | **1** | payments | Thanh toán nạp credit (gateway, gateway_txn_id, status) |
-| **2** | assets | Metadata ảnh (logo, banner, post); storage_path_or_url; metadata.model_source (imagen \| dall-e-3 \| flux) |
+| **2** | assets | Metadata ảnh; model_source (imagen \| dall-e-3 \| flux); **prompt_template_id** + **user_prompt** (prompt gốc + bổ sung) |
 | **2** | facebook_page_tokens | Token Facebook Page (OAuth, Meta Graph API) |
-| **2** | marketing_content | Nội dung AI (ad_post, product_description, caption_hashtag) |
+| **2** | marketing_content | Nội dung AI (ad_post, product_description, caption_hashtag); **prompt_template_id** + **user_prompt** |
 | **2** | pipeline_runs | Chạy pipeline (branding → content → visual → …); steps JSONB |
-| **2** | prompt_templates | Kho prompt hệ thống (logo, banner, post, …); dùng bởi Prompt Builder + 3 model ảnh |
+| **2** | prompt_templates | Kho prompt hệ thống gắn **tag ngành hàng** + **category** (image/content); Prompt Builder lọc theo tag → gen 4–5 ảnh/content cho user chọn |
+| **2** | industry_tag_mappings | Map ngành hàng (shops.industry) → tag(s) cho prompt (40 tag, seed data) |
 | **3** | conversation_messages | Lịch sử chỉnh website bằng prompt (site_id, role, content) |
 | **3** | site_deployments | Deploy: container_id, subdomain, status; 1 site → 1 container |
 | **3** | activity_logs | Log từng công đoạn (create_site, edit_site_prompt, build_site, deploy_site); severity, details JSONB |
@@ -143,9 +144,9 @@ flowchart LR
 
 Thiết kế đầy đủ các bảng dùng trong Sprint 2 (AI Automation & Facebook), khớp P2.1–P2.18:
 
-- **assets** (metadata ảnh): id (PK), user_id (FK), shop_id (FK), type (logo | banner | cover | post), name, storage_path_or_url, mime_type, **model_source** (VARCHAR nullable: 'imagen' | 'dall-e-3' | 'flux' — nguồn model tạo ảnh, xem [AIMAP-3-Image-ModelsAI-VN](AIMAP-3-Image-ModelsAI-VN.md)), metadata (JSONB, optional: dimensions, prompt_ref), created_at. File thật lưu object storage; bảng này cho thư viện, tái sử dụng (P2.3, P2.4, P2.11). Index (shop_id, type), (user_id, created_at).
+- **assets** (metadata ảnh): id (PK), user_id (FK), shop_id (FK), type (logo | banner | cover | post), name, storage_path_or_url, mime_type, **model_source** (VARCHAR nullable: 'imagen' | 'dall-e-3' | 'flux'), **prompt_template_id** (FK → prompt_templates, nullable — prompt gốc đã dùng), **user_prompt** (TEXT nullable — prompt bổ sung của user), metadata (JSONB), created_at. File thật lưu object storage; bảng này cho thư viện, tái sử dụng (P2.3, P2.4, P2.11). Index (shop_id, type), (user_id, created_at).
 - **facebook_page_tokens:** id (PK), user_id (FK), shop_id (FK, nullable), page_id (Meta Page ID), page_name, access_token (encrypted hoặc ref secret store), refresh_token (nếu có), expires_at, created_at, updated_at. Unique (user_id, shop_id, page_id) hoặc 1 page per shop. Cho P2.15–P2.18 (connect, save/refresh token, disconnect).
-- **marketing_content** (nội dung AI sinh): id (PK), shop_id (FK), type (ad_post | product_description | caption_hashtag), content (JSONB hoặc TEXT), source_prompt (TEXT, optional), created_at, updated_at. Để lưu bài quảng cáo, mô tả SP, caption/hashtag (P2.5–P2.8 view/edit). Index (shop_id, type).
+- **marketing_content** (nội dung AI sinh): id (PK), shop_id (FK), type (ad_post | product_description | caption_hashtag), content (JSONB hoặc TEXT), source_prompt (TEXT, optional), **prompt_template_id** (FK → prompt_templates, nullable — prompt gốc đã dùng), **user_prompt** (TEXT nullable — prompt bổ sung của user), created_at, updated_at. Để lưu bài quảng cáo, mô tả SP, caption/hashtag (P2.5–P2.8 view/edit). Index (shop_id, type).
 - **pipeline_runs** (tùy chọn): id (PK), shop_id (FK), user_id (FK), status (running | completed | failed), steps (JSONB: [{ step, status, result_ref }]), started_at, finished_at, error_message (TEXT). Cho P2.12, P2.14 (chạy pipeline Store → Branding → Content → Visual Post; xem trạng thái từng bước). Trừ credit vẫn dùng credit_transactions với reference_type = 'pipeline_run', reference_id = pipeline_runs.id (và có thể từng bước nhỏ trong description hoặc bảng con).
 
 Ràng buộc Sprint 2: asset.shop_id thuộc user; facebook_page_tokens một page_id không trùng cho cùng shop; pipeline_runs.steps có thể tham chiếu tới assets.id hoặc marketing_content.id.
@@ -175,11 +176,99 @@ Database đã hỗ trợ đầy đủ chức năng admin; cần ghi rõ trong De
 
 Không cần thêm bảng riêng cho admin; cần đảm bảo **activity_logs** ghi đủ hành động và **logins.status** có sẵn.
 
-### Bước 5e: Kho lưu trữ prompt (prompt_templates)
+### Bước 5e: Kho prompt theo tag ngành hàng (prompt_templates + industry_tag_mappings)
 
-Thêm bảng **prompt_templates** (kho prompt của hệ thống) cho AI image/content generation:
+Hệ thống dùng **kho prompt** được gắn **tag ngành hàng** để tự động chọn prompt phù hợp với loại shop, sinh ra 4–5 ảnh/content cho user chọn. User cũng có thể **bổ sung prompt riêng** để chỉnh sửa.
 
-- **prompt_templates:** id (PK), type (VARCHAR: logo | banner | cover | post | product_description | caption | …), name (VARCHAR, mô tả ngắn), content (TEXT: nội dung prompt, có placeholder như {{shop_name}}, {{industry}}), variables (JSONB: danh sách biến có thể thay thế), is_system (boolean: true = prompt hệ thống, false = có thể do user tạo sau), is_active (boolean), sort_order (integer, optional), created_at, updated_at. Index (type, is_active). Backend **Prompt Builder** đọc theo type + is_active để build prompt cuối trước khi gọi **Image API Client** (3 model: Imagen, DALL·E 3, FLUX — xem [AIMAP-3-Image-ModelsAI-VN](AIMAP-3-Image-ModelsAI-VN.md)). Migration: Sprint 2 (hoặc Sprint 1 nếu lib prompt builder dùng sớm).
+#### 5e.1 Bảng prompt_templates (mở rộng)
+
+- **prompt_templates:** id (PK), type (VARCHAR: logo | banner | cover | post | product_description | caption | website_section | general), **category** (VARCHAR: 'image' | 'content' — phân biệt prompt tạo ảnh vs viết nội dung), name (VARCHAR), content (TEXT: nội dung prompt, có placeholder như {{shop_name}}, {{industry}}, {{products}}), variables (JSONB), **tags** (JSONB array: danh sách tag ngành hàng, ví dụ `["DOUONG", "DOAN"]`), is_system (boolean), is_active (boolean), sort_order (integer), created_at, updated_at.
+- **Index:** (type, category, is_active), GIN index trên tags cho query `@>`.
+- **Query mẫu:** `SELECT * FROM prompt_templates WHERE tags @> '["DOUONG"]' AND type = 'logo' AND category = 'image' AND is_active = TRUE ORDER BY sort_order LIMIT 5;`
+
+#### 5e.2 Bảng industry_tag_mappings (map ngành hàng → tag)
+
+Để hệ thống tự động map `shops.industry` sang tag(s):
+
+- **industry_tag_mappings:** id (PK), industry (VARCHAR UNIQUE — tên ngành hàng, ví dụ "Đồ uống"), tags (JSONB array: `["DOUONG"]`), created_at.
+- Backend khi user tạo shop → lấy `shops.industry` → query `industry_tag_mappings` → lấy tags → dùng để filter `prompt_templates`.
+
+#### 5e.3 Danh sách 40 tag ngành hàng
+
+| # | Tag | Ngành hàng / Mô tả |
+|---|-----|---------------------|
+| 1 | `DOUONG` | Đồ uống, cafe, trà sữa, nước ép, smoothie |
+| 2 | `DOAN` | Đồ ăn, nhà hàng, quán ăn, bakery, fastfood |
+| 3 | `AOQUAN` | Quần áo, thời trang nam/nữ |
+| 4 | `GIAYDEP` | Giày dép, sneaker, sandal |
+| 5 | `PHUKIEN` | Phụ kiện thời trang: túi xách, mũ, kính, trang sức |
+| 6 | `DULICH` | Du lịch, tour, dịch vụ lữ hành |
+| 7 | `BOOKING` | Đặt phòng, khách sạn, homestay, resort |
+| 8 | `GIAODUC` | Giáo dục, trung tâm, khóa học, luyện thi |
+| 9 | `SUCKHOE` | Sức khỏe, phòng khám, dược phẩm |
+| 10 | `SPA` | Spa, massage, chăm sóc cơ thể |
+| 11 | `GYM` | Gym, fitness, yoga, pilates |
+| 12 | `MYPHAM` | Mỹ phẩm, skincare, makeup, làm đẹp |
+| 13 | `TOCHUC` | Tóc, barbershop, salon tóc |
+| 14 | `CONGNGHE` | Công nghệ, điện tử, gadget, phần mềm |
+| 15 | `NOITHAT` | Nội thất, trang trí nhà, decor |
+| 16 | `XAYDUNG` | Xây dựng, vật liệu, kiến trúc |
+| 17 | `BATDONGSAN` | Bất động sản, môi giới, cho thuê nhà |
+| 18 | `OTO` | Ô tô, xe hơi, đại lý, phụ tùng |
+| 19 | `XEMAY` | Xe máy, xe điện, phụ kiện xe |
+| 20 | `THUYCUNG` | Thú cưng, pet shop, pet care, thú y |
+| 21 | `HOAQUA` | Hoa quả, trái cây, nông sản sạch |
+| 22 | `HOA` | Hoa tươi, shop hoa, quà tặng hoa |
+| 23 | `SUKIEN` | Tổ chức sự kiện, wedding, party, hội nghị |
+| 24 | `NHIEPAN` | Nhiếp ảnh, studio, chụp hình, quay phim |
+| 25 | `INANUONG` | In ấn, thiết kế đồ họa, bao bì |
+| 26 | `VANTAI` | Vận tải, giao hàng, logistics, chuyển phát |
+| 27 | `TAICHINH` | Tài chính, bảo hiểm, ngân hàng, đầu tư |
+| 28 | `LUATPHAP` | Luật, tư vấn pháp lý, kế toán |
+| 29 | `NONGSAN` | Nông sản, thực phẩm sạch, organic |
+| 30 | `THUISAN` | Thủy hải sản, hải sản tươi sống |
+| 31 | `TREEM` | Trẻ em, mẹ & bé, đồ chơi, quần áo trẻ em |
+| 32 | `THETHAO` | Thể thao, dụng cụ thể thao, sportswear |
+| 33 | `GAME` | Game, esports, gaming gear |
+| 34 | `SACH` | Sách, văn phòng phẩm, nhà sách |
+| 35 | `DIENGIA` | Điện gia dụng, thiết bị nhà bếp, gia dụng |
+| 36 | `THUOCLA` | Vape, shisha, phụ kiện (nếu hợp pháp) |
+| 37 | `NHACCU` | Nhạc cụ, âm nhạc, studio thu âm |
+| 38 | `HANDMADE` | Handmade, thủ công mỹ nghệ, DIY |
+| 39 | `NGOAINGU` | Ngoại ngữ, trung tâm Anh/Nhật/Hàn/Trung |
+| 40 | `GENERAL` | Dùng chung cho mọi ngành (prompt tổng quát) |
+
+> Danh sách mở rộng được: chỉ cần INSERT thêm vào `industry_tag_mappings` và thêm tag vào `prompt_templates.tags`, không cần sửa schema.
+
+#### 5e.4 Luồng hoạt động prompt → ảnh/content
+
+```
+1. User tạo shop (industry: "Đồ uống")
+   → Backend: query industry_tag_mappings WHERE industry = 'Đồ uống' → tags: ['DOUONG']
+
+2. User yêu cầu tạo logo
+   → Backend: query prompt_templates
+     WHERE tags @> '["DOUONG"]' AND type = 'logo' AND category = 'image' AND is_active
+     → Lấy 4–5 prompt khác nhau (kèm thêm prompt có tag GENERAL nếu cần)
+   → Gọi 3 model ảnh (Imagen, DALL·E 3, FLUX) với từng prompt
+   → Trả về 4–5 ảnh → Lưu assets (prompt_template_id, model_source) → User chọn
+
+3. User muốn chỉnh ảnh đã chọn
+   → User nhập thêm prompt: "Thêm lá bạc hà, đổi nền sang xanh lá"
+   → Backend: lấy prompt gốc (từ prompt_template_id) + kẹp user_prompt vào cuối
+   → Gọi lại model → trả ảnh mới → Lưu assets (prompt_template_id + user_prompt)
+
+4. Tương tự cho content (ad_post, caption, product_description)
+   → Query prompt_templates WHERE category = 'content' AND tags @> ...
+   → Gen 4–5 bản content → User chọn → User chỉnh bằng user_prompt
+```
+
+#### 5e.5 Liên kết với assets & marketing_content
+
+- **assets:** thêm cột **prompt_template_id** (FK → prompt_templates, nullable) và **user_prompt** (TEXT, nullable) — để biết ảnh gen từ prompt nào và user đã bổ sung gì.
+- **marketing_content:** thêm cột **prompt_template_id** (FK → prompt_templates, nullable) và **user_prompt** (TEXT, nullable) — tương tự cho content.
+
+Migration: Sprint 2.
 
 ### Bước 5f: Lưu trữ ảnh và source web – vị trí vật lý
 
@@ -313,6 +402,8 @@ erDiagram
     string storage_path_or_url
     string mime_type
     string model_source
+    uuid prompt_template_id FK
+    text user_prompt
     jsonb metadata
     timestamp created_at
   }
@@ -334,6 +425,8 @@ erDiagram
     string type
     jsonb content
     text source_prompt
+    uuid prompt_template_id FK
+    text user_prompt
     timestamp created_at
     timestamp updated_at
   }
@@ -381,14 +474,22 @@ erDiagram
   prompt_templates {
     uuid id PK
     string type
+    string category
     string name
     text content
     jsonb variables
+    jsonb tags
     boolean is_system
     boolean is_active
     int sort_order
     timestamp created_at
     timestamp updated_at
+  }
+  industry_tag_mappings {
+    uuid id PK
+    string industry UK
+    jsonb tags
+    timestamp created_at
   }
   user_profiles ||--o{ activity_logs : has
   shops ||--o{ assets : has
@@ -396,6 +497,8 @@ erDiagram
   shops ||--o{ pipeline_runs : has
   user_profiles ||--o{ pipeline_runs : triggers
   shops ||--o| facebook_page_tokens : "page per shop"
+  prompt_templates ||--o{ assets : "used by"
+  prompt_templates ||--o{ marketing_content : "used by"
   sites ||--o{ conversation_messages : has
   sites ||--o| site_deployments : has_one
   shops ||--o| site_deployments : has_one
@@ -449,7 +552,7 @@ Sau giai đoạn này, thiết kế database **hoàn thiện cho cả hệ thố
 --        LC_CTYPE = 'en_US.UTF-8'
 --        TEMPLATE = template0;
 
--- Bật extension (chạy trong database aimap hoặc database đang dùng)
+-- Bật extension (chạy trong database postgres hoặc database đang dùng)
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 ```
@@ -620,13 +723,17 @@ CREATE TABLE assets (
     mime_type           VARCHAR(100),
     model_source        VARCHAR(30)
                             CHECK (model_source IN ('imagen', 'dall-e-3', 'flux')),
+    prompt_template_id  UUID
+                            REFERENCES prompt_templates(id) ON DELETE SET NULL,
+    user_prompt         TEXT,
     metadata            JSONB DEFAULT '{}'::jsonb,
     created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_assets_shop_id ON assets (shop_id, type);
-CREATE INDEX idx_assets_user_id ON assets (user_id, created_at);
-CREATE INDEX idx_assets_model   ON assets (model_source);
+CREATE INDEX idx_assets_shop_id  ON assets (shop_id, type);
+CREATE INDEX idx_assets_user_id  ON assets (user_id, created_at);
+CREATE INDEX idx_assets_model    ON assets (model_source);
+CREATE INDEX idx_assets_prompt   ON assets (prompt_template_id);
 
 -- 8. facebook_page_tokens (OAuth token cho Facebook Page)
 CREATE TABLE facebook_page_tokens (
@@ -651,18 +758,22 @@ CREATE INDEX idx_fb_tokens_shop_id ON facebook_page_tokens (shop_id);
 
 -- 9. marketing_content (nội dung AI sinh: bài đăng, mô tả SP, caption)
 CREATE TABLE marketing_content (
-    id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    shop_id         UUID NOT NULL
-                        REFERENCES shops(id) ON DELETE CASCADE,
-    type            VARCHAR(40) NOT NULL
-                        CHECK (type IN ('ad_post', 'product_description', 'caption_hashtag')),
-    content         JSONB NOT NULL DEFAULT '{}'::jsonb,
-    source_prompt   TEXT,
-    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    shop_id             UUID NOT NULL
+                            REFERENCES shops(id) ON DELETE CASCADE,
+    type                VARCHAR(40) NOT NULL
+                            CHECK (type IN ('ad_post', 'product_description', 'caption_hashtag')),
+    content             JSONB NOT NULL DEFAULT '{}'::jsonb,
+    source_prompt       TEXT,
+    prompt_template_id  UUID
+                            REFERENCES prompt_templates(id) ON DELETE SET NULL,
+    user_prompt         TEXT,
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE INDEX idx_mkt_content_shop_id ON marketing_content (shop_id, type);
+CREATE INDEX idx_mkt_content_prompt  ON marketing_content (prompt_template_id);
 
 -- 10. pipeline_runs (chạy pipeline automation: branding → content → visual → ...)
 CREATE TABLE pipeline_runs (
@@ -683,7 +794,7 @@ CREATE INDEX idx_pipeline_shop_id ON pipeline_runs (shop_id);
 CREATE INDEX idx_pipeline_user_id ON pipeline_runs (user_id);
 CREATE INDEX idx_pipeline_status  ON pipeline_runs (status);
 
--- 11. prompt_templates (kho prompt hệ thống cho Prompt Builder + 3 model ảnh)
+-- 11. prompt_templates (kho prompt hệ thống — gắn tag ngành hàng + category image/content)
 CREATE TABLE prompt_templates (
     id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     type            VARCHAR(50) NOT NULL
@@ -692,9 +803,12 @@ CREATE TABLE prompt_templates (
                             'product_description', 'caption',
                             'website_section', 'general'
                         )),
+    category        VARCHAR(20) NOT NULL DEFAULT 'image'
+                        CHECK (category IN ('image', 'content')),
     name            VARCHAR(255) NOT NULL,
     content         TEXT NOT NULL,
     variables       JSONB DEFAULT '[]'::jsonb,
+    tags            JSONB DEFAULT '["GENERAL"]'::jsonb,
     is_system       BOOLEAN NOT NULL DEFAULT TRUE,
     is_active       BOOLEAN NOT NULL DEFAULT TRUE,
     sort_order      INTEGER DEFAULT 0,
@@ -702,7 +816,80 @@ CREATE TABLE prompt_templates (
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_prompt_tpl_type_active ON prompt_templates (type, is_active);
+CREATE INDEX idx_prompt_tpl_type_active ON prompt_templates (type, category, is_active);
+CREATE INDEX idx_prompt_tpl_tags        ON prompt_templates USING GIN (tags);
+
+-- 12. industry_tag_mappings (map ngành hàng shop → tag cho prompt)
+CREATE TABLE industry_tag_mappings (
+    id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    industry    VARCHAR(100) NOT NULL UNIQUE,
+    tags        JSONB NOT NULL DEFAULT '[]'::jsonb,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Seed data: 40 tag ngành hàng
+INSERT INTO industry_tag_mappings (industry, tags) VALUES
+    ('Đồ uống',          '["DOUONG"]'),
+    ('Cafe',             '["DOUONG"]'),
+    ('Trà sữa',         '["DOUONG"]'),
+    ('Đồ ăn',           '["DOAN"]'),
+    ('Nhà hàng',        '["DOAN"]'),
+    ('Quán ăn',          '["DOAN"]'),
+    ('Bakery',           '["DOAN"]'),
+    ('Fastfood',         '["DOAN", "DOUONG"]'),
+    ('Quần áo',          '["AOQUAN"]'),
+    ('Thời trang',       '["AOQUAN", "PHUKIEN"]'),
+    ('Giày dép',         '["GIAYDEP"]'),
+    ('Phụ kiện',         '["PHUKIEN"]'),
+    ('Du lịch',          '["DULICH"]'),
+    ('Tour',             '["DULICH"]'),
+    ('Khách sạn',        '["BOOKING"]'),
+    ('Homestay',         '["BOOKING"]'),
+    ('Resort',           '["BOOKING", "DULICH"]'),
+    ('Giáo dục',         '["GIAODUC"]'),
+    ('Trung tâm',        '["GIAODUC"]'),
+    ('Khóa học',         '["GIAODUC"]'),
+    ('Sức khỏe',         '["SUCKHOE"]'),
+    ('Phòng khám',       '["SUCKHOE"]'),
+    ('Spa',              '["SPA"]'),
+    ('Gym',              '["GYM"]'),
+    ('Yoga',             '["GYM"]'),
+    ('Mỹ phẩm',         '["MYPHAM"]'),
+    ('Skincare',         '["MYPHAM"]'),
+    ('Salon tóc',        '["TOCHUC"]'),
+    ('Barbershop',       '["TOCHUC"]'),
+    ('Công nghệ',        '["CONGNGHE"]'),
+    ('Điện tử',          '["CONGNGHE"]'),
+    ('Nội thất',         '["NOITHAT"]'),
+    ('Xây dựng',         '["XAYDUNG"]'),
+    ('Bất động sản',     '["BATDONGSAN"]'),
+    ('Ô tô',            '["OTO"]'),
+    ('Xe máy',           '["XEMAY"]'),
+    ('Thú cưng',         '["THUYCUNG"]'),
+    ('Hoa quả',          '["HOAQUA"]'),
+    ('Hoa tươi',         '["HOA"]'),
+    ('Sự kiện',          '["SUKIEN"]'),
+    ('Wedding',          '["SUKIEN"]'),
+    ('Nhiếp ảnh',        '["NHIEPAN"]'),
+    ('Studio',           '["NHIEPAN"]'),
+    ('In ấn',            '["INANUONG"]'),
+    ('Vận tải',          '["VANTAI"]'),
+    ('Logistics',        '["VANTAI"]'),
+    ('Tài chính',        '["TAICHINH"]'),
+    ('Bảo hiểm',         '["TAICHINH"]'),
+    ('Luật',             '["LUATPHAP"]'),
+    ('Nông sản',         '["NONGSAN"]'),
+    ('Thủy hải sản',     '["THUISAN"]'),
+    ('Trẻ em',           '["TREEM"]'),
+    ('Mẹ và bé',         '["TREEM"]'),
+    ('Thể thao',         '["THETHAO"]'),
+    ('Game',             '["GAME"]'),
+    ('Sách',             '["SACH"]'),
+    ('Điện gia dụng',    '["DIENGIA"]'),
+    ('Nhạc cụ',          '["NHACCU"]'),
+    ('Handmade',         '["HANDMADE"]'),
+    ('Ngoại ngữ',        '["NGOAINGU", "GIAODUC"]'),
+    ('Khác',             '["GENERAL"]');
 ```
 
 ### 8.3 Sprint 3 — Conversation, Deploy, Activity Logs (3 bảng)
@@ -712,7 +899,7 @@ CREATE INDEX idx_prompt_tpl_type_active ON prompt_templates (type, is_active);
 -- SPRINT 3: Website Builder, Deploy & Operations
 -- ============================================================
 
--- 12. conversation_messages (lịch sử chỉnh website bằng prompt)
+-- 13. conversation_messages (lịch sử chỉnh website bằng prompt)
 CREATE TABLE conversation_messages (
     id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     site_id         UUID NOT NULL
@@ -725,7 +912,7 @@ CREATE TABLE conversation_messages (
 
 CREATE INDEX idx_conv_msg_site_id ON conversation_messages (site_id, created_at);
 
--- 13. site_deployments (deploy: 1 site → 1 container Docker)
+-- 14. site_deployments (deploy: 1 site → 1 container Docker)
 CREATE TABLE site_deployments (
     id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     site_id         UUID NOT NULL
@@ -748,7 +935,7 @@ CREATE INDEX idx_deploy_shop_id   ON site_deployments (shop_id);
 CREATE INDEX idx_deploy_subdomain ON site_deployments (subdomain);
 CREATE INDEX idx_deploy_status    ON site_deployments (status);
 
--- 14. activity_logs (log từng công đoạn: tạo web, deploy, lỗi, ...)
+-- 15. activity_logs (log từng công đoạn: tạo web, deploy, lỗi, ...)
 CREATE TABLE activity_logs (
     id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id         UUID
@@ -854,11 +1041,147 @@ ORDER BY al.created_at DESC;
 | Sprint | Bảng | Số lượng |
 |--------|------|----------|
 | **1** | `logins`, `user_profiles`, `shops`, `sites`, `credit_transactions`, `payments` | 6 bảng |
-| **2** | `assets`, `facebook_page_tokens`, `marketing_content`, `pipeline_runs`, `prompt_templates` | 5 bảng |
+| **2** | `assets`, `facebook_page_tokens`, `marketing_content`, `pipeline_runs`, `prompt_templates`, `industry_tag_mappings` | 6 bảng + seed data |
 | **3** | `conversation_messages`, `site_deployments`, `activity_logs` | 3 bảng |
 | **Util** | Trigger `updated_at`, Views (balance, revenue, error logs) | 1 function + 9 triggers + 3 views |
 
-**Tổng: 14 bảng, 1 trigger function, 9 triggers auto-update, 3 views admin.**
+**Tổng: 15 bảng, 1 trigger function, 9 triggers auto-update, 3 views admin, 61 seed rows (industry_tag_mappings).**
+
+---
+
+### 8.7 Migration — Cập nhật DB đã tạo (chạy trên database hiện có)
+
+> **Dùng khi:** Đã chạy SQL Sprint 1–3 (phiên bản cũ, chưa có tags/category/user_prompt) và cần cập nhật lên phiên bản mới.
+> Chạy trong **pgAdmin Query Tool** hoặc `psql` trên database `postgres`.
+
+```sql
+-- ============================================================
+-- MIGRATION: Cập nhật prompt system (tags, category, user_prompt)
+-- Chạy trên DB đã có 14 bảng cũ
+-- ============================================================
+
+-- === 1. ALTER prompt_templates: thêm category + tags ===
+ALTER TABLE prompt_templates
+    ADD COLUMN IF NOT EXISTS category VARCHAR(20) NOT NULL DEFAULT 'image'
+        CHECK (category IN ('image', 'content'));
+
+ALTER TABLE prompt_templates
+    ADD COLUMN IF NOT EXISTS tags JSONB DEFAULT '["GENERAL"]'::jsonb;
+
+-- Cập nhật index (xóa cũ, tạo mới)
+DROP INDEX IF EXISTS idx_prompt_tpl_type_active;
+CREATE INDEX idx_prompt_tpl_type_active ON prompt_templates (type, category, is_active);
+CREATE INDEX IF NOT EXISTS idx_prompt_tpl_tags ON prompt_templates USING GIN (tags);
+
+-- === 2. ALTER assets: thêm prompt_template_id + user_prompt ===
+ALTER TABLE assets
+    ADD COLUMN IF NOT EXISTS prompt_template_id UUID
+        REFERENCES prompt_templates(id) ON DELETE SET NULL;
+
+ALTER TABLE assets
+    ADD COLUMN IF NOT EXISTS user_prompt TEXT;
+
+CREATE INDEX IF NOT EXISTS idx_assets_prompt ON assets (prompt_template_id);
+
+-- === 3. ALTER marketing_content: thêm prompt_template_id + user_prompt ===
+ALTER TABLE marketing_content
+    ADD COLUMN IF NOT EXISTS prompt_template_id UUID
+        REFERENCES prompt_templates(id) ON DELETE SET NULL;
+
+ALTER TABLE marketing_content
+    ADD COLUMN IF NOT EXISTS user_prompt TEXT;
+
+CREATE INDEX IF NOT EXISTS idx_mkt_content_prompt ON marketing_content (prompt_template_id);
+
+-- === 4. CREATE industry_tag_mappings ===
+CREATE TABLE IF NOT EXISTS industry_tag_mappings (
+    id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    industry    VARCHAR(100) NOT NULL UNIQUE,
+    tags        JSONB NOT NULL DEFAULT '[]'::jsonb,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- === 5. Seed data: 61 ngành hàng → tag ===
+INSERT INTO industry_tag_mappings (industry, tags) VALUES
+    ('Đồ uống',          '["DOUONG"]'),
+    ('Cafe',             '["DOUONG"]'),
+    ('Trà sữa',         '["DOUONG"]'),
+    ('Đồ ăn',           '["DOAN"]'),
+    ('Nhà hàng',        '["DOAN"]'),
+    ('Quán ăn',          '["DOAN"]'),
+    ('Bakery',           '["DOAN"]'),
+    ('Fastfood',         '["DOAN", "DOUONG"]'),
+    ('Quần áo',          '["AOQUAN"]'),
+    ('Thời trang',       '["AOQUAN", "PHUKIEN"]'),
+    ('Giày dép',         '["GIAYDEP"]'),
+    ('Phụ kiện',         '["PHUKIEN"]'),
+    ('Du lịch',          '["DULICH"]'),
+    ('Tour',             '["DULICH"]'),
+    ('Khách sạn',        '["BOOKING"]'),
+    ('Homestay',         '["BOOKING"]'),
+    ('Resort',           '["BOOKING", "DULICH"]'),
+    ('Giáo dục',         '["GIAODUC"]'),
+    ('Trung tâm',        '["GIAODUC"]'),
+    ('Khóa học',         '["GIAODUC"]'),
+    ('Sức khỏe',         '["SUCKHOE"]'),
+    ('Phòng khám',       '["SUCKHOE"]'),
+    ('Spa',              '["SPA"]'),
+    ('Gym',              '["GYM"]'),
+    ('Yoga',             '["GYM"]'),
+    ('Mỹ phẩm',         '["MYPHAM"]'),
+    ('Skincare',         '["MYPHAM"]'),
+    ('Salon tóc',        '["TOCHUC"]'),
+    ('Barbershop',       '["TOCHUC"]'),
+    ('Công nghệ',        '["CONGNGHE"]'),
+    ('Điện tử',          '["CONGNGHE"]'),
+    ('Nội thất',         '["NOITHAT"]'),
+    ('Xây dựng',         '["XAYDUNG"]'),
+    ('Bất động sản',     '["BATDONGSAN"]'),
+    ('Ô tô',            '["OTO"]'),
+    ('Xe máy',           '["XEMAY"]'),
+    ('Thú cưng',         '["THUYCUNG"]'),
+    ('Hoa quả',          '["HOAQUA"]'),
+    ('Hoa tươi',         '["HOA"]'),
+    ('Sự kiện',          '["SUKIEN"]'),
+    ('Wedding',          '["SUKIEN"]'),
+    ('Nhiếp ảnh',        '["NHIEPAN"]'),
+    ('Studio',           '["NHIEPAN"]'),
+    ('In ấn',            '["INANUONG"]'),
+    ('Vận tải',          '["VANTAI"]'),
+    ('Logistics',        '["VANTAI"]'),
+    ('Tài chính',        '["TAICHINH"]'),
+    ('Bảo hiểm',         '["TAICHINH"]'),
+    ('Luật',             '["LUATPHAP"]'),
+    ('Nông sản',         '["NONGSAN"]'),
+    ('Thủy hải sản',     '["THUISAN"]'),
+    ('Trẻ em',           '["TREEM"]'),
+    ('Mẹ và bé',         '["TREEM"]'),
+    ('Thể thao',         '["THETHAO"]'),
+    ('Game',             '["GAME"]'),
+    ('Sách',             '["SACH"]'),
+    ('Điện gia dụng',    '["DIENGIA"]'),
+    ('Nhạc cụ',          '["NHACCU"]'),
+    ('Handmade',         '["HANDMADE"]'),
+    ('Ngoại ngữ',        '["NGOAINGU", "GIAODUC"]'),
+    ('Khác',             '["GENERAL"]')
+ON CONFLICT (industry) DO NOTHING;
+
+-- === 6. Verify ===
+-- Kiểm tra bảng mới
+SELECT table_name FROM information_schema.tables
+WHERE table_schema = 'public' ORDER BY table_name;
+
+-- Kiểm tra cột mới trên prompt_templates
+SELECT column_name, data_type FROM information_schema.columns
+WHERE table_name = 'prompt_templates' AND column_name IN ('category', 'tags');
+
+-- Kiểm tra cột mới trên assets
+SELECT column_name, data_type FROM information_schema.columns
+WHERE table_name = 'assets' AND column_name IN ('prompt_template_id', 'user_prompt');
+
+-- Kiểm tra seed data
+SELECT COUNT(*) AS total_mappings FROM industry_tag_mappings;
+```
 
 ---
 
