@@ -434,6 +434,434 @@ Sau giai đoạn này, thiết kế database **hoàn thiện cho cả hệ thố
 
 ---
 
+## 8. SQL — Bộ lệnh tạo Database đầy đủ
+
+> Chạy theo thứ tự: Extension → Sprint 1 → Sprint 2 → Sprint 3 → Trigger & Views.
+> Dùng cho **PostgreSQL 13+** (Cloud SQL, local, Docker). Nếu Cloud SQL không hỗ trợ `uuid-ossp`, thay `uuid_generate_v4()` bằng `gen_random_uuid()` và bỏ dòng CREATE EXTENSION tương ứng.
+
+### 8.0 Khởi tạo Database & Extension
+
+```sql
+-- Tạo database (chạy bằng superuser / postgres — bỏ qua nếu tạo bằng UI)
+-- CREATE DATABASE aimap
+--   WITH ENCODING = 'UTF8'
+--        LC_COLLATE = 'en_US.UTF-8'
+--        LC_CTYPE = 'en_US.UTF-8'
+--        TEMPLATE = template0;
+
+-- Bật extension (chạy trong database aimap hoặc database đang dùng)
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+```
+
+### 8.1 Sprint 1 — Auth, Shop, Site, Credit, Payment (6 bảng)
+
+```sql
+-- ============================================================
+-- SPRINT 1: Core tables
+-- ============================================================
+
+-- 1. logins (tài khoản đăng nhập — tách khỏi profile)
+CREATE TABLE logins (
+    id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    username        VARCHAR(100) UNIQUE,
+    email           VARCHAR(255) NOT NULL UNIQUE,
+    password_hash   VARCHAR(255) NOT NULL,
+    role            VARCHAR(20)  NOT NULL DEFAULT 'user'
+                        CHECK (role IN ('user', 'admin')),
+    status          VARCHAR(30)  NOT NULL DEFAULT 'pending_verify'
+                        CHECK (status IN ('active', 'suspended', 'pending_verify')),
+    last_login_at   TIMESTAMPTZ,
+    created_at      TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+    updated_at      TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_logins_email   ON logins (email);
+CREATE INDEX idx_logins_role    ON logins (role);
+CREATE INDEX idx_logins_status  ON logins (status);
+
+-- 2. user_profiles (thông tin cá nhân, đủ chất lượng cho form + admin report)
+CREATE TABLE user_profiles (
+    id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    login_id        UUID NOT NULL UNIQUE
+                        REFERENCES logins(id) ON DELETE CASCADE,
+    name            VARCHAR(200) NOT NULL,
+    phone           VARCHAR(30),
+    avatar_url      VARCHAR(500),
+    address         TEXT,
+    city            VARCHAR(100),
+    district        VARCHAR(100),
+    country         VARCHAR(100) DEFAULT 'Vietnam',
+    postal_code     VARCHAR(20),
+    date_of_birth   DATE,
+    gender          VARCHAR(20),
+    company_name    VARCHAR(200),
+    bio             TEXT,
+    timezone        VARCHAR(50)  DEFAULT 'Asia/Ho_Chi_Minh',
+    locale          VARCHAR(5)   NOT NULL DEFAULT 'vi'
+                        CHECK (locale IN ('vi', 'en')),
+    email_contact   VARCHAR(255),
+    created_at      TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+    updated_at      TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_user_profiles_login_id ON user_profiles (login_id);
+
+-- 3. shops (cửa hàng — mở rộng đầy đủ)
+CREATE TABLE shops (
+    id                      UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id                 UUID NOT NULL
+                                REFERENCES user_profiles(id) ON DELETE CASCADE,
+    name                    VARCHAR(255) NOT NULL,
+    slug                    VARCHAR(255) NOT NULL UNIQUE,
+    industry                VARCHAR(100),
+    description             TEXT,
+    products                JSONB DEFAULT '[]'::jsonb,
+    contact_info            JSONB DEFAULT '{}'::jsonb,
+    brand_preferences       JSONB DEFAULT '{}'::jsonb,
+    address                 TEXT,
+    city                    VARCHAR(100),
+    district                VARCHAR(100),
+    country                 VARCHAR(100) DEFAULT 'Vietnam',
+    postal_code             VARCHAR(20),
+    tax_id                  VARCHAR(50),
+    business_registration   VARCHAR(100),
+    website_url             VARCHAR(500),
+    social_links            JSONB DEFAULT '{}'::jsonb,
+    opening_hours           JSONB DEFAULT '{}'::jsonb,
+    logo_url                VARCHAR(500),
+    cover_url               VARCHAR(500),
+    tags                    JSONB DEFAULT '[]'::jsonb,
+    status                  VARCHAR(20) NOT NULL DEFAULT 'active'
+                                CHECK (status IN ('active', 'inactive', 'suspended')),
+    created_at              TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at              TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_shops_user_id ON shops (user_id);
+CREATE INDEX idx_shops_slug    ON shops (slug);
+CREATE INDEX idx_shops_status  ON shops (status);
+
+-- 4. sites (website config — 1 shop = 1 site)
+CREATE TABLE sites (
+    id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    shop_id         UUID NOT NULL
+                        REFERENCES shops(id) ON DELETE CASCADE,
+    user_id         UUID NOT NULL
+                        REFERENCES user_profiles(id) ON DELETE CASCADE,
+    name            VARCHAR(255),
+    slug            VARCHAR(255) NOT NULL UNIQUE,
+    config_json     JSONB DEFAULT '{}'::jsonb,
+    status          VARCHAR(20) NOT NULL DEFAULT 'draft'
+                        CHECK (status IN ('draft', 'deployed', 'archived')),
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_sites_shop_id ON sites (shop_id);
+CREATE INDEX idx_sites_user_id ON sites (user_id);
+CREATE INDEX idx_sites_slug    ON sites (slug);
+
+-- 5. credit_transactions (giao dịch credit; balance = SUM(amount))
+CREATE TABLE credit_transactions (
+    id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id         UUID NOT NULL
+                        REFERENCES user_profiles(id) ON DELETE CASCADE,
+    amount          INTEGER NOT NULL,
+    type            VARCHAR(30) NOT NULL
+                        CHECK (type IN ('topup', 'deduct', 'refund', 'bonus')),
+    reference_type  VARCHAR(50),
+    reference_id    VARCHAR(100),
+    description     TEXT,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_credit_tx_user_id ON credit_transactions (user_id, created_at);
+CREATE INDEX idx_credit_tx_ref     ON credit_transactions (reference_type, reference_id);
+
+-- 6. payments (thanh toán nạp credit qua payment gateway)
+CREATE TABLE payments (
+    id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id         UUID NOT NULL
+                        REFERENCES user_profiles(id) ON DELETE CASCADE,
+    amount_money    INTEGER NOT NULL,
+    credits         INTEGER NOT NULL,
+    gateway         VARCHAR(50) NOT NULL,
+    gateway_txn_id  VARCHAR(255) UNIQUE,
+    status          VARCHAR(30) NOT NULL DEFAULT 'pending'
+                        CHECK (status IN ('pending', 'success', 'failed', 'cancelled')),
+    callback_data   JSONB,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_payments_user_id ON payments (user_id, created_at);
+CREATE INDEX idx_payments_status  ON payments (status);
+```
+
+### 8.2 Sprint 2 — Assets, Facebook, Content, Pipeline, Prompt Templates (5 bảng)
+
+```sql
+-- ============================================================
+-- SPRINT 2: AI Automation & Facebook
+-- ============================================================
+
+-- 7. assets (metadata ảnh — file thật ở object storage)
+CREATE TABLE assets (
+    id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id             UUID NOT NULL
+                            REFERENCES user_profiles(id) ON DELETE CASCADE,
+    shop_id             UUID
+                            REFERENCES shops(id) ON DELETE SET NULL,
+    type                VARCHAR(30) NOT NULL
+                            CHECK (type IN ('logo', 'banner', 'cover', 'post', 'product', 'other')),
+    name                VARCHAR(255),
+    storage_path_or_url VARCHAR(1000) NOT NULL,
+    mime_type           VARCHAR(100),
+    model_source        VARCHAR(30)
+                            CHECK (model_source IN ('imagen', 'dall-e-3', 'flux')),
+    metadata            JSONB DEFAULT '{}'::jsonb,
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_assets_shop_id ON assets (shop_id, type);
+CREATE INDEX idx_assets_user_id ON assets (user_id, created_at);
+CREATE INDEX idx_assets_model   ON assets (model_source);
+
+-- 8. facebook_page_tokens (OAuth token cho Facebook Page)
+CREATE TABLE facebook_page_tokens (
+    id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id         UUID NOT NULL
+                        REFERENCES user_profiles(id) ON DELETE CASCADE,
+    shop_id         UUID
+                        REFERENCES shops(id) ON DELETE SET NULL,
+    page_id         VARCHAR(100) NOT NULL,
+    page_name       VARCHAR(255),
+    access_token    TEXT NOT NULL,
+    refresh_token   TEXT,
+    expires_at      TIMESTAMPTZ,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+    UNIQUE (user_id, shop_id, page_id)
+);
+
+CREATE INDEX idx_fb_tokens_user_id ON facebook_page_tokens (user_id);
+CREATE INDEX idx_fb_tokens_shop_id ON facebook_page_tokens (shop_id);
+
+-- 9. marketing_content (nội dung AI sinh: bài đăng, mô tả SP, caption)
+CREATE TABLE marketing_content (
+    id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    shop_id         UUID NOT NULL
+                        REFERENCES shops(id) ON DELETE CASCADE,
+    type            VARCHAR(40) NOT NULL
+                        CHECK (type IN ('ad_post', 'product_description', 'caption_hashtag')),
+    content         JSONB NOT NULL DEFAULT '{}'::jsonb,
+    source_prompt   TEXT,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_mkt_content_shop_id ON marketing_content (shop_id, type);
+
+-- 10. pipeline_runs (chạy pipeline automation: branding → content → visual → ...)
+CREATE TABLE pipeline_runs (
+    id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    shop_id         UUID NOT NULL
+                        REFERENCES shops(id) ON DELETE CASCADE,
+    user_id         UUID NOT NULL
+                        REFERENCES user_profiles(id) ON DELETE CASCADE,
+    status          VARCHAR(20) NOT NULL DEFAULT 'running'
+                        CHECK (status IN ('running', 'completed', 'failed', 'cancelled')),
+    steps           JSONB NOT NULL DEFAULT '[]'::jsonb,
+    started_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    finished_at     TIMESTAMPTZ,
+    error_message   TEXT
+);
+
+CREATE INDEX idx_pipeline_shop_id ON pipeline_runs (shop_id);
+CREATE INDEX idx_pipeline_user_id ON pipeline_runs (user_id);
+CREATE INDEX idx_pipeline_status  ON pipeline_runs (status);
+
+-- 11. prompt_templates (kho prompt hệ thống cho Prompt Builder + 3 model ảnh)
+CREATE TABLE prompt_templates (
+    id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    type            VARCHAR(50) NOT NULL
+                        CHECK (type IN (
+                            'logo', 'banner', 'cover', 'post',
+                            'product_description', 'caption',
+                            'website_section', 'general'
+                        )),
+    name            VARCHAR(255) NOT NULL,
+    content         TEXT NOT NULL,
+    variables       JSONB DEFAULT '[]'::jsonb,
+    is_system       BOOLEAN NOT NULL DEFAULT TRUE,
+    is_active       BOOLEAN NOT NULL DEFAULT TRUE,
+    sort_order      INTEGER DEFAULT 0,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_prompt_tpl_type_active ON prompt_templates (type, is_active);
+```
+
+### 8.3 Sprint 3 — Conversation, Deploy, Activity Logs (3 bảng)
+
+```sql
+-- ============================================================
+-- SPRINT 3: Website Builder, Deploy & Operations
+-- ============================================================
+
+-- 12. conversation_messages (lịch sử chỉnh website bằng prompt)
+CREATE TABLE conversation_messages (
+    id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    site_id         UUID NOT NULL
+                        REFERENCES sites(id) ON DELETE CASCADE,
+    role            VARCHAR(20) NOT NULL
+                        CHECK (role IN ('user', 'assistant', 'system')),
+    content         TEXT NOT NULL,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_conv_msg_site_id ON conversation_messages (site_id, created_at);
+
+-- 13. site_deployments (deploy: 1 site → 1 container Docker)
+CREATE TABLE site_deployments (
+    id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    site_id         UUID NOT NULL
+                        REFERENCES sites(id) ON DELETE CASCADE,
+    shop_id         UUID NOT NULL
+                        REFERENCES shops(id) ON DELETE CASCADE,
+    container_id    VARCHAR(100),
+    subdomain       VARCHAR(255) NOT NULL UNIQUE,
+    status          VARCHAR(20) NOT NULL DEFAULT 'draft'
+                        CHECK (status IN ('draft', 'building', 'running', 'stopped', 'error')),
+    deployed_at     TIMESTAMPTZ,
+    last_build_at   TIMESTAMPTZ,
+    error_message   TEXT,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_deploy_site_id   ON site_deployments (site_id);
+CREATE INDEX idx_deploy_shop_id   ON site_deployments (shop_id);
+CREATE INDEX idx_deploy_subdomain ON site_deployments (subdomain);
+CREATE INDEX idx_deploy_status    ON site_deployments (status);
+
+-- 14. activity_logs (log từng công đoạn: tạo web, deploy, lỗi, ...)
+CREATE TABLE activity_logs (
+    id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id         UUID
+                        REFERENCES user_profiles(id) ON DELETE SET NULL,
+    action          VARCHAR(80) NOT NULL,
+    entity_type     VARCHAR(50),
+    entity_id       UUID,
+    details         JSONB DEFAULT '{}'::jsonb,
+    severity        VARCHAR(10) NOT NULL DEFAULT 'info'
+                        CHECK (severity IN ('info', 'warning', 'error')),
+    ip_address      VARCHAR(50),
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_activity_user_id    ON activity_logs (user_id, created_at);
+CREATE INDEX idx_activity_entity     ON activity_logs (entity_type, entity_id);
+CREATE INDEX idx_activity_severity   ON activity_logs (severity);
+CREATE INDEX idx_activity_created_at ON activity_logs (created_at);
+CREATE INDEX idx_activity_action     ON activity_logs (action);
+```
+
+### 8.4 Trigger auto-update `updated_at`
+
+```sql
+-- Trigger function: tự động cập nhật updated_at khi UPDATE
+CREATE OR REPLACE FUNCTION trigger_set_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Gắn trigger cho các bảng có cột updated_at
+DO $$
+DECLARE
+    tbl TEXT;
+BEGIN
+    FOREACH tbl IN ARRAY ARRAY[
+        'logins', 'user_profiles', 'shops', 'sites',
+        'payments', 'facebook_page_tokens', 'marketing_content',
+        'prompt_templates', 'site_deployments'
+    ]
+    LOOP
+        EXECUTE format(
+            'CREATE TRIGGER trg_%s_updated_at
+             BEFORE UPDATE ON %I
+             FOR EACH ROW EXECUTE FUNCTION trigger_set_updated_at();',
+            tbl, tbl
+        );
+    END LOOP;
+END $$;
+```
+
+### 8.5 Views tiện ích cho Admin
+
+```sql
+-- View: credit balance per user
+CREATE VIEW v_user_credit_balance AS
+SELECT
+    up.id           AS user_id,
+    up.name,
+    l.email,
+    COALESCE(SUM(ct.amount), 0) AS balance
+FROM user_profiles up
+JOIN logins l ON l.id = up.login_id
+LEFT JOIN credit_transactions ct ON ct.user_id = up.id
+GROUP BY up.id, up.name, l.email;
+
+-- View: revenue report (successful payments)
+CREATE VIEW v_revenue_summary AS
+SELECT
+    DATE_TRUNC('month', p.created_at) AS month,
+    p.gateway,
+    COUNT(*)            AS total_transactions,
+    SUM(p.amount_money) AS total_revenue,
+    SUM(p.credits)      AS total_credits_issued
+FROM payments p
+WHERE p.status = 'success'
+GROUP BY DATE_TRUNC('month', p.created_at), p.gateway
+ORDER BY month DESC;
+
+-- View: error logs for admin dashboard
+CREATE VIEW v_error_logs AS
+SELECT
+    al.id,
+    al.user_id,
+    up.name AS user_name,
+    al.action,
+    al.entity_type,
+    al.entity_id,
+    al.details,
+    al.ip_address,
+    al.created_at
+FROM activity_logs al
+LEFT JOIN user_profiles up ON up.id = al.user_id
+WHERE al.severity = 'error'
+ORDER BY al.created_at DESC;
+```
+
+### 8.6 Tóm tắt SQL
+
+| Sprint | Bảng | Số lượng |
+|--------|------|----------|
+| **1** | `logins`, `user_profiles`, `shops`, `sites`, `credit_transactions`, `payments` | 6 bảng |
+| **2** | `assets`, `facebook_page_tokens`, `marketing_content`, `pipeline_runs`, `prompt_templates` | 5 bảng |
+| **3** | `conversation_messages`, `site_deployments`, `activity_logs` | 3 bảng |
+| **Util** | Trigger `updated_at`, Views (balance, revenue, error logs) | 1 function + 9 triggers + 3 views |
+
+**Tổng: 14 bảng, 1 trigger function, 9 triggers auto-update, 3 views admin.**
+
+---
+
 ## Tài liệu tham chiếu (READ_CONTEXT)
 
 - **Kiến trúc:** [AIMAP-Architecture-VN.md](AIMAP-Architecture-VN.md), [AIMAP-Architecture-EN.md](AIMAP-Architecture-EN.md) — Storage Layer, hai vùng dữ liệu (Centralized / Per-shop Docker), Data Flow.
