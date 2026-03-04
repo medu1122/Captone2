@@ -5,6 +5,7 @@
 import 'dotenv/config'
 import express from 'express'
 import cors from 'cors'
+import { connectDB } from './db/index.js'
 
 const app = express()
 const PORT = process.env.PORT ?? 4000
@@ -15,6 +16,8 @@ app.use(express.json())
 app.get('/health', (_, res) => {
   res.json({ ok: true, service: 'aimap-backend' })
 })
+
+await connectDB()
 
 app.listen(PORT, () => {
   console.log(`AIMAP backend http://localhost:${PORT}`)
