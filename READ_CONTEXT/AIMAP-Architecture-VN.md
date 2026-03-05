@@ -105,7 +105,7 @@ flowchart TB
 ### 1. Branding & Image Generation
 
 - **Input:** Tên shop, ngành hàng, phong cách thương hiệu; upload ảnh riêng (optional).
-- **Output:** Logo, banner, hình ảnh marketing; lưu **Asset Storage** với namespace **per user** (hoặc per shop): `users/:userId/assets/` hoặc `shops/:shopId/assets/`.
+- **Output:** Logo, banner, hình ảnh marketing; lưu **Asset Storage** với namespace **per shop** (chuẩn hệ thống): `shops/:shopId/assets/`. Mỗi shop có storage riêng (image, content, product). Xem [AIMAP-Data-Hierarchy.md](AIMAP-Data-Hierarchy.md).
 - **Tái sử dụng:** Website config JSON tham chiếu asset bằng URL (backend trả signed URL hoặc path nội bộ); template render dùng URL đó cho img/background.
 - **Flow:** User submit form → Backend gọi **Image AI** (API hoặc self-host) → lưu file vào object storage (S3/MinIO/local) → trả URL và lưu metadata (tên, loại: logo/banner/marketing) → Dashboard hiển thị thư viện; khi tạo/sửa website, user chọn asset từ thư viện hoặc AI gắn asset vào config (imageUrl, logoUrl).
 

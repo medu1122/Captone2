@@ -92,7 +92,7 @@ flowchart TB
 ### 1. Branding & Image Generation
 
 - **Input:** From store info: shop name, industry, brand style; optional custom image uploads.
-- **Output:** Logo, banner, marketing images; stored in **Asset Storage** with **per-user** (or per-shop) namespace: `users/:userId/assets/` or `shops/:shopId/assets/`.
+- **Output:** Logo, banner, marketing images; stored in **Asset Storage** with **per-shop** namespace (canonical): `shops/:shopId/assets/`. Each shop has its own storage (images, content, products). See [AIMAP-Data-Hierarchy.md](AIMAP-Data-Hierarchy.md).
 - **Reuse:** Website config JSON references assets by URL (backend returns signed URL or internal path); template renderer uses that URL for img/background.
 - **Flow:** User submits form → Backend calls **Image AI** (API or self-hosted) → saves files to object storage (S3/MinIO/local) → returns URL and saves metadata (name, type: logo/banner/marketing) → Dashboard shows asset library; when creating/editing website, user picks assets from library or AI attaches assets to config (imageUrl, logoUrl).
 

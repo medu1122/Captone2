@@ -16,6 +16,7 @@ Tài liệu này là **nguồn tham chiếu chính** cho thiết kế database c
 | File | Nội dung |
 |------|----------|
 | [AIMAP-Architecture-VN.md](AIMAP-Architecture-VN.md) / [AIMAP-Architecture-EN.md](AIMAP-Architecture-EN.md) | Kiến trúc tổng thể, Storage Layer, Hosting (1 shop = 1 Docker), Data Flow |
+| [AIMAP-Data-Hierarchy.md](AIMAP-Data-Hierarchy.md) | **Chuẩn cấu trúc:** 1 User → N Shops; mỗi Shop có Storage (image, content, product), Web, Facebook Page, Generate |
 | [AIMAP-Quick-ReadVN.md](AIMAP-Quick-ReadVN.md) / [AIMAP-Quick-Read-EN.md](AIMAP-Quick-Read-EN.md) | Chức năng, lợi ích người dùng, điểm nổi bật |
 | [AIMAP-3-Image-ModelsAI-VN.md](AIMAP-3-Image-ModelsAI-VN.md) | 3 model tạo ảnh (Imagen, DALL·E 3, FLUX), luồng Prompt Builder → Image API Client, metadata `model_source` cho assets |
 
@@ -122,7 +123,7 @@ flowchart LR
 
 ### Bước 2: Quan hệ (ER) và ràng buộc nghiệp vụ
 
-- **Quan hệ:** Login 1–1 UserProfile, UserProfile 1–N Shop, Shop 1–1 Site, UserProfile 1–N CreditTransaction, UserProfile 1–N Payment (Sprint 1); UserProfile/Shop 1–N Asset, Shop 1–1 FacebookToken, Shop 1–N MarketingContent, Shop 1–N PipelineRun (Sprint 2); **PromptTemplate** (bảng độc lập, không FK user/shop); Site 1–N ConversationMessage, Site 1–1 SiteDeployment, UserProfile 1–N ActivityLog (Sprint 3).
+- **Quan hệ:** Login 1–1 UserProfile, **UserProfile 1–N Shop** (chuẩn: 1 user nhiều shop). Mỗi Shop có: Storage (assets, marketing_content, products trong shops), Web (1 site), Facebook (facebook_page_tokens), Pipeline (pipeline_runs). Shop 1–1 Site, UserProfile 1–N CreditTransaction, UserProfile 1–N Payment (Sprint 1); Shop 1–N Asset, Shop 1–1 (hoặc N) FacebookToken, Shop 1–N MarketingContent, Shop 1–N PipelineRun (Sprint 2). Chi tiết hierarchy: [AIMAP-Data-Hierarchy.md](AIMAP-Data-Hierarchy.md). **PromptTemplate** (bảng độc lập, không FK user/shop); Site 1–N ConversationMessage, Site 1–1 SiteDeployment, UserProfile 1–N ActivityLog (Sprint 3).
 - **Ràng buộc:** email unique; balance = SUM(credit_transactions.amount); payment success → 1 credit_transaction (topup); slug unique per site/shop; ref trong credit_transactions có thể reference_type + reference_id (payment, feature_action).
 
 ### Bước 3: Tách tài khoản và thông tin cá nhân – Mô hình User (Phương án B)
