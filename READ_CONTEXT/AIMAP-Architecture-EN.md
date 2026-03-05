@@ -86,8 +86,8 @@ flowchart TB
 
 ### 0. Unified Store Information Input
 
-- **Input:** Structured store information: business name, product details, pricing, contact information, branding preferences. Validated before starting the automation workflow.
-- **Role:** Single source of truth for Branding, Content, Visual Post, and Website Builder agents.
+- **Create shop (form `/shops/create`):** Only **basic shop info** is collected: shop name, slug, industry, short description, **headquarters address** (address, city, district, country, postal code), **owner/contact name**, **shop phone**, **shop email**. All of these are **required** at creation; they feed AI context (user prompt + prompt library) for content, image, and web generation later. **No** products or website URL at create — users add those on the shop edit page.
+- **Role:** This basic store info is the single source of truth for Branding, Content, Visual Post, and Website Builder agents; products and extended details are added later.
 
 ### 1. Branding & Image Generation
 

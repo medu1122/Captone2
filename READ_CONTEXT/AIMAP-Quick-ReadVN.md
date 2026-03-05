@@ -26,10 +26,10 @@ Capstone Project 2 – International School, Duy Tan University
 
 | Chức năng | Lợi ích cho người dùng |
 |-----------|-------------------------|
-| **Nhập thông tin cửa hàng có cấu trúc** (tên, sản phẩm, giá, liên hệ, sở thích thương hiệu) | Một lần nhập dùng cho toàn bộ quy trình: branding, nội dung, ảnh bài đăng, website; không phải nhập lại nhiều nơi. |
-| **Validation dữ liệu** | Đảm bảo đủ thông tin cần thiết trước khi chạy automation; giảm lỗi thiếu dữ liệu. |
+| **Nhập thông tin cửa hàng có cấu trúc** | Khi **tạo shop**: chỉ nhập thông tin cơ bản (tên, ngành, mô tả, địa chỉ trụ sở, tên chủ shop, quốc gia, mã zip, SĐT, email) — bắt buộc; dùng làm context cho AI sinh content, ảnh và web. Sản phẩm, website URL, social links bổ sung sau tại trang chỉnh sửa shop. |
+| **Validation dữ liệu** | Đảm bảo đủ thông tin bắt buộc (địa chỉ, tên chủ, quốc gia, zip, SĐT, email) khi tạo shop; giảm lỗi thiếu dữ liệu cho AI. |
 
-**Tóm lại:** Store info là nguồn dữ liệu duy nhất cho toàn bộ hệ thống; người dùng chỉ cần điền form một lần.
+**Tóm lại:** Thông tin cơ bản shop nhập lúc tạo; phần còn lại (sản phẩm, web, social) thêm sau. Store info là nguồn dữ liệu cho toàn bộ quy trình AI.
 
 ---
 

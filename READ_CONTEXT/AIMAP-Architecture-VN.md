@@ -16,7 +16,7 @@ Phạm vi (theo Proposal): Thu thập store info | AI Branding (logo, banner, co
 
 ## Danh sách đầy đủ tính năng (theo Proposal – Key Features & Requirements)
 
-- **F1 – Unified Store Information Input:** Thu thập thông tin cửa hàng có cấu trúc (tên, sản phẩm, giá, liên hệ, sở thích thương hiệu) làm nguồn đầu vào duy nhất cho toàn bộ workflow.
+- **F1 – Unified Store Information Input:** Thu thập thông tin cửa hàng có cấu trúc làm nguồn đầu vào cho toàn bộ workflow. **Khi tạo shop** (form Create Shop): chỉ nhập thông tin cơ bản (tên, ngành, mô tả, địa chỉ trụ sở, tên chủ, quốc gia, mã zip, SĐT shop, email shop) — bắt buộc; sản phẩm, website URL và thông tin khác bổ sung sau tại trang chỉnh sửa shop.
 - **F2 – AI-Based Brand & Content Generation:** Tạo logo, banner, cover (AI); tạo nội dung marketing: bài viết quảng cáo, mô tả sản phẩm, caption, gợi ý hashtag (LLM).
 - **F3 – Automated Visual Post Creation:** Tạo ảnh bài đăng sẵn sàng MXH (branding + sản phẩm + text); export chuẩn kích thước Facebook.
 - **F4 – Facebook Page Auto-Publishing:** OAuth (Meta Graph API), lưu token an toàn, đăng nội dung + ảnh lên Facebook Page đã ủy quyền.

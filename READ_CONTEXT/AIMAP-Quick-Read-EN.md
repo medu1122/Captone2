@@ -26,10 +26,10 @@ Capstone Project 2 – International School, Duy Tan University
 
 | Feature | Benefit to users |
 |---------|-------------------|
-| **Structured store input** (name, products, pricing, contact, brand preferences) | One-time entry powers the full pipeline: branding, content, post images, website; no re-entering in multiple places. |
-| **Data validation** | Ensures required fields are present before running automation; fewer missing-data errors. |
+| **Structured store input** | **When creating a shop:** only basic info is required (name, industry, description, headquarters address, owner name, country, postal code, phone, email); this feeds AI context for content, images, and web. Products, website URL, and social links are added later on the shop edit page. |
+| **Data validation** | Ensures required fields (address, owner name, country, zip, phone, email) at create; fewer missing-data errors for AI. |
 
-**Summary:** Store info is the single source of truth; users fill the form once.
+**Summary:** Basic shop info is entered at creation; the rest (products, web, social) is added later. Store info is the data source for the full AI pipeline.
 
 ---
 

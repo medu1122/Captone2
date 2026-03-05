@@ -29,7 +29,7 @@ Kế hoạch này vạch ra các bước cụ thể để xây dựng toàn bộ
 **Quản lý Cửa hàng (Shops):**
 
 - `/shops`: Danh sách các cửa hàng (grid/list view).
-- `/shops/create`: Form tạo cửa hàng mới (nhập tên, ngành, mô tả).
+- `/shops/create`: Form tạo cửa hàng mới — **chỉ thu thập thông tin cơ bản** (tên shop, slug, ngành, mô tả ngắn, địa chỉ trụ sở, tên chủ shop, quốc gia, mã zip, SĐT shop, email shop). Không nhập product hay website URL lúc tạo; người dùng bổ sung sau tại `/shops/[id]/edit`. Các thông tin này dùng làm context (kèm prompt người dùng + prompt trong kho) để AI sinh content, ảnh và web sau này.
 - `/shops/[id]`: Chi tiết một cửa hàng.
 - `/shops/[id]/edit`: Form cập nhật thông tin cửa hàng (thêm product, địa chỉ, social links).
 

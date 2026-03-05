@@ -69,6 +69,8 @@ isProject: false
 | Generate (pipeline) | pipeline_runs | shop_id, user_id; steps tham chiếu assets/marketing_content của shop. |
 | Credit (user-level) | credit_transactions, payments | user_id; không gắn shop. |
 
+**Tạo shop (Create shop):** Chỉ thu thập **thông tin cơ bản** của shop: tên, slug, ngành, mô tả, địa chỉ trụ sở (address, city, district, country, postal_code), tên chủ shop (contact_info.owner_name), SĐT shop (contact_info.phone), email shop (contact_info.email). Tất cả các trường trên **bắt buộc** khi tạo; dùng làm đầu vào cho prompt (kho prompt + prompt người dùng) để AI sinh content, ảnh và web sau này. **Không** nhập products hay website_url lúc tạo — người dùng thêm tại trang chỉnh sửa shop.
+
 ---
 
 ## 4. Ánh xạ sang UI / Routes

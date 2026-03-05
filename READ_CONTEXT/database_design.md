@@ -137,6 +137,8 @@ flowchart LR
 - **logins:** id (PK), username (UNIQUE), email (UNIQUE NOT NULL), password_hash, role, status, last_login_at, created_at, updated_at. Index (email, role, status).
 - **user_profiles:** id (PK), login_id (FK UNIQUE), name, phone, avatar_url, address, city, district, country, postal_code, date_of_birth, gender, company_name, bio, timezone, **locale** (VARCHAR: 'vi' | 'en' — ngôn ngữ giao diện Tiếng Việt/English), email_contact, created_at, updated_at. Index (login_id).
 - **shops** (mở rộng đủ chất lượng): id (PK), user_id (FK → user_profiles), name, slug (UNIQUE), industry, description (TEXT), products (JSONB), contact_info (JSONB), brand_preferences (JSONB), address (TEXT), city, district, country, postal_code, tax_id, business_registration, website_url, social_links (JSONB), opening_hours (JSONB), logo_url, cover_url, tags (JSONB), status, created_at, updated_at.
+  - **contact_info (JSONB)** — cấu trúc khuyến nghị khi tạo shop: `{ "phone": string, "email": string, "owner_name": string }`. Các trường này **bắt buộc nhập** ở form Create Shop; dùng làm context (kèm prompt người dùng + prompt trong kho) để AI sinh content, ảnh và web sau này.
+  - **Create shop (form `/shops/create`):** Chỉ thu thập thông tin cơ bản. **Bắt buộc:** name, slug, industry, description, address, city, district, country, postal_code, contact_info.phone, contact_info.email, contact_info.owner_name. **Không** nhập products hay website_url lúc tạo — người dùng bổ sung sau tại `/shops/[id]/edit`. Xem [AIMAP-Data-Hierarchy.md](AIMAP-Data-Hierarchy.md) và [UI STRUCT.md](UI%20STRUCT.md).
 - **sites:** id (PK), shop_id (FK), user_id (FK → user_profiles), name, slug (UNIQUE), config_json (JSONB), status (draft/deployed), created_at, updated_at. Khớp Architecture VII và “1 shop = 1 site”.
 - **credit_transactions:** id (PK), user_id (FK → user_profiles), amount (integer), type, reference_type, reference_id, description, created_at. Index (user_id, created_at).
 - **payments:** id (PK), user_id (FK → user_profiles), amount_money, credits, gateway, gateway_txn_id (UNIQUE), status, callback_data (JSONB), created_at, updated_at.
@@ -543,6 +545,12 @@ Sau giai đoạn này, thiết kế database **hoàn thiện cho cả hệ thố
 > Chạy theo thứ tự: Extension → Sprint 1 → Sprint 2 → Sprint 3 → Trigger & Views.
 > Dùng cho **PostgreSQL 13+** (Cloud SQL, local, Docker). Nếu Cloud SQL không hỗ trợ `uuid-ossp`, thay `uuid_generate_v4()` bằng `gen_random_uuid()` và bỏ dòng CREATE EXTENSION tương ứng.
 
+**Lệnh bổ sung (chỉ chạy khi đã có bảng `shops`):** Nếu database đã tạo bảng `shops` trước đó, chỉ cần chạy lệnh sau trong PostgreSQL để ghi chú cấu trúc `contact_info` (dùng cho form Create Shop — phone, email, owner_name bắt buộc):
+
+```sql
+COMMENT ON COLUMN shops.contact_info IS 'JSONB: { "phone": string, "email": string, "owner_name": string }. Required at create shop; feeds prompts for AI content, image, and web generation.';
+```
+
 ### 8.0 Khởi tạo Database & Extension
 
 ```sql
@@ -645,6 +653,9 @@ CREATE TABLE shops (
 CREATE INDEX idx_shops_user_id ON shops (user_id);
 CREATE INDEX idx_shops_slug    ON shops (slug);
 CREATE INDEX idx_shops_status  ON shops (status);
+
+-- contact_info: store phone, email, owner_name (required at create); used as context for AI content/image/web generation.
+COMMENT ON COLUMN shops.contact_info IS 'JSONB: { "phone": string, "email": string, "owner_name": string }. Required at create shop; feeds prompts for AI content, image, and web generation.';
 
 -- 4. sites (website config — 1 shop = 1 site)
 CREATE TABLE sites (
