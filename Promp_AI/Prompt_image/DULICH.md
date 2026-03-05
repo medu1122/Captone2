@@ -1,0 +1,5 @@
+A captivating travel advertisement poster for {{shop_name}} inviting travelers to explore {{destination_name}}. The layout is modern and immersive, utilizing a {{design_style}} (e.g., a creative boarding pass frame or a scenic lifestyle view).
+
+The focal point is an 8k resolution image of {{destination_name}}'s iconic landmarks. The scenery is captured under {{lighting_style}} (e.g., a vibrant sunset or golden morning light). A {{traveler_style}} (e.g., a tourist checking in or a local in traditional attire) is included to add authenticity.
+
+A creative {{frame_style}} (e.g., a boarding pass cutout) overlays the landscape. At the bottom, clean icons represent the {{service_inclusions}} (e.g., Airfare, Hotel, Sightseeing). The destination name '{{destination_name}}' is written in a large, artistic font. The overall color palette is {{color_palette}}, creating an immediate sense of wanderlust. Sharp focus, vivid colors, professional travel agency style.
