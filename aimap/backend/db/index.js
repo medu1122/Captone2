@@ -1,3 +1,6 @@
+/**
+ * KẾT NỐI POSTGRES — POOL VÀ connectDB(), verifySchema().
+ */
 import pg from 'pg'
 import { verifySchema } from './verifySchema.js'
 
@@ -6,6 +9,7 @@ const pool = new pg.Pool({
   ssl: process.env.DATABASE_SSL !== 'false' ? { rejectUnauthorized: false } : undefined,
 })
 
+/** KẾT NỐI DB VÀ KIỂM TRA SCHEMA; THIẾU BẢNG THÌ CHỈ CẢNH BÁO. */
 export async function connectDB() {
   try {
     const client = await pool.connect()

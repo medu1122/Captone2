@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import AuthLayout from '../layouts/AuthLayout'
+import PasswordInput from '../components/PasswordInput'
 import { useLocale } from '../contexts/LocaleContext'
 import { authApi } from '../api/auth'
 
@@ -71,13 +72,11 @@ export default function LoginPage() {
               <label htmlFor="login-password" className="block text-sm font-medium text-slate-300 mb-2">
                 {t('auth.login.password')}
               </label>
-              <input
+              <PasswordInput
                 id="login-password"
-                type="password"
                 name="password"
                 required
                 autoComplete="current-password"
-                className="w-full px-4 py-3 rounded-xl bg-background-dark border border-border-dark text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary"
               />
             </div>
             <div className="flex justify-end">

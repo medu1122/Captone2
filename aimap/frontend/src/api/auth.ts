@@ -11,8 +11,9 @@ export interface RegisterPayload {
 export interface RegisterResponse {
   success: boolean
   message?: string
-  verificationToken?: string
   redirectTo?: string
+  email?: string
+  code?: string
 }
 
 export interface LoginPayload {
@@ -37,6 +38,16 @@ export interface VerifyResponse {
   success: boolean
   message?: string
   redirectTo?: string
+}
+
+export interface ResendVerifyCodePayload {
+  email: string
+}
+
+export interface ResendVerifyCodeResponse {
+  success: boolean
+  message?: string
+  code?: string
 }
 
 export interface ForgotPasswordPayload {
@@ -69,6 +80,9 @@ export const authApi = {
 
   verify: (payload: VerifyPayload) =>
     apiFetch<VerifyResponse>(`${AUTH_PREFIX}/verify`, { method: 'POST', body: payload }),
+
+  resendVerifyCode: (payload: ResendVerifyCodePayload) =>
+    apiFetch<ResendVerifyCodeResponse>(`${AUTH_PREFIX}/resend-verify-code`, { method: 'POST', body: payload }),
 
   forgotPassword: (payload: ForgotPasswordPayload) =>
     apiFetch<ForgotPasswordResponse>(`${AUTH_PREFIX}/forgot-password`, { method: 'POST', body: payload }),

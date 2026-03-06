@@ -1,0 +1,8 @@
+---
+description: Quy ước không tự ý tạo folder khi coding
+alwaysApply: true
+---
+
+# Không Tự ý Tạo Thêm Folder
+
+Trong quá trình coding **không được tự ý tạo thêm folder** mới. Chỉ sử dụng các folder đã có trong cấu trúc dự án (ví dụ `aimap/backend/routes`, `aimap/backend/services`, `aimap/backend/db`, `aimap/frontend/src/...`). Nếu cần thêm module hoặc file, đặt vào đúng folder hiện có trừ khi người dùng yêu cầu rõ ràng tạo folder mới.

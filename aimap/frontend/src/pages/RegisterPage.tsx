@@ -1,14 +1,30 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import AuthLayout from '../layouts/AuthLayout'
+import PasswordInput from '../components/PasswordInput'
 import { useLocale } from '../contexts/LocaleContext'
-import { authApi } from '../api/auth'
+import { authApi, type RegisterResponse } from '../api/auth'
+
+function getPasswordStrength(pwd: string): 'weak' | 'medium' | 'strong' {
+  if (!pwd) return 'weak'
+  let score = 0
+  if (pwd.length >= 6) score++
+  if (pwd.length >= 10) score++
+  if (/[a-z]/.test(pwd) && /[A-Z]/.test(pwd)) score++
+  if (/\d/.test(pwd)) score++
+  if (/[^a-zA-Z0-9]/.test(pwd)) score++
+  if (score <= 2) return 'weak'
+  if (score <= 4) return 'medium'
+  return 'strong'
+}
 
 export default function RegisterPage() {
   const { t } = useLocale()
   const navigate = useNavigate()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [password, setPassword] = useState('')
+  const strength = useMemo(() => getPasswordStrength(password), [password])
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -16,22 +32,28 @@ export default function RegisterPage() {
     const form = e.currentTarget
     const name = (form.elements.namedItem('name') as HTMLInputElement).value.trim()
     const email = (form.elements.namedItem('email') as HTMLInputElement).value.trim()
-    const password = (form.elements.namedItem('password') as HTMLInputElement).value
+    const passwordValue = (form.elements.namedItem('password') as HTMLInputElement).value
     const confirmPassword = (form.elements.namedItem('confirmPassword') as HTMLInputElement).value
-    if (password !== confirmPassword) {
-      setError('Passwords do not match')
+    if (passwordValue !== confirmPassword) {
+      setError(t('auth.register.passwordsDoNotMatch'))
       return
     }
-    if (!name || !email || !password) return
+    if (passwordValue.length < 6) {
+      setError(t('auth.register.passwordMinLength'))
+      return
+    }
+    if (!name || !email || !passwordValue) return
     setLoading(true)
-    const { data, error: err } = await authApi.register({ email, password, name })
+    const { data, error: err } = await authApi.register({ email, password: passwordValue, name })
     setLoading(false)
     if (err || !data?.success) {
       setError((data as { error?: string })?.error ?? err ?? 'Registration failed')
       return
     }
-    const token = (data as { verificationToken?: string }).verificationToken
-    navigate('/verify', { state: token ? { verificationToken: token } : undefined, replace: true })
+    navigate('/verify', {
+      state: { verificationEmail: (data as RegisterResponse).email },
+      replace: true,
+    })
   }
 
   return (
@@ -83,26 +105,49 @@ export default function RegisterPage() {
               <label htmlFor="register-password" className="block text-sm font-medium text-slate-300 mb-2">
                 {t('auth.register.password')}
               </label>
-              <input
+              <PasswordInput
                 id="register-password"
-                type="password"
                 name="password"
                 required
+                minLength={6}
                 autoComplete="new-password"
-                className="w-full px-4 py-3 rounded-xl bg-background-dark border border-border-dark text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary"
+                onChange={(e) => setPassword((e.target as HTMLInputElement).value)}
               />
+              <div className="mt-1.5 flex items-center gap-2">
+                <div className="flex-1 h-1.5 rounded-full bg-border-dark overflow-hidden">
+                  <div
+                    className={`h-full transition-all duration-200 ${
+                      strength === 'weak'
+                        ? 'w-1/3 bg-red-500'
+                        : strength === 'medium'
+                          ? 'w-2/3 bg-amber-500'
+                          : 'w-full bg-green-500'
+                    }`}
+                  />
+                </div>
+                <span
+                  className={`text-xs font-medium ${
+                    strength === 'weak'
+                      ? 'text-red-400'
+                      : strength === 'medium'
+                        ? 'text-amber-400'
+                        : 'text-green-400'
+                  }`}
+                >
+                  {t(`auth.passwordStrength.${strength}`)}
+                </span>
+              </div>
             </div>
             <div>
               <label htmlFor="register-confirm" className="block text-sm font-medium text-slate-300 mb-2">
                 {t('auth.register.confirmPassword')}
               </label>
-              <input
+              <PasswordInput
                 id="register-confirm"
-                type="password"
                 name="confirmPassword"
                 required
+                minLength={6}
                 autoComplete="new-password"
-                className="w-full px-4 py-3 rounded-xl bg-background-dark border border-border-dark text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary"
               />
             </div>
             <button

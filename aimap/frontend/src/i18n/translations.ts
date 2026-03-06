@@ -92,6 +92,16 @@ export const translations: Record<Locale, Record<string, string>> = {
     'auth.reset.missingToken': 'Missing reset token. Use the link from your email or request a new one from Forgot password.',
     // Auth – common
     'auth.backHome': 'Back to home',
+    'auth.showPassword': 'Show password',
+    'auth.hidePassword': 'Hide password',
+    'auth.passwordStrength.weak': 'Weak',
+    'auth.passwordStrength.medium': 'Medium',
+    'auth.passwordStrength.strong': 'Strong',
+    'auth.register.passwordsDoNotMatch': 'Passwords do not match',
+    'auth.register.passwordMinLength': 'Password must be at least 6 characters',
+    'auth.reset.passwordsDoNotMatch': 'Passwords do not match',
+    'auth.reset.passwordMinLength': 'Password must be at least 6 characters',
+    'auth.reset.passwordUpdated': 'Password updated.',
   },
   vi: {
     'nav.features': 'Tính năng',
@@ -176,6 +186,16 @@ export const translations: Record<Locale, Record<string, string>> = {
     'auth.reset.backToLogin': 'Về đăng nhập',
     'auth.reset.missingToken': 'Thiếu mã đặt lại. Dùng link trong email hoặc yêu cầu mã mới từ trang Quên mật khẩu.',
     'auth.backHome': 'Về trang chủ',
+    'auth.showPassword': 'Hiện mật khẩu',
+    'auth.hidePassword': 'Ẩn mật khẩu',
+    'auth.passwordStrength.weak': 'Yếu',
+    'auth.passwordStrength.medium': 'Trung bình',
+    'auth.passwordStrength.strong': 'Mạnh',
+    'auth.register.passwordsDoNotMatch': 'Hai mật khẩu không trùng khớp',
+    'auth.register.passwordMinLength': 'Mật khẩu cần ít nhất 6 ký tự',
+    'auth.reset.passwordsDoNotMatch': 'Hai mật khẩu không trùng khớp',
+    'auth.reset.passwordMinLength': 'Mật khẩu cần ít nhất 6 ký tự',
+    'auth.reset.passwordUpdated': 'Đã cập nhật mật khẩu.',
   },
 }
 

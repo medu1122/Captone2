@@ -1,6 +1,6 @@
 /**
- * Kiểm tra database có đủ 15 bảng theo READ_CONTEXT/database_design.md hay không.
- * Gọi sau connectDB(); nếu thiếu bảng sẽ log warning (không exit).
+ * KIỂM TRA DATABASE CÓ ĐỦ 15 BẢNG THEO READ_CONTEXT/DATABASE_DESIGN.MD HAY KHÔNG.
+ * GỌI SAU connectDB(); NẾU THIẾU BẢNG CHỈ LOG WARNING, KHÔNG EXIT.
  */
 
 const REQUIRED_TABLES = [
@@ -24,6 +24,7 @@ const REQUIRED_TABLES = [
 /**
  * @param {import('pg').Pool} pool
  * @returns {Promise<{ ok: boolean, existing: string[], missing: string[] }>}
+ * OK = TRUE KHI ĐỦ TẤT CẢ BẢNG TRONG REQUIRED_TABLES.
  */
 export async function verifySchema(pool) {
   const client = await pool.connect()

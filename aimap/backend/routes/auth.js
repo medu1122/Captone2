@@ -1,13 +1,13 @@
 /**
- * Auth routes – khớp READ_CONTEXT/database_design.md (logins + user_profiles).
- * POST /api/auth/register, /api/auth/login, /api/auth/verify, /api/auth/forgot-password, /api/auth/reset-password
+ * ROUTES AUTH — KHỚP READ_CONTEXT/DATABASE_DESIGN.MD (LOGINS + USER_PROFILES).
+ * POST /api/auth/register, login, verify, resend-verify-code, forgot-password, reset-password
  */
 import { Router } from 'express'
 import bcrypt from 'bcrypt'
 import jwt from 'jsonwebtoken'
 import pool from '../db/index.js'
 import {
-  sendVerificationEmail,
+  sendVerificationCodeEmail,
   sendResetPasswordEmail,
   isEmailConfigured,
   FRONTEND_URL,
@@ -16,14 +16,21 @@ import {
 const router = Router()
 const JWT_SECRET = process.env.JWT_SECRET || 'aimap-dev-secret-change-in-production'
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d'
-const VERIFY_TOKEN_EXPIRES = '24h'
 const RESET_TOKEN_EXPIRES = '1h'
 const BCRYPT_ROUNDS = 10
+const VERIFY_CODE_EXPIRES_MINUTES = 15
 
+/** SINH MÃ 6 SỐ NGẪU NHIÊN CHO XÁC THỰC EMAIL */
+function generateSixDigitCode() {
+  return String(Math.floor(100000 + Math.random() * 900000))
+}
+
+/** KÝ JWT (LOGIN HOẶC RESET PASSWORD) */
 function signToken(payload, expiresIn = JWT_EXPIRES_IN) {
   return jwt.sign(payload, JWT_SECRET, { expiresIn })
 }
 
+/** GIẢI MÃ VÀ KIỂM TRA JWT; TRẢ NULL NẾU LỖI HOẶC HẾT HẠN */
 function verifyToken(token) {
   try {
     return jwt.verify(token, JWT_SECRET)
@@ -32,7 +39,7 @@ function verifyToken(token) {
   }
 }
 
-// POST /api/auth/register
+// — ĐĂNG KÝ (TẠO LOGIN + PROFILE + MÃ 6 SỐ GỬI EMAIL)
 router.post('/register', async (req, res) => {
   const { email, password, name } = req.body || {}
   if (!email || !password || !name) {
@@ -55,20 +62,27 @@ router.post('/register', async (req, res) => {
       [loginId, (name || '').trim()]
     )
     const normalizedEmail = email.trim().toLowerCase()
-    const verificationToken = signToken({ email: normalizedEmail, purpose: 'verify' }, VERIFY_TOKEN_EXPIRES)
-    const verifyLink = `${FRONTEND_URL.replace(/\/$/, '')}/verify?token=${verificationToken}`
+    const code = generateSixDigitCode()
+    const expiresAt = new Date(Date.now() + VERIFY_CODE_EXPIRES_MINUTES * 60 * 1000)
+    await client.query(
+      `INSERT INTO email_verification_codes (email, code, expires_at)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (email) DO UPDATE SET code = $2, expires_at = $3, created_at = NOW()`,
+      [normalizedEmail, code, expiresAt]
+    )
 
     if (isEmailConfigured()) {
-      const { sent, error } = await sendVerificationEmail(normalizedEmail, verifyLink)
-      if (!sent) console.error('Verification email failed:', error)
+      const { sent, error } = await sendVerificationCodeEmail(normalizedEmail, code)
+      if (!sent) console.error('Verification code email failed:', error)
     }
 
     const payload = {
       success: true,
-      message: 'Account created. Check your email to verify, or use the link below if you did not receive it.',
+      message: 'Account created. Check your email for the 6-digit verification code.',
       redirectTo: '/verify',
+      email: normalizedEmail,
     }
-    if (!isEmailConfigured()) payload.verificationToken = verificationToken
+    if (!isEmailConfigured()) payload.code = code
     res.status(201).json(payload)
   } catch (err) {
     console.error('Register error:', err)
@@ -78,7 +92,7 @@ router.post('/register', async (req, res) => {
   }
 })
 
-// POST /api/auth/login
+// — ĐĂNG NHẬP (TRẢ JWT + USER)
 router.post('/login', async (req, res) => {
   const { email, password } = req.body || {}
   if (!email || !password) {
@@ -122,40 +136,81 @@ router.post('/login', async (req, res) => {
   }
 })
 
-// POST /api/auth/verify – body: { token } (JWT from register) or { email, code } for future OTP
+// — XÁC THỰC EMAIL BẰNG MÃ 6 SỐ (BODY: EMAIL, CODE)
 router.post('/verify', async (req, res) => {
-  const { token, email, code } = req.body || {}
-  if (token) {
-    const decoded = verifyToken(token)
-    if (!decoded || decoded.purpose !== 'verify') {
-      return res.status(400).json({ error: 'Invalid or expired verification link' })
-    }
-    const client = await pool.connect()
-    try {
-      const r = await client.query(
-        "UPDATE logins SET status = 'active' WHERE email = $1 AND status = 'pending_verify' RETURNING id",
-        [decoded.email]
-      )
-      if (r.rowCount === 0) {
-        return res.status(400).json({ error: 'Already verified or invalid' })
-      }
-      res.json({ success: true, message: 'Email verified', redirectTo: '/login' })
-    } catch (err) {
-      console.error('Verify error:', err)
-      res.status(500).json({ error: 'Verification failed' })
-    } finally {
-      client.release()
-    }
-    return
+  const { email, code } = req.body || {}
+  if (!email || !code) {
+    return res.status(400).json({ error: 'Missing email or verification code' })
   }
-  if (email && code) {
-    // Optional: OTP flow when you add verification_code storage
-    return res.status(400).json({ error: 'Use verification token from email link' })
+  const normalizedEmail = email.trim().toLowerCase()
+  const codeStr = String(code).trim().replace(/\s/g, '')
+  if (codeStr.length !== 6 || !/^\d{6}$/.test(codeStr)) {
+    return res.status(400).json({ error: 'Code must be 6 digits' })
   }
-  res.status(400).json({ error: 'Missing token' })
+  const client = await pool.connect()
+  try {
+    const row = await client.query(
+      `SELECT id FROM email_verification_codes
+       WHERE email = $1 AND code = $2 AND expires_at > NOW()`,
+      [normalizedEmail, codeStr]
+    )
+    if (row.rows.length === 0) {
+      return res.status(400).json({ error: 'Invalid or expired code' })
+    }
+    const r = await client.query(
+      "UPDATE logins SET status = 'active' WHERE email = $1 AND status = 'pending_verify' RETURNING id",
+      [normalizedEmail]
+    )
+    if (r.rowCount === 0) {
+      return res.status(400).json({ error: 'Already verified or invalid' })
+    }
+    await client.query('DELETE FROM email_verification_codes WHERE email = $1', [normalizedEmail])
+    res.json({ success: true, message: 'Email verified', redirectTo: '/login' })
+  } catch (err) {
+    console.error('Verify error:', err)
+    res.status(500).json({ error: 'Verification failed' })
+  } finally {
+    client.release()
+  }
 })
 
-// POST /api/auth/forgot-password – body: { email }
+// — GỬI LẠI MÃ XÁC THỰC (BODY: EMAIL)
+router.post('/resend-verify-code', async (req, res) => {
+  const { email } = req.body || {}
+  if (!email) {
+    return res.status(400).json({ error: 'Missing email' })
+  }
+  const normalizedEmail = email.trim().toLowerCase()
+  const client = await pool.connect()
+  try {
+    const loginRow = await client.query(
+      'SELECT id FROM logins WHERE email = $1 AND status = $2',
+      [normalizedEmail, 'pending_verify']
+    )
+    if (loginRow.rows.length === 0) {
+      return res.json({ success: true, message: 'If the email is unverified, a new code was sent.' })
+    }
+    const code = generateSixDigitCode()
+    const expiresAt = new Date(Date.now() + VERIFY_CODE_EXPIRES_MINUTES * 60 * 1000)
+    await client.query(
+      `INSERT INTO email_verification_codes (email, code, expires_at)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (email) DO UPDATE SET code = $2, expires_at = $3, created_at = NOW()`,
+      [normalizedEmail, code, expiresAt]
+    )
+    if (isEmailConfigured()) {
+      const { sent, error } = await sendVerificationCodeEmail(normalizedEmail, code)
+      if (!sent) console.error('Resend verification code failed:', error)
+    }
+    const payload = { success: true, message: 'A new verification code was sent.' }
+    if (!isEmailConfigured()) payload.code = code
+    res.json(payload)
+  } finally {
+    client.release()
+  }
+})
+
+// — QUÊN MẬT KHẨU (GỬI LINK RESET QUA EMAIL)
 router.post('/forgot-password', async (req, res) => {
   const { email } = req.body || {}
   if (!email) {
@@ -165,7 +220,7 @@ router.post('/forgot-password', async (req, res) => {
   try {
     const r = await client.query('SELECT id FROM logins WHERE email = $1', [email.trim().toLowerCase()])
     if (r.rows.length === 0) {
-      // Don't reveal whether email exists
+      // KHÔNG TIẾT LỘ EMAIL CÓ TỒN TẠI HAY KHÔNG
       return res.json({ success: true, message: 'If the email exists, a reset link was sent.' })
     }
     const normalizedEmail = email.trim().toLowerCase()
@@ -188,7 +243,7 @@ router.post('/forgot-password', async (req, res) => {
   }
 })
 
-// POST /api/auth/reset-password – body: { token, newPassword }
+// — ĐẶT LẠI MẬT KHẨU (BODY: TOKEN TỪ LINK, NEWPASSWORD)
 router.post('/reset-password', async (req, res) => {
   const { token, newPassword } = req.body || {}
   if (!token || !newPassword || newPassword.length < 6) {

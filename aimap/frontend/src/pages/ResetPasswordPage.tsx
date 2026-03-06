@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import AuthLayout from '../layouts/AuthLayout'
+import PasswordInput from '../components/PasswordInput'
 import { useLocale } from '../contexts/LocaleContext'
 import { authApi } from '../api/auth'
 
@@ -21,11 +22,11 @@ export default function ResetPasswordPage() {
     const newPassword = (form.elements.namedItem('password') as HTMLInputElement).value
     const confirmPassword = (form.elements.namedItem('confirmPassword') as HTMLInputElement).value
     if (newPassword !== confirmPassword) {
-      setError('Passwords do not match')
+      setError(t('auth.reset.passwordsDoNotMatch'))
       return
     }
     if (newPassword.length < 6) {
-      setError('Password must be at least 6 characters')
+      setError(t('auth.reset.passwordMinLength'))
       return
     }
     setLoading(true)
@@ -61,7 +62,7 @@ export default function ResetPasswordPage() {
           )}
           {success && (
             <p className="mb-4 text-sm text-green-400 bg-green-400/10 rounded-lg px-3 py-2">
-              Password updated. <Link to="/login" className="underline">Log in</Link>
+              {t('auth.reset.passwordUpdated')} <Link to="/login" className="underline">{t('auth.login.submit')}</Link>
             </p>
           )}
           <form onSubmit={handleSubmit} className="space-y-5">
@@ -70,28 +71,24 @@ export default function ResetPasswordPage() {
               <label htmlFor="reset-password" className="block text-sm font-medium text-slate-300 mb-2">
                 {t('auth.reset.password')}
               </label>
-              <input
+              <PasswordInput
                 id="reset-password"
-                type="password"
                 name="password"
                 required
                 autoComplete="new-password"
                 minLength={6}
-                className="w-full px-4 py-3 rounded-xl bg-background-dark border border-border-dark text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary"
               />
             </div>
             <div>
               <label htmlFor="reset-confirm" className="block text-sm font-medium text-slate-300 mb-2">
                 {t('auth.reset.confirmPassword')}
               </label>
-              <input
+              <PasswordInput
                 id="reset-confirm"
-                type="password"
                 name="confirmPassword"
                 required
                 autoComplete="new-password"
                 minLength={6}
-                className="w-full px-4 py-3 rounded-xl bg-background-dark border border-border-dark text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary"
               />
             </div>
             <button

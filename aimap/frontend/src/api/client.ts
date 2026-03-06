@@ -1,5 +1,5 @@
 /**
- * API base URL – từ env (Vite: import.meta.env.VITE_API_URL).
+ * API base URL – từ env (VITE_API_URL). Dev: để trống thì dùng proxy /api -> backend 4000.
  */
 const API_BASE = (import.meta as unknown as { env: Record<string, string> }).env?.VITE_API_URL ?? 'http://localhost:4000'
 

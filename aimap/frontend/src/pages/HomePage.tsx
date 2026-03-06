@@ -6,20 +6,20 @@ export default function HomePage() {
 
   return (
     <div className="bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 font-display min-h-screen flex flex-col antialiased selection:bg-primary/30 selection:text-primary overflow-x-hidden">
-      {/* Navbar */}
+      {/* Navbar — 3 mục Features / How it works / Pricing căn giữa */}
       <header className="fixed top-0 left-0 right-0 z-50 glassmorphism px-6 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-shrink-0">
           <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-white">
             <span className="material-symbols-outlined text-xl">auto_awesome</span>
           </div>
           <span className="font-bold text-xl tracking-tight text-slate-900 dark:text-white">AIMAP</span>
         </div>
-        <nav className="hidden md:flex items-center gap-8">
+        <nav className="hidden md:flex absolute left-1/2 -translate-x-1/2 items-center gap-8">
           <a className="text-sm font-medium text-slate-600 dark:text-slate-300 hover:text-primary dark:hover:text-primary transition-colors" href="#features">{t('nav.features')}</a>
           <a className="text-sm font-medium text-slate-600 dark:text-slate-300 hover:text-primary dark:hover:text-primary transition-colors" href="#how-it-works">{t('nav.howItWorks')}</a>
           <a className="text-sm font-medium text-slate-600 dark:text-slate-300 hover:text-primary dark:hover:text-primary transition-colors" href="#pricing">{t('nav.pricing')}</a>
         </nav>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-4 flex-shrink-0 ml-auto">
           <LanguageSwitcher />
           <a className="hidden sm:block text-sm font-medium text-slate-600 dark:text-slate-300 hover:text-primary dark:hover:text-primary transition-colors" href="/login">{t('nav.logIn')}</a>
           <a href="/register" className="bg-primary hover:bg-primary/90 text-white text-sm font-semibold py-2 px-5 rounded-full transition-all shadow-[0_0_15px_rgba(37,106,244,0.4)]">

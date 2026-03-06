@@ -1,6 +1,6 @@
 /**
- * SMTP email service – verify link & reset password link.
- * Env: SMTP_HOST, SMTP_PORT, SMTP_SECURE, SMTP_USER, SMTP_PASS, MAIL_FROM, FRONTEND_URL.
+ * SERVICE GỬI EMAIL QUA SMTP — MÃ XÁC THỰC 6 SỐ VÀ LINK ĐẶT LẠI MẬT KHẨU.
+ * ENV: SMTP_HOST, SMTP_PORT, SMTP_SECURE, SMTP_USER, SMTP_PASS, MAIL_FROM, FRONTEND_URL.
  */
 import nodemailer from 'nodemailer'
 
@@ -19,18 +19,17 @@ function getTransporter() {
   })
 }
 
-/** @returns {boolean} true if SMTP is configured */
+/** TRẢ VỀ TRUE NẾU ĐÃ CẤU HÌNH SMTP */
 export function isEmailConfigured() {
   return getTransporter() !== null
 }
 
 /**
- * Send verification email with link.
- * @param {string} to - recipient email
- * @param {string} verificationLink - full URL to /verify?token=...
- * @returns {Promise<{ sent: boolean, error?: string }>}
+ * GỬI EMAIL CHỨA MÃ XÁC THỰC 6 SỐ (KHÔNG GỬI LINK).
+ * @param {string} to — email người nhận
+ * @param {string} code — mã 6 số
  */
-export async function sendVerificationEmail(to, verificationLink) {
+export async function sendVerificationCodeEmail(to, code) {
   const transport = getTransporter()
   if (!transport) {
     return { sent: false, error: 'SMTP not configured' }
@@ -40,26 +39,25 @@ export async function sendVerificationEmail(to, verificationLink) {
     await transport.sendMail({
       from,
       to,
-      subject: 'Verify your AIMAP account',
-      text: `Verify your email by opening this link:\n\n${verificationLink}\n\nLink expires in 24 hours.`,
+      subject: 'Your AIMAP verification code',
+      text: `Your verification code is: ${code}\n\nThis code expires in 15 minutes. If you didn't create an account, you can ignore this email.`,
       html: `
-        <p>Welcome to AIMAP. Please verify your email by clicking the link below:</p>
-        <p><a href="${verificationLink}">Verify my email</a></p>
-        <p>Link expires in 24 hours. If you didn't create an account, you can ignore this email.</p>
+        <p>Your AIMAP verification code is:</p>
+        <p style="font-size:24px;font-weight:bold;letter-spacing:4px;">${code}</p>
+        <p>This code expires in 15 minutes. If you didn't create an account, you can ignore this email.</p>
       `,
     })
     return { sent: true }
   } catch (err) {
-    console.error('Send verification email error:', err)
+    console.error('Send verification code email error:', err)
     return { sent: false, error: err.message }
   }
 }
 
 /**
- * Send reset password email with link.
- * @param {string} to - recipient email
- * @param {string} resetLink - full URL to /reset-password?token=...
- * @returns {Promise<{ sent: boolean, error?: string }>}
+ * GỬI EMAIL CHỨA LINK ĐẶT LẠI MẬT KHẨU.
+ * @param {string} to — email người nhận
+ * @param {string} resetLink — URL đầy đủ /reset-password?token=...
  */
 export async function sendResetPasswordEmail(to, resetLink) {
   const transport = getTransporter()
