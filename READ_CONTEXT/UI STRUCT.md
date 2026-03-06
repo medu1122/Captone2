@@ -23,6 +23,7 @@ Kế hoạch này vạch ra các bước cụ thể để xây dựng toàn bộ
 
 **Tổng quan & Cá nhân:**
 
+- **Header/Layout (Dashboard Layout):** Phải có **nút chuyển ngôn ngữ EN/VN** (hoặc EN/VI) trên header để user chọn Tiếng Việt hoặc English; lưu vào `user_profiles.locale`. **Không bỏ** nút này; đây là i18n chính thức của hệ thống.
 - `/dashboard`: Trang tổng quan thống kê của user (số dư credit, số shop, trạng thái website).
 - `/profile`: Cập nhật thông tin cá nhân (tên, avatar, đổi mật khẩu, đổi ngôn ngữ vi/en).
 
