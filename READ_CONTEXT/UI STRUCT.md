@@ -31,7 +31,7 @@ Kế hoạch này vạch ra các bước cụ thể để xây dựng toàn bộ
 
 - `/shops`: Danh sách các cửa hàng (grid/list view).
 - `/shops/create`: Form tạo cửa hàng mới — **chỉ thu thập thông tin cơ bản** (tên shop, slug, ngành, mô tả ngắn, địa chỉ trụ sở, tên chủ shop, quốc gia, mã zip, SĐT shop, email shop). Không nhập product hay website URL lúc tạo; người dùng bổ sung sau tại `/shops/[id]/edit`. Các thông tin này dùng làm context (kèm prompt người dùng + prompt trong kho) để AI sinh content, ảnh và web sau này.
-- `/shops/[id]`: Chi tiết một cửa hàng.
+- **`/shops/[id]` (Chi tiết cửa hàng):** Trang đọc + hub cho một shop. Bao gồm: thông tin shop (identity, location, contact, branding), **sản phẩm** (products), **hình ảnh của shop** (assets: logo, banner, ảnh bài đăng), **kho content** (marketing_content: ad post, mô tả, caption). Có **nút "AI Tool"**: bấm vào mở Agent tạo content, Agent tạo ảnh, …; khi Lưu thì lưu vào kho (assets + marketing_content) của shop này. Có **nút "AI Pipeline"** (hoặc "Pipeline"): bấm vào để **cấu hình và chạy** pipeline cho shop này (Store → Branding → Content → Visual Post …). Các quick action: Edit Shop, Website Builder, Manage Assets, **AI Pipeline**, Facebook.
 - `/shops/[id]/edit`: Form cập nhật thông tin cửa hàng (thêm product, địa chỉ, social links).
 
 **Quản lý Credit & Thanh toán:**
@@ -40,24 +40,25 @@ Kế hoạch này vạch ra các bước cụ thể để xây dựng toàn bộ
 - `/credit/topup`: Chọn gói nạp và thanh toán (chuyển hướng VNPay/Stripe...).
 - `/credit/history`: Bảng lịch sử các giao dịch cộng/trừ credit.
 
-**Quản lý Tài sản (Assets/Branding):**
+**Quản lý Tài sản (Assets / Storage):**
 
-- **Lưu ý:** Mỗi shop có **thư viện asset riêng**; không dùng chung asset giữa các shop. Mọi xem/upload asset đều trong **ngữ cảnh một shop** đã chọn (shop context hoặc route theo shop).
-- `/assets`: Thư viện hiển thị logo, banner, ảnh bài đăng đã tạo **của shop hiện tại** (cần chọn shop trước hoặc dùng route `/shops/[id]/assets`).
-- `/assets/upload`: Giao diện kéo thả/tải lên file tĩnh **vào shop hiện tại** (cần shop context hoặc `/shops/[id]/assets/upload`).
+- **Lưu ý:** Mỗi shop có **kho lưu trữ riêng** (ảnh + content); không dùng chung giữa các shop.
+- **Trang Assets (`/assets`):**
+  - **Mức 1 — Danh sách kho theo shop:** Hiển thị **các shop** của user, mỗi shop một card/row với **dung lượng đã dùng** và **còn trống** của bộ nhớ (storage Docker / object storage của shop đó). User nhìn tổng quan toàn bộ kho chứa theo từng shop.
+  - **Mức 2 — Khi click vào một shop:** Chuyển sang xem **ảnh (assets)** và **kho content (marketing_content)** của đúng shop đó: logo, banner, ảnh bài đăng; và nội dung đã tạo (ad post, product description, caption). Có thể dùng route `/assets` (chọn shop) rồi `/shops/[id]/assets` hoặc `/assets?shop=[id]` để hiển thị ảnh + content của shop.
+- **Upload:** Giao diện tải ảnh lên **vào shop đã chọn** (trong màn hình xem ảnh/content của shop đó), route ví dụ `/shops/[id]/assets/upload`.
 
-**Công cụ AI (AI Tools):**
+**Công cụ AI (AI Tools) — Truy cập từ trang chi tiết shop:**
 
-- `/ai-tools/logo`: Giao diện chat/sinh logo bằng AI (Imagen/Dall-e/Flux).
-- `/ai-tools/banner`: Giao diện tạo banner/cover AI.
-- `/ai-tools/content`: Giao diện sinh text (mô tả sản phẩm, ad post, hashtag).
-- `/ai-tools/post-maker`: Công cụ ghép hình ảnh + text thành post Facebook hoàn chỉnh.
+- **AI Tools không nằm ở sidebar Dashboard** như mục độc lập; chúng nằm **trong trang chi tiết shop** `/shops/[id]`.
+- Trên trang **Chi tiết shop (`/shops/[id]`)** có **một nút "AI Tool"** (hoặc "AI Tools"). Khi user bấm: mở giao diện/modal dùng **Agent tạo content**, **Agent tạo ảnh** (logo, banner, post), v.v. Khi user bấm **Lưu**, toàn bộ kết quả (content, ảnh) được **lưu vào kho của shop đó** (assets + marketing_content).
+- Routes thực thi có thể vẫn là `/ai-tools/logo`, `/ai-tools/content`, … nhưng **điểm vào (entry)** là từ `/shops/[id]` (shop context luôn có sẵn); không cần mục "AI Tools" riêng trên sidebar chính.
 
 **Tự động hóa (Pipeline) & Facebook:**
 
 - Kết nối và đăng bài Facebook là **theo từng shop** (shop context hoặc `/shops/[id]/facebook`); không dùng chung giữa các shop.
-- `/pipeline`: Cấu hình chạy 1 luồng tự động (từ Store info -> ra hình ảnh -> ra text).
-- `/pipeline/runs`: Xem lịch sử các lượt chạy pipeline và trạng thái từng bước.
+- **Tạo và sử dụng Pipeline:** Chỉ xuất hiện **trong từng shop**. Trên trang **Chi tiết shop (`/shops/[id]`)** có nút **"AI Pipeline"** (hoặc "Pipeline"): user bấm vào để **cấu hình và chạy** pipeline cho đúng shop đó (Store info → Branding → Content → Visual Post → …). Không có mục "Chạy pipeline" ở sidebar chính — điểm vào duy nhất để **tạo/chạy** pipeline là từ trang chi tiết shop.
+- **Sidebar "Pipeline" (tùy chọn):** Nếu giữ mục **Pipeline** trên sidebar, nó đóng vai trò **dashboard xem** — hiển thị **danh sách / lịch sử** tất cả pipeline runs của user (có thể lọc theo shop), trạng thái từng bước; route ví dụ `/pipeline` hoặc `/pipeline/runs`. Không dùng sidebar này để tạo/chạy pipeline mới.
 - `/facebook`: Trang quản lý tài khoản Meta/Fanpage đã liên kết (trong ngữ cảnh shop hiện tại).
 - `/facebook/publish`: Giao diện soạn thảo và đăng bài trực tiếp lên Fanpage (của shop đó).
 
@@ -93,11 +94,12 @@ flowchart TD
   UserRoute --> Profile["/profile"]
   UserRoute --> Shops["/shops, /shops/create, /shops/[id], /shops/[id]/edit"]
   UserRoute --> Credit["/credit, /credit/topup, /credit/history"]
-  UserRoute --> Assets["/assets, /assets/upload"]
-  UserRoute --> AITools["/ai-tools/logo, /ai-tools/banner, /ai-tools/content, /ai-tools/post-maker"]
-  UserRoute --> Pipeline["/pipeline, /pipeline/runs"]
+  UserRoute --> Assets["/assets (list shop storages), /shops/[id]/assets (images+content)"]
+  UserRoute --> PipelineView["/pipeline or /pipeline/runs (view-only dashboard of runs)"]
+  Shops -->|"AI Pipeline button"| PipelineRun["create/run pipeline for shop — from /shops/[id]"]
   UserRoute --> Facebook["/facebook, /facebook/publish"]
   UserRoute --> WebBuilder["/website, /website/builder, /website/deploy"]
+  Shops -->|"AI Tool button"| AITools["/ai-tools/* (content, image, …) — entry from /shops/[id]"]
 
   AdminRoute --> AdminDash["/admin/dashboard"]
   AdminRoute --> AdminUsers["/admin/users"]

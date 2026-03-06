@@ -243,6 +243,12 @@ flowchart TB
 - **Asset storage (per user/shop):** Object storage (S3/MinIO) with prefix `users/:userId/` or `shops/:shopId/assets/`. Logo, banner, marketing images, uploads; on deploy the backend **copies** required images into the shop’s container.
 - **Config + conversation:** DB (Postgres or SQLite): `sites` table (siteId, shopId, config JSON, …), `conversation_messages` (siteId, role, content, timestamp).
 
+**Dashboard / Assets & AI Tools (UI):**
+
+- **Assets page:** First shows a **list of each shop’s storage** (used and free capacity per shop’s Docker/object storage). When the user clicks a shop, show that shop’s **images (assets)** and **content library (marketing_content)**. No shared storage between shops.
+- **AI tools:** Accessed from the **shop detail page** (`/shops/[id]`) via an **"AI Tool"** button (not as a top-level sidebar item). User runs content agent, image agent, etc.; on **Save**, all results are stored in that shop’s storage (assets + marketing_content).
+- **Pipeline (create and run):** Only from **within each shop**. On the shop detail page (`/shops/[id]`) there is an **"AI Pipeline"** button; the user clicks it to configure and run the automation pipeline (Store info → Branding → Content → Visual Post → …) for that shop. The sidebar **"Pipeline"** item (if present) is only a **view dashboard** of all pipeline runs (optionally filter by shop); it is not used to create or run a new pipeline.
+
 **Hosting (Per-shop Docker):**
 
 - **One Docker container per shop.** Orchestrator creates the container when the shop is created; container runs nginx serving static **HTML + images + content** (pushed by the backend on deploy).

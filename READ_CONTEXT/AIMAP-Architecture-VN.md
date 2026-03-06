@@ -255,6 +255,12 @@ flowchart TB
 - **Asset storage (per user/shop):** Object storage (S3/MinIO) với prefix `users/:userId/` hoặc `shops/:shopId/assets/`. Logo, banner, ảnh marketing, upload; khi deploy backend **copy** ảnh cần thiết vào container của shop.
 - **Config + conversation:** DB (Postgres hoặc SQLite): bảng `sites` (siteId, shopId, config JSON, …), `conversation_messages` (siteId, role, content, timestamp).
 
+**Dashboard / Assets & AI Tools (UI):**
+
+- **Trang Assets:** Trước tiên hiển thị **danh sách kho theo từng shop** (dung lượng đã dùng và còn trống của bộ nhớ Docker/object storage từng shop). Khi user click vào một shop → hiển thị **ảnh (assets)** và **kho content (marketing_content)** của shop đó. Không có kho dùng chung giữa các shop.
+- **Công cụ AI:** Truy cập từ **trang chi tiết shop** (`/shops/[id]`) qua **nút "AI Tool"** (không nằm ở sidebar Dashboard). User dùng Agent tạo content, Agent tạo ảnh, …; khi **Lưu** thì toàn bộ kết quả lưu vào kho (assets + marketing_content) của shop đó.
+- **Pipeline (tạo và chạy):** Chỉ xuất hiện **trong từng shop**. Trên trang chi tiết shop (`/shops/[id]`) có nút **"AI Pipeline"**; user bấm để cấu hình và chạy pipeline tự động (Store info → Branding → Content → Visual Post → …) cho shop đó. Mục **"Pipeline"** trên sidebar (nếu có) chỉ là **dashboard xem** danh sách/lịch sử pipeline runs (có thể lọc theo shop), không dùng để tạo/chạy pipeline mới.
+
 **Hosting (Per-shop Docker):**
 
 - **Mỗi 1 shop = 1 Docker container.** Orchestrator tạo container khi tạo shop; container chạy nginx serve static **HTML + ảnh + content** (đã được push từ backend khi deploy).

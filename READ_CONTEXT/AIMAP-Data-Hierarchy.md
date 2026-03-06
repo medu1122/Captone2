@@ -77,9 +77,12 @@ isProject: false
 
 - **Dashboard, Profile, Credit:** Thuộc user (không cần chọn shop).
 - **My Shops:** Danh sách shop của user; vào từng shop (chi tiết / chỉnh sửa).
-- **Assets, AI Tools, Website, Facebook, Pipeline:** Hoạt động trong **ngữ cảnh một shop** đã chọn. Có thể:
-  - Dùng **shop context** (dropdown “Current shop” hoặc từ URL `/shops/[id]` rồi vào Assets/Website/Facebook/Pipeline của shop đó), hoặc
-  - Dùng **route theo shop:** `/shops/[id]/assets`, `/shops/[id]/website`, `/shops/[id]/facebook`, `/shops/[id]/pipeline` (tùy thiết kế frontend).
+- **Trang Chi tiết shop (`/shops/[id]`):** Hiển thị thông tin shop, **sản phẩm**, **hình ảnh (assets)** và **kho content (marketing_content)** của shop đó. Có **nút "AI Tool"**: mở Agent tạo content, Agent tạo ảnh, …; khi Lưu thì lưu vào kho (assets + marketing_content) của shop. **AI Tools không nằm ở sidebar Dashboard** — điểm vào duy nhất là từ trang chi tiết shop.
+- **Assets:** Trang `/assets` trước tiên hiển thị **danh sách kho theo từng shop** (dung lượng đã dùng / còn trống của bộ nhớ từng Docker/storage). Khi user click vào một shop → xem **ảnh (assets)** và **kho content** của shop đó (`/shops/[id]/assets` hoặc tương đương).
+- **Tạo và sử dụng Pipeline:** Chỉ xuất hiện **trong từng shop**. Trên trang Chi tiết shop (`/shops/[id]`) có nút **"AI Pipeline"**: user bấm để cấu hình và chạy pipeline cho shop đó. Sidebar "Pipeline" (nếu có) chỉ là **dashboard xem** danh sách/lịch sử pipeline runs (có thể lọc theo shop), không dùng để tạo/chạy pipeline mới.
+- **Website, Facebook:** Hoạt động trong ngữ cảnh một shop. Có thể:
+  - Dùng **shop context** (dropdown “Current shop” hoặc từ URL `/shops/[id]` rồi vào Assets/Website/Facebook của shop đó), hoặc
+  - Dùng **route theo shop:** `/shops/[id]/assets`, `/shops/[id]/website`, `/shops/[id]/facebook` (tùy thiết kế frontend).
 - Đảm bảo: Khi xem/thêm/sửa **Storage (image, content, product), Web, Facebook, Generate**, hệ thống luôn biết **shop_id** để không lẫn dữ liệu giữa các shop.
 
 ---
