@@ -1,21 +1,24 @@
 /**
- * AIMAP Backend – entry (config only, chưa mount routes).
+ * AIMAP Backend – entry + auth routes.
  * Chạy: node index.js hoặc npm run dev
  */
 import 'dotenv/config'
 import express from 'express'
 import cors from 'cors'
 import { connectDB } from './db/index.js'
+import authRoutes from './routes/auth.js'
 
 const app = express()
 const PORT = process.env.PORT ?? 4000
 
-app.use(cors())
+app.use(cors({ origin: process.env.FRONTEND_URL || true, credentials: true }))
 app.use(express.json())
 
 app.get('/health', (_, res) => {
   res.json({ ok: true, service: 'aimap-backend' })
 })
+
+app.use('/api/auth', authRoutes)
 
 await connectDB()
 

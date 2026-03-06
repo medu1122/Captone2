@@ -1,0 +1,200 @@
+export type Locale = 'en' | 'vi'
+
+export const translations: Record<Locale, Record<string, string>> = {
+  en: {
+    // Nav
+    'nav.features': 'Features',
+    'nav.howItWorks': 'How it Works',
+    'nav.pricing': 'Pricing',
+    'nav.logIn': 'Log in',
+    'nav.getStarted': 'Get Started',
+    // Hero
+    'hero.platformLive': 'Platform Live',
+    'hero.headline': 'Automate Your Marketing with AI.',
+    'hero.headlineHighlight': 'Zero Code. Zero Hassle.',
+    'hero.subheadline': 'Our multi-agent AI orchestrates your branding, website, and social media from a single prompt. Build your entire digital presence in minutes.',
+    'hero.startAutomating': 'Start Automating Now',
+    'hero.watchDemo': 'Watch Demo',
+    'hero.websiteGenerated': 'Website Generated',
+    'hero.inSeconds': 'In 2.4 seconds',
+    'hero.socialCampaign': 'Social Campaign',
+    'hero.scheduled': 'Scheduled for 9:00 AM',
+    // Trust
+    'trust.title': 'Trusted by modern small businesses',
+    // Features
+    'features.title': 'Everything you need to grow',
+    'features.subtitle': "AIMAP's multi-agent AI builds your brand, website, and marketing campaigns in minutes, acting as your entire marketing department.",
+    'features.unifiedInput': 'Unified Input',
+    'features.unifiedInputDesc': 'Describe your business once. Our AI agents analyze your prompt to extract core brand values, target audience, and key offerings.',
+    'features.aiBranding': 'AI Branding',
+    'features.aiBrandingDesc': 'Get beautiful logo concepts, typography, and brand colors instantly generated based on your business profile.',
+    'features.aiWebsite': 'AI Website Builder',
+    'features.aiWebsiteDesc': 'Launch a stunning, high-converting, fully responsive website with zero code required.',
+    'features.facebookPublish': 'Facebook Auto-Publish',
+    'features.facebookPublishDesc': 'Generate, schedule, and auto-publish engaging social posts effortlessly to keep your audience engaged.',
+    // How it works
+    'how.title': 'How AIMAP Works',
+    'how.subtitle': 'From prompt to production in three simple steps.',
+    'how.step1': '1. The Input',
+    'how.step1Desc': 'Simply describe your business, target audience, and goals in plain English.',
+    'how.step2': '2. AI Orchestration',
+    'how.step2Desc': 'Our agents break down your prompt, drafting copy, designing assets, and structuring your site.',
+    'how.step3': '3. Deploy & Automate',
+    'how.step3Desc': 'Review the generated assets, click deploy, and let the AI handle your ongoing marketing schedule.',
+    'how.exampleChat': "I'm opening a specialty coffee shop in Brooklyn focusing on fair-trade, organic roasts.",
+    'how.goLive': 'Go Live',
+    // CTA
+    'cta.title': 'Ready to transform your business?',
+    'cta.subtitle': 'Stop juggling multiple tools and agencies. Let AIMAP handle your marketing so you can focus on what you do best.',
+    'cta.createAccount': 'Create Your Free Account',
+    'cta.noCard': 'No credit card required. 14-day free trial.',
+    // Footer
+    'footer.copyright': 'Capstone Project - AIMAP © 2024. All rights reserved.',
+    // Auth – Login
+    'auth.login.title': 'Log in to AIMAP',
+    'auth.login.subtitle': 'Enter your email and password to access your account.',
+    'auth.login.email': 'Email',
+    'auth.login.password': 'Password',
+    'auth.login.submit': 'Log in',
+    'auth.login.noAccount': "Don't have an account?",
+    'auth.login.signUp': 'Sign up',
+    'auth.login.forgotPassword': 'Forgot password?',
+    // Auth – Register
+    'auth.register.title': 'Create your account',
+    'auth.register.subtitle': 'Get started with AIMAP in a few steps.',
+    'auth.register.name': 'Full name',
+    'auth.register.email': 'Email',
+    'auth.register.password': 'Password',
+    'auth.register.confirmPassword': 'Confirm password',
+    'auth.register.submit': 'Create account',
+    'auth.register.hasAccount': 'Already have an account?',
+    'auth.register.logIn': 'Log in',
+    // Auth – Verify
+    'auth.verify.title': 'Verify your email',
+    'auth.verify.subtitle': "We've sent a verification code to your email. Enter it below.",
+    'auth.verify.code': 'Verification code',
+    'auth.verify.submit': 'Verify',
+    'auth.verify.resend': 'Resend code',
+    'auth.verify.backToLogin': 'Back to login',
+    // Auth – Forgot password
+    'auth.forgot.title': 'Forgot password',
+    'auth.forgot.subtitle': 'Enter your email and we’ll send you a link to reset your password.',
+    'auth.forgot.email': 'Email',
+    'auth.forgot.submit': 'Send reset link',
+    'auth.forgot.backToLogin': 'Back to login',
+    // Auth – Reset password
+    'auth.reset.title': 'Reset password',
+    'auth.reset.subtitle': 'Enter your new password below.',
+    'auth.reset.password': 'New password',
+    'auth.reset.confirmPassword': 'Confirm new password',
+    'auth.reset.submit': 'Reset password',
+    'auth.reset.backToLogin': 'Back to login',
+    'auth.reset.missingToken': 'Missing reset token. Use the link from your email or request a new one from Forgot password.',
+    // Auth – common
+    'auth.backHome': 'Back to home',
+  },
+  vi: {
+    'nav.features': 'Tính năng',
+    'nav.howItWorks': 'Cách hoạt động',
+    'nav.pricing': 'Bảng giá',
+    'nav.logIn': 'Đăng nhập',
+    'nav.getStarted': 'Bắt đầu',
+    'hero.platformLive': 'Nền tảng đã ra mắt',
+    'hero.headline': 'Tự động hóa Marketing bằng AI.',
+    'hero.headlineHighlight': 'Không code. Không rườm rà.',
+    'hero.subheadline': 'AI đa agent điều phối thương hiệu, website và mạng xã hội từ một prompt. Xây dựng toàn bộ hiện diện số trong vài phút.',
+    'hero.startAutomating': 'Bắt đầu tự động hóa',
+    'hero.watchDemo': 'Xem demo',
+    'hero.websiteGenerated': 'Website đã tạo',
+    'hero.inSeconds': 'Trong 2,4 giây',
+    'hero.socialCampaign': 'Chiến dịch MXH',
+    'hero.scheduled': 'Lên lịch 9:00 sáng',
+    'trust.title': 'Được tin dùng bởi doanh nghiệp nhỏ hiện đại',
+    'features.title': 'Mọi thứ bạn cần để phát triển',
+    'features.subtitle': 'AI đa agent của AIMAP xây dựng thương hiệu, website và chiến dịch marketing trong vài phút, như một phòng marketing hoàn chỉnh.',
+    'features.unifiedInput': 'Đầu vào thống nhất',
+    'features.unifiedInputDesc': 'Mô tả doanh nghiệp một lần. Các agent AI phân tích prompt để trích xuất giá trị thương hiệu, đối tượng mục tiêu và sản phẩm chính.',
+    'features.aiBranding': 'Thương hiệu bằng AI',
+    'features.aiBrandingDesc': 'Nhận ý tưởng logo, typography và màu thương hiệu được tạo ngay dựa trên hồ sơ doanh nghiệp.',
+    'features.aiWebsite': 'AI Website Builder',
+    'features.aiWebsiteDesc': 'Ra mắt website đẹp, chuyển đổi cao, responsive hoàn toàn mà không cần code.',
+    'features.facebookPublish': 'Tự động đăng Facebook',
+    'features.facebookPublishDesc': 'Tạo, lên lịch và tự động đăng bài lên mạng xã hội để giữ chân khách hàng.',
+    'how.title': 'AIMAP hoạt động thế nào',
+    'how.subtitle': 'Từ prompt đến production trong ba bước đơn giản.',
+    'how.step1': '1. Đầu vào',
+    'how.step1Desc': 'Chỉ cần mô tả doanh nghiệp, đối tượng và mục tiêu bằng ngôn ngữ tự nhiên.',
+    'how.step2': '2. Điều phối AI',
+    'how.step2Desc': 'Các agent phân tích prompt, soạn nội dung, thiết kế asset và cấu trúc website.',
+    'how.step3': '3. Triển khai & Tự động',
+    'how.step3Desc': 'Xem lại asset đã tạo, bấm triển khai và để AI đảm nhiệm lịch marketing.',
+    'how.exampleChat': 'Tôi mở quán cà phê đặc sản ở Brooklyn, tập trung cà phê hữu cơ, thương mại công bằng.',
+    'how.goLive': 'Go Live',
+    'cta.title': 'Sẵn sàng chuyển đổi doanh nghiệp?',
+    'cta.subtitle': 'Ngừng xoay sở nhiều công cụ và agency. Để AIMAP lo marketing, bạn tập trung vào việc bạn giỏi nhất.',
+    'cta.createAccount': 'Tạo tài khoản miễn phí',
+    'cta.noCard': 'Không cần thẻ tín dụng. Dùng thử 14 ngày.',
+    'footer.copyright': 'Capstone Project - AIMAP © 2024. Bảo lưu mọi quyền.',
+    // Auth – Login
+    'auth.login.title': 'Đăng nhập AIMAP',
+    'auth.login.subtitle': 'Nhập email và mật khẩu để truy cập tài khoản.',
+    'auth.login.email': 'Email',
+    'auth.login.password': 'Mật khẩu',
+    'auth.login.submit': 'Đăng nhập',
+    'auth.login.noAccount': 'Chưa có tài khoản?',
+    'auth.login.signUp': 'Đăng ký',
+    'auth.login.forgotPassword': 'Quên mật khẩu?',
+    // Auth – Register
+    'auth.register.title': 'Tạo tài khoản',
+    'auth.register.subtitle': 'Bắt đầu với AIMAP trong vài bước.',
+    'auth.register.name': 'Họ và tên',
+    'auth.register.email': 'Email',
+    'auth.register.password': 'Mật khẩu',
+    'auth.register.confirmPassword': 'Xác nhận mật khẩu',
+    'auth.register.submit': 'Tạo tài khoản',
+    'auth.register.hasAccount': 'Đã có tài khoản?',
+    'auth.register.logIn': 'Đăng nhập',
+    // Auth – Verify
+    'auth.verify.title': 'Xác thực email',
+    'auth.verify.subtitle': 'Chúng tôi đã gửi mã xác thực đến email của bạn. Nhập mã bên dưới.',
+    'auth.verify.code': 'Mã xác thực',
+    'auth.verify.submit': 'Xác thực',
+    'auth.verify.resend': 'Gửi lại mã',
+    'auth.verify.backToLogin': 'Về đăng nhập',
+    // Auth – Forgot password
+    'auth.forgot.title': 'Quên mật khẩu',
+    'auth.forgot.subtitle': 'Nhập email để nhận link đặt lại mật khẩu.',
+    'auth.forgot.email': 'Email',
+    'auth.forgot.submit': 'Gửi link đặt lại',
+    'auth.forgot.backToLogin': 'Về đăng nhập',
+    // Auth – Reset password
+    'auth.reset.title': 'Đặt lại mật khẩu',
+    'auth.reset.subtitle': 'Nhập mật khẩu mới bên dưới.',
+    'auth.reset.password': 'Mật khẩu mới',
+    'auth.reset.confirmPassword': 'Xác nhận mật khẩu mới',
+    'auth.reset.submit': 'Đặt lại mật khẩu',
+    'auth.reset.backToLogin': 'Về đăng nhập',
+    'auth.reset.missingToken': 'Thiếu mã đặt lại. Dùng link trong email hoặc yêu cầu mã mới từ trang Quên mật khẩu.',
+    'auth.backHome': 'Về trang chủ',
+  },
+}
+
+const STORAGE_KEY = 'aimap_locale'
+
+export function getStoredLocale(): Locale {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY)
+    if (stored === 'en' || stored === 'vi') return stored
+  } catch {
+    /* ignore */
+  }
+  return 'en'
+}
+
+export function setStoredLocale(locale: Locale): void {
+  try {
+    localStorage.setItem(STORAGE_KEY, locale)
+  } catch {
+    /* ignore */
+  }
+}
