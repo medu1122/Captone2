@@ -41,8 +41,9 @@ Kế hoạch này vạch ra các bước cụ thể để xây dựng toàn bộ
 
 **Quản lý Tài sản (Assets/Branding):**
 
-- `/assets`: Thư viện hiển thị logo, banner, ảnh bài đăng đã tạo.
-- `/assets/upload`: Giao diện kéo thả/tải lên file tĩnh.
+- **Lưu ý:** Mỗi shop có **thư viện asset riêng**; không dùng chung asset giữa các shop. Mọi xem/upload asset đều trong **ngữ cảnh một shop** đã chọn (shop context hoặc route theo shop).
+- `/assets`: Thư viện hiển thị logo, banner, ảnh bài đăng đã tạo **của shop hiện tại** (cần chọn shop trước hoặc dùng route `/shops/[id]/assets`).
+- `/assets/upload`: Giao diện kéo thả/tải lên file tĩnh **vào shop hiện tại** (cần shop context hoặc `/shops/[id]/assets/upload`).
 
 **Công cụ AI (AI Tools):**
 
@@ -53,10 +54,11 @@ Kế hoạch này vạch ra các bước cụ thể để xây dựng toàn bộ
 
 **Tự động hóa (Pipeline) & Facebook:**
 
+- Kết nối và đăng bài Facebook là **theo từng shop** (shop context hoặc `/shops/[id]/facebook`); không dùng chung giữa các shop.
 - `/pipeline`: Cấu hình chạy 1 luồng tự động (từ Store info -> ra hình ảnh -> ra text).
 - `/pipeline/runs`: Xem lịch sử các lượt chạy pipeline và trạng thái từng bước.
-- `/facebook`: Trang quản lý tài khoản Meta/Fanpage đã liên kết.
-- `/facebook/publish`: Giao diện soạn thảo và đăng bài trực tiếp lên Fanpage.
+- `/facebook`: Trang quản lý tài khoản Meta/Fanpage đã liên kết (trong ngữ cảnh shop hiện tại).
+- `/facebook/publish`: Giao diện soạn thảo và đăng bài trực tiếp lên Fanpage (của shop đó).
 
 **Trình tạo & Triển khai Website (Website Builder):**
 

@@ -54,6 +54,8 @@ aimap/
 
 **Đã gộp so với bản cũ:** `backend/src/` bỏ; `orchestrator/` gộp vào `services/`; `ai/` + `docker/` gộp vào `lib/`; `storage/` bỏ (asset path cấu hình trong backend); `shared/schemas` gộp vào `backend/schemas/`; không tách `storage/` hay `docs/` root.
 
+**Asset path:** Cấu hình theo **từng shop**: `shops/:shopId/assets/`; không lưu chung theo user. Mỗi shop một kho ảnh riêng (AI + upload).
+
 ## 3. Bảng mô tả folder (mục tiêu chính – tránh lẫn chức năng)
 
 | Folder | Mục tiêu chính | Không làm gì (tránh lẫn) |

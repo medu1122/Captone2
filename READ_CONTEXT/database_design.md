@@ -62,8 +62,8 @@ Tài liệu này là **nguồn tham chiếu chính** cho thiết kế database c
 | **Conversation**       | Lịch sử chỉnh sửa website bằng prompt: siteId, role (user/assistant), content, timestamp                                              | Architecture III, P3.5                |
 | **Credit**             | Balance = SUM(amount); từng giao dịch: user_id, amount (+/-), type, ref (payment_id hoặc action)                                      | P1.8–P1.12, Architecture              |
 | **Payment**            | Giao dịch nạp tiền: amount_money, credits, gateway, gateway_txn_id, status, callback_data                                             | P1.9, Architecture                    |
-| **Facebook**           | Page Access Token (hoặc link tới user/shop), refresh, page_id (Sprint 2)                                                              | P2.15–P2.18                           |
-| **Assets**             | Metadata ảnh (logo, banner, post): url/path, type, user/shop, tên; **model_source** (imagen \| dall-e-3 \| flux) cho ảnh AI sinh (Sprint 2; file lưu object storage) | Architecture, P2.3, P2.4, [AIMAP-3-Image-ModelsAI-VN](AIMAP-3-Image-ModelsAI-VN.md) |
+| **Facebook**           | Page Access Token **theo từng shop** (facebook_page_tokens.shop_id); mỗi shop kết nối/đăng bài riêng, không dùng chung. | P2.15–P2.18                           |
+| **Assets**             | Metadata ảnh (logo, banner, post): url/path, type, **per shop (shop_id)**, tên; không có kho ảnh chung; **model_source** (imagen \| dall-e-3 \| flux) cho ảnh AI sinh (Sprint 2; file lưu object storage) | Architecture, P2.3, P2.4, [AIMAP-3-Image-ModelsAI-VN](AIMAP-3-Image-ModelsAI-VN.md) |
 | **Deploy / Container** | Site deployment: container_id, subdomain, status, deployed_at (Sprint 3)                                                              | P3.6, P3.8, P3.9, P3.10, Architecture |
 | **Activity logs**      | Nhật ký hành động (mỗi công đoạn tạo web, lỗi): action, entity, details, severity (Sprint 3)                                          | P3.11, P3.13, P3.14                   |
 | **Prompt templates**   | Kho prompt hệ thống: type, content, variables (Sprint 2)                                                                              | Prompt Builder, P2.x                  |
@@ -95,7 +95,7 @@ flowchart LR
 |------|------------|----------|
 | **Centralized** | Database | logins, user_profiles, shops, sites (config_json), assets (metadata), credit_transactions, payments, site_deployments, activity_logs, … |
 | **Centralized** | Object Storage | File ảnh (logo, banner, post) tại `shops/:shopId/assets/`; snapshot web (optional). |
-| **Per-shop Docker** | Container filesystem | HTML/CSS/JS đã render; **bản copy ảnh** dùng cho website shop đó; static content. Nginx serve trực tiếp, không gọi ra ngoài. |
+| **Per-shop Docker** | Container filesystem | Container = **gói toàn bộ dữ liệu runtime của một shop**: web đã render + bản copy ảnh của shop đó + content tĩnh của shop đó; không chứa dữ liệu shop khác. Nginx serve trực tiếp, không gọi ra ngoài. |
 
 **Luồng deploy:** Backend đọc config từ DB + file ảnh từ Object Storage → render HTML → **copy ảnh + HTML vào container** của shop → container tự đủ, user truy cập subdomain chỉ cần container.
 
@@ -147,7 +147,7 @@ flowchart LR
 
 Thiết kế đầy đủ các bảng dùng trong Sprint 2 (AI Automation & Facebook), khớp P2.1–P2.18:
 
-- **assets** (metadata ảnh): id (PK), user_id (FK), shop_id (FK), type (logo | banner | cover | post), name, storage_path_or_url, mime_type, **model_source** (VARCHAR nullable: 'imagen' | 'dall-e-3' | 'flux'), **prompt_template_id** (FK → prompt_templates, nullable — prompt gốc đã dùng), **user_prompt** (TEXT nullable — prompt bổ sung của user), metadata (JSONB), created_at. File thật lưu object storage; bảng này cho thư viện, tái sử dụng (P2.3, P2.4, P2.11). Index (shop_id, type), (user_id, created_at).
+- **assets** (metadata ảnh): id (PK), user_id (FK), shop_id (FK), type (logo | banner | cover | post), name, storage_path_or_url, mime_type, **model_source** (VARCHAR nullable: 'imagen' | 'dall-e-3' | 'flux'), **prompt_template_id** (FK → prompt_templates, nullable — prompt gốc đã dùng), **user_prompt** (TEXT nullable — prompt bổ sung của user), metadata (JSONB), created_at. File thật lưu object storage; bảng này cho thư viện, tái sử dụng (P2.3, P2.4, P2.11). Index (shop_id, type), (user_id, created_at). **Chuẩn hệ thống:** Mỗi shop có thư viện asset riêng, không dùng chung asset giữa các shop; nên đặt **shop_id NOT NULL** (mỗi asset luôn thuộc một shop). Object storage: prefix `shops/:shopId/assets/` (không lưu chung theo user).
 - **facebook_page_tokens:** id (PK), user_id (FK), shop_id (FK, nullable), page_id (Meta Page ID), page_name, access_token (encrypted hoặc ref secret store), refresh_token (nếu có), expires_at, created_at, updated_at. Unique (user_id, shop_id, page_id) hoặc 1 page per shop. Cho P2.15–P2.18 (connect, save/refresh token, disconnect).
 - **marketing_content** (nội dung AI sinh): id (PK), shop_id (FK), type (ad_post | product_description | caption_hashtag), content (JSONB hoặc TEXT), source_prompt (TEXT, optional), **prompt_template_id** (FK → prompt_templates, nullable — prompt gốc đã dùng), **user_prompt** (TEXT nullable — prompt bổ sung của user), created_at, updated_at. Để lưu bài quảng cáo, mô tả SP, caption/hashtag (P2.5–P2.8 view/edit). Index (shop_id, type).
 - **pipeline_runs** (tùy chọn): id (PK), shop_id (FK), user_id (FK), status (running | completed | failed), steps (JSONB: [{ step, status, result_ref }]), started_at, finished_at, error_message (TEXT). Cho P2.12, P2.14 (chạy pipeline Store → Branding → Content → Visual Post; xem trạng thái từng bước). Trừ credit vẫn dùng credit_transactions với reference_type = 'pipeline_run', reference_id = pipeline_runs.id (và có thể từng bước nhỏ trong description hoặc bảng con).
@@ -275,7 +275,7 @@ Migration: Sprint 2.
 
 ### Bước 5f: Lưu trữ ảnh và source web – vị trí vật lý
 
-- **Ảnh (logo, banner, post):** Metadata trong bảng **assets** (storage_path_or_url, mime_type). File vật lý lưu ở **object storage** (S3, MinIO hoặc thư mục local): prefix **shops/:shopId/assets/** hoặc **users/:userId/assets/**. Khi **deploy**, backend **copy ảnh cần thiết** (theo config site) vào Docker container của shop → container tự chứa đủ ảnh để nginx serve, không gọi ra Object Storage lúc runtime. URL trả về cho dashboard/thư viện: backend generate signed URL hoặc serve qua route static.
+- **Ảnh (logo, banner, post):** Metadata trong bảng **assets** (storage_path_or_url, mime_type). File vật lý lưu ở **object storage** (S3, MinIO hoặc thư mục local): prefix **shops/:shopId/assets/** (mỗi shop một namespace riêng, không dùng chung asset giữa các shop). Khi **deploy**, backend **copy ảnh cần thiết** (theo config site) vào Docker container của shop → container tự chứa đủ ảnh để nginx serve, không gọi ra Object Storage lúc runtime. URL trả về cho dashboard/thư viện: backend generate signed URL hoặc serve qua route static.
 - **Source web (HTML/static đã render):** Config nguồn trong **sites.config_json**. Output render (HTML, CSS, JS) + **bản copy ảnh** được đẩy vào **Docker container** của shop (volume mount hoặc copy khi build/deploy) — mỗi shop = một bó (web + ảnh + content) độc lập. Không lưu full HTML vào DB. Tùy chọn backup: lưu snapshot HTML vào object storage **shops/:shopId/site_snapshots/:timestamp/** khi deploy thành công để rollback hoặc audit.
 
 ### Bước 5g: Đa ngôn ngữ – Tiếng Việt và English
@@ -714,99 +714,16 @@ CREATE INDEX idx_payments_user_id ON payments (user_id, created_at);
 CREATE INDEX idx_payments_status  ON payments (status);
 ```
 
-### 8.2 Sprint 2 — Assets, Facebook, Content, Pipeline, Prompt Templates (5 bảng)
+### 8.2 Sprint 2 — Prompt Templates, Assets, Facebook, Content, Pipeline (6 bảng)
+
+> Thứ tự tạo bảng: **prompt_templates** và **industry_tag_mappings** trước (không FK sang bảng Sprint 2 khác), sau đó **assets** và **marketing_content** (có FK → prompt_templates), rồi **facebook_page_tokens**, **pipeline_runs**.
 
 ```sql
 -- ============================================================
 -- SPRINT 2: AI Automation & Facebook
 -- ============================================================
 
--- 7. assets (metadata ảnh — file thật ở object storage)
-CREATE TABLE assets (
-    id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id             UUID NOT NULL
-                            REFERENCES user_profiles(id) ON DELETE CASCADE,
-    shop_id             UUID
-                            REFERENCES shops(id) ON DELETE SET NULL,
-    type                VARCHAR(30) NOT NULL
-                            CHECK (type IN ('logo', 'banner', 'cover', 'post', 'product', 'other')),
-    name                VARCHAR(255),
-    storage_path_or_url VARCHAR(1000) NOT NULL,
-    mime_type           VARCHAR(100),
-    model_source        VARCHAR(30)
-                            CHECK (model_source IN ('imagen', 'dall-e-3', 'flux')),
-    prompt_template_id  UUID
-                            REFERENCES prompt_templates(id) ON DELETE SET NULL,
-    user_prompt         TEXT,
-    metadata            JSONB DEFAULT '{}'::jsonb,
-    created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
-CREATE INDEX idx_assets_shop_id  ON assets (shop_id, type);
-CREATE INDEX idx_assets_user_id  ON assets (user_id, created_at);
-CREATE INDEX idx_assets_model    ON assets (model_source);
-CREATE INDEX idx_assets_prompt   ON assets (prompt_template_id);
-
--- 8. facebook_page_tokens (OAuth token cho Facebook Page)
-CREATE TABLE facebook_page_tokens (
-    id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id         UUID NOT NULL
-                        REFERENCES user_profiles(id) ON DELETE CASCADE,
-    shop_id         UUID
-                        REFERENCES shops(id) ON DELETE SET NULL,
-    page_id         VARCHAR(100) NOT NULL,
-    page_name       VARCHAR(255),
-    access_token    TEXT NOT NULL,
-    refresh_token   TEXT,
-    expires_at      TIMESTAMPTZ,
-    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-
-    UNIQUE (user_id, shop_id, page_id)
-);
-
-CREATE INDEX idx_fb_tokens_user_id ON facebook_page_tokens (user_id);
-CREATE INDEX idx_fb_tokens_shop_id ON facebook_page_tokens (shop_id);
-
--- 9. marketing_content (nội dung AI sinh: bài đăng, mô tả SP, caption)
-CREATE TABLE marketing_content (
-    id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    shop_id             UUID NOT NULL
-                            REFERENCES shops(id) ON DELETE CASCADE,
-    type                VARCHAR(40) NOT NULL
-                            CHECK (type IN ('ad_post', 'product_description', 'caption_hashtag')),
-    content             JSONB NOT NULL DEFAULT '{}'::jsonb,
-    source_prompt       TEXT,
-    prompt_template_id  UUID
-                            REFERENCES prompt_templates(id) ON DELETE SET NULL,
-    user_prompt         TEXT,
-    created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
-CREATE INDEX idx_mkt_content_shop_id ON marketing_content (shop_id, type);
-CREATE INDEX idx_mkt_content_prompt  ON marketing_content (prompt_template_id);
-
--- 10. pipeline_runs (chạy pipeline automation: branding → content → visual → ...)
-CREATE TABLE pipeline_runs (
-    id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    shop_id         UUID NOT NULL
-                        REFERENCES shops(id) ON DELETE CASCADE,
-    user_id         UUID NOT NULL
-                        REFERENCES user_profiles(id) ON DELETE CASCADE,
-    status          VARCHAR(20) NOT NULL DEFAULT 'running'
-                        CHECK (status IN ('running', 'completed', 'failed', 'cancelled')),
-    steps           JSONB NOT NULL DEFAULT '[]'::jsonb,
-    started_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    finished_at     TIMESTAMPTZ,
-    error_message   TEXT
-);
-
-CREATE INDEX idx_pipeline_shop_id ON pipeline_runs (shop_id);
-CREATE INDEX idx_pipeline_user_id ON pipeline_runs (user_id);
-CREATE INDEX idx_pipeline_status  ON pipeline_runs (status);
-
--- 11. prompt_templates (kho prompt hệ thống — gắn tag ngành hàng + category image/content)
+-- 7. prompt_templates (kho prompt hệ thống — gắn tag ngành hàng + category image/content)
 CREATE TABLE prompt_templates (
     id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     type            VARCHAR(50) NOT NULL
@@ -831,7 +748,7 @@ CREATE TABLE prompt_templates (
 CREATE INDEX idx_prompt_tpl_type_active ON prompt_templates (type, category, is_active);
 CREATE INDEX idx_prompt_tpl_tags        ON prompt_templates USING GIN (tags);
 
--- 12. industry_tag_mappings (map ngành hàng shop → tag cho prompt)
+-- 8. industry_tag_mappings (map ngành hàng shop → tag cho prompt)
 CREATE TABLE industry_tag_mappings (
     id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     industry    VARCHAR(100) NOT NULL UNIQUE,
@@ -902,6 +819,93 @@ INSERT INTO industry_tag_mappings (industry, tags) VALUES
     ('Handmade',         '["HANDMADE"]'),
     ('Ngoại ngữ',        '["NGOAINGU", "GIAODUC"]'),
     ('Khác',             '["GENERAL"]');
+
+-- 9. assets (metadata ảnh — file thật ở object storage; mỗi shop một kho riêng, không dùng chung)
+CREATE TABLE assets (
+    id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id             UUID NOT NULL
+                            REFERENCES user_profiles(id) ON DELETE CASCADE,
+    shop_id             UUID NOT NULL
+                            REFERENCES shops(id) ON DELETE CASCADE,
+    type                VARCHAR(30) NOT NULL
+                            CHECK (type IN ('logo', 'banner', 'cover', 'post', 'product', 'other')),
+    name                VARCHAR(255),
+    storage_path_or_url VARCHAR(1000) NOT NULL,
+    mime_type           VARCHAR(100),
+    model_source        VARCHAR(30)
+                            CHECK (model_source IN ('imagen', 'dall-e-3', 'flux')),
+    prompt_template_id  UUID
+                            REFERENCES prompt_templates(id) ON DELETE SET NULL,
+    user_prompt         TEXT,
+    metadata            JSONB DEFAULT '{}'::jsonb,
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_assets_shop_id  ON assets (shop_id, type);
+CREATE INDEX idx_assets_user_id  ON assets (user_id, created_at);
+CREATE INDEX idx_assets_model    ON assets (model_source);
+CREATE INDEX idx_assets_prompt   ON assets (prompt_template_id);
+
+COMMENT ON TABLE assets IS 'Mỗi shop có thư viện asset riêng; object storage prefix shops/:shopId/assets/. Không có kho ảnh chung.';
+
+-- 10. facebook_page_tokens (OAuth token cho Facebook Page — theo từng shop, không dùng chung)
+CREATE TABLE facebook_page_tokens (
+    id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id         UUID NOT NULL
+                        REFERENCES user_profiles(id) ON DELETE CASCADE,
+    shop_id         UUID NOT NULL
+                        REFERENCES shops(id) ON DELETE CASCADE,
+    page_id         VARCHAR(100) NOT NULL,
+    page_name       VARCHAR(255),
+    access_token    TEXT NOT NULL,
+    refresh_token   TEXT,
+    expires_at      TIMESTAMPTZ,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+    UNIQUE (user_id, shop_id, page_id)
+);
+
+CREATE INDEX idx_fb_tokens_user_id ON facebook_page_tokens (user_id);
+CREATE INDEX idx_fb_tokens_shop_id ON facebook_page_tokens (shop_id);
+
+-- 11. marketing_content (nội dung AI sinh: bài đăng, mô tả SP, caption)
+CREATE TABLE marketing_content (
+    id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    shop_id             UUID NOT NULL
+                            REFERENCES shops(id) ON DELETE CASCADE,
+    type                VARCHAR(40) NOT NULL
+                            CHECK (type IN ('ad_post', 'product_description', 'caption_hashtag')),
+    content             JSONB NOT NULL DEFAULT '{}'::jsonb,
+    source_prompt       TEXT,
+    prompt_template_id  UUID
+                            REFERENCES prompt_templates(id) ON DELETE SET NULL,
+    user_prompt         TEXT,
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_mkt_content_shop_id ON marketing_content (shop_id, type);
+CREATE INDEX idx_mkt_content_prompt  ON marketing_content (prompt_template_id);
+
+-- 12. pipeline_runs (chạy pipeline automation: branding → content → visual → ...)
+CREATE TABLE pipeline_runs (
+    id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    shop_id         UUID NOT NULL
+                        REFERENCES shops(id) ON DELETE CASCADE,
+    user_id         UUID NOT NULL
+                        REFERENCES user_profiles(id) ON DELETE CASCADE,
+    status          VARCHAR(20) NOT NULL DEFAULT 'running'
+                        CHECK (status IN ('running', 'completed', 'failed', 'cancelled')),
+    steps           JSONB NOT NULL DEFAULT '[]'::jsonb,
+    started_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    finished_at     TIMESTAMPTZ,
+    error_message   TEXT
+);
+
+CREATE INDEX idx_pipeline_shop_id ON pipeline_runs (shop_id);
+CREATE INDEX idx_pipeline_user_id ON pipeline_runs (user_id);
+CREATE INDEX idx_pipeline_status  ON pipeline_runs (status);
 ```
 
 ### 8.3 Sprint 3 — Conversation, Deploy, Activity Logs (3 bảng)
