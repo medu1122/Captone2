@@ -39,29 +39,26 @@ function verifyToken(token) {
   }
 }
 
-// — ĐĂNG KÝ (TẠO LOGIN + PROFILE + MÃ 6 SỐ GỬI EMAIL)
+// — ĐĂNG KÝ (CHỈ LƯU PENDING + MÃ 6 SỐ; TÀI KHOẢN CHỈ TẠO SAU KHI VERIFY)
 router.post('/register', async (req, res) => {
   const { email, password, name } = req.body || {}
   if (!email || !password || !name) {
     return res.status(400).json({ error: 'Missing email, password, or name' })
   }
+  const normalizedEmail = email.trim().toLowerCase()
   const client = await pool.connect()
   try {
-    const existing = await client.query('SELECT id FROM logins WHERE email = $1', [email.trim().toLowerCase()])
-    if (existing.rows.length > 0) {
+    const existingLogin = await client.query('SELECT id FROM logins WHERE email = $1', [normalizedEmail])
+    if (existingLogin.rows.length > 0) {
       return res.status(409).json({ error: 'Email already registered' })
     }
     const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS)
-    const loginResult = await client.query(
-      `INSERT INTO logins (email, password_hash, status) VALUES ($1, $2, 'pending_verify') RETURNING id`,
-      [email.trim().toLowerCase(), passwordHash]
-    )
-    const loginId = loginResult.rows[0].id
     await client.query(
-      `INSERT INTO user_profiles (login_id, name) VALUES ($1, $2)`,
-      [loginId, (name || '').trim()]
+      `INSERT INTO pending_registrations (email, password_hash, name)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (email) DO UPDATE SET password_hash = $2, name = $3, created_at = NOW()`,
+      [normalizedEmail, passwordHash, (name || '').trim()]
     )
-    const normalizedEmail = email.trim().toLowerCase()
     const code = generateSixDigitCode()
     const expiresAt = new Date(Date.now() + VERIFY_CODE_EXPIRES_MINUTES * 60 * 1000)
     await client.query(
@@ -78,7 +75,7 @@ router.post('/register', async (req, res) => {
 
     const payload = {
       success: true,
-      message: 'Account created. Check your email for the 6-digit verification code.',
+      message: 'Check your email for the 6-digit verification code. Account will be created after verification.',
       redirectTo: '/verify',
       email: normalizedEmail,
     }
@@ -136,7 +133,7 @@ router.post('/login', async (req, res) => {
   }
 })
 
-// — XÁC THỰC EMAIL BẰNG MÃ 6 SỐ (BODY: EMAIL, CODE)
+// — XÁC THỰC EMAIL: TẠO LOGIN + PROFILE TỪ PENDING, XOÁ PENDING VÀ CODE
 router.post('/verify', async (req, res) => {
   const { email, code } = req.body || {}
   if (!email || !code) {
@@ -149,23 +146,34 @@ router.post('/verify', async (req, res) => {
   }
   const client = await pool.connect()
   try {
-    const row = await client.query(
+    const codeRow = await client.query(
       `SELECT id FROM email_verification_codes
        WHERE email = $1 AND code = $2 AND expires_at > NOW()`,
       [normalizedEmail, codeStr]
     )
-    if (row.rows.length === 0) {
+    if (codeRow.rows.length === 0) {
       return res.status(400).json({ error: 'Invalid or expired code' })
     }
-    const r = await client.query(
-      "UPDATE logins SET status = 'active' WHERE email = $1 AND status = 'pending_verify' RETURNING id",
+    const pending = await client.query(
+      'SELECT password_hash, name FROM pending_registrations WHERE email = $1',
       [normalizedEmail]
     )
-    if (r.rowCount === 0) {
-      return res.status(400).json({ error: 'Already verified or invalid' })
+    if (pending.rows.length === 0) {
+      return res.status(400).json({ error: 'Registration expired or invalid. Please register again.' })
     }
+    const { password_hash: passwordHash, name: userName } = pending.rows[0]
+    const loginResult = await client.query(
+      `INSERT INTO logins (email, password_hash, status) VALUES ($1, $2, 'active') RETURNING id`,
+      [normalizedEmail, passwordHash]
+    )
+    const loginId = loginResult.rows[0].id
+    await client.query(
+      'INSERT INTO user_profiles (login_id, name) VALUES ($1, $2)',
+      [loginId, userName || '']
+    )
+    await client.query('DELETE FROM pending_registrations WHERE email = $1', [normalizedEmail])
     await client.query('DELETE FROM email_verification_codes WHERE email = $1', [normalizedEmail])
-    res.json({ success: true, message: 'Email verified', redirectTo: '/login' })
+    res.json({ success: true, message: 'Email verified. You can now log in.', redirectTo: '/login' })
   } catch (err) {
     console.error('Verify error:', err)
     res.status(500).json({ error: 'Verification failed' })
@@ -174,7 +182,7 @@ router.post('/verify', async (req, res) => {
   }
 })
 
-// — GỬI LẠI MÃ XÁC THỰC (BODY: EMAIL)
+// — GỬI LẠI MÃ XÁC THỰC (CHỈ KHI CÓ PENDING REGISTRATION)
 router.post('/resend-verify-code', async (req, res) => {
   const { email } = req.body || {}
   if (!email) {
@@ -183,11 +191,11 @@ router.post('/resend-verify-code', async (req, res) => {
   const normalizedEmail = email.trim().toLowerCase()
   const client = await pool.connect()
   try {
-    const loginRow = await client.query(
-      'SELECT id FROM logins WHERE email = $1 AND status = $2',
-      [normalizedEmail, 'pending_verify']
+    const pendingRow = await client.query(
+      'SELECT id FROM pending_registrations WHERE email = $1',
+      [normalizedEmail]
     )
-    if (loginRow.rows.length === 0) {
+    if (pendingRow.rows.length === 0) {
       return res.json({ success: true, message: 'If the email is unverified, a new code was sent.' })
     }
     const code = generateSixDigitCode()

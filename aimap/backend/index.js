@@ -9,7 +9,7 @@ import { connectDB } from './db/index.js'
 import authRoutes from './routes/auth.js'
 
 const app = express()
-const PORT = process.env.PORT ?? 4000
+const PORT = process.env.PORT ?? 4111
 
 app.use(cors({ origin: process.env.FRONTEND_URL || true, credentials: true }))
 app.use(express.json())

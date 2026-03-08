@@ -1,7 +1,9 @@
 /**
- * API base URL – từ env (VITE_API_URL). Dev: để trống thì dùng proxy /api -> backend 4000.
+ * API base URL – từ env (VITE_API_URL). Gọi thẳng backend 4111; mặc định http://localhost:4111.
  */
-const API_BASE = (import.meta as unknown as { env: Record<string, string> }).env?.VITE_API_URL ?? 'http://localhost:4000'
+const env = (import.meta as unknown as { env: Record<string, string> }).env
+const raw = env?.VITE_API_URL?.trim()
+const API_BASE = raw ? raw.replace(/\/$/, '') : 'http://localhost:4111'
 
 export function apiUrl(path: string): string {
   const p = path.startsWith('/') ? path : `/${path}`
