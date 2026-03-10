@@ -1053,6 +1053,34 @@ WHERE al.severity = 'error'
 ORDER BY al.created_at DESC;
 ```
 
+
+--- bo sung 
+CREATE TABLE IF NOT EXISTS pending_registrations (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  email VARCHAR(255) NOT NULL UNIQUE,
+  password_hash VARCHAR(255) NOT NULL,
+  name VARCHAR(255),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_pending_registrations_email ON pending_registrations(email);
+
+COMMENT ON TABLE pending_registrations IS 'Temporary signup data; moved to logins+user_profiles after verify.';
+
+CREATE TABLE IF NOT EXISTS email_verification_codes (
+  id         UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  email      VARCHAR(255) NOT NULL UNIQUE,
+  code       VARCHAR(6)   NOT NULL,
+  expires_at TIMESTAMPTZ  NOT NULL,
+  created_at TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_email_verification_codes_email ON email_verification_codes (email);
+CREATE INDEX IF NOT EXISTS idx_email_verification_codes_expires ON email_verification_codes (expires_at);
+
+COMMENT ON TABLE email_verification_codes IS 'Mã 6 số gửi qua email để xác thực tài khoản (verify). Mỗi email một bản ghi; resend sẽ cập nhật code mới.';
+
+
 ### 8.6 Tóm tắt SQL
 
 | Sprint | Bảng | Số lượng |
