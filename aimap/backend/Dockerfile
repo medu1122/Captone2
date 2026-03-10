@@ -1,18 +1,8 @@
-# AIMAP Backend – production image
 FROM node:20-alpine
-
 WORKDIR /app
-
-# Copy package files
-COPY package.json package-lock.json* ./
-
-# Install production dependencies only
+COPY package*.json ./
 RUN npm ci --omit=dev
-
-# Copy application code
 COPY . .
-
-EXPOSE 4000
-
-ENV NODE_ENV=production
+RUN mkdir -p /app/storage
+EXPOSE 4111
 CMD ["node", "index.js"]
