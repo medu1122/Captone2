@@ -41,6 +41,8 @@ Tài liệu này là **nguồn tham chiếu chính** cho thiết kế database c
 | **3** | conversation_messages | Lịch sử chỉnh website bằng prompt (site_id, role, content) |
 | **3** | site_deployments | Deploy: container_id, subdomain, status; 1 site → 1 container |
 | **3** | activity_logs | Log từng công đoạn (create_site, edit_site_prompt, build_site, deploy_site); severity, details JSONB |
+| **Auth (bổ sung)** | pending_registrations | Đăng ký tạm (email, password_hash, name); chuyển sang logins + user_profiles sau khi verify |
+| **Auth (bổ sung)** | email_verification_codes | Mã 6 số xác thực email; mỗi email một bản ghi, hết hạn hoặc sau verify thì xóa |
 
 ---
 
@@ -1054,43 +1056,64 @@ ORDER BY al.created_at DESC;
 ```
 
 
---- bo sung 
+### 8.5a Bảng bổ sung Auth — đăng ký chờ xác thực (verify)
+
+Hai bảng dưới đây **phục vụ luồng đăng ký có xác thực email (mã 6 số)**. Tài khoản chỉ được tạo trong `logins` và `user_profiles` **sau khi** user nhập đúng mã gửi đến email.
+
+| Bảng | Vai trò |
+|------|--------|
+| **pending_registrations** | Lưu tạm thông tin đăng ký (email, password_hash, name) cho đến khi user verify. Khi verify thành công, backend chuyển dữ liệu sang `logins` + `user_profiles` rồi xóa bản ghi ở đây. |
+| **email_verification_codes** | Lưu mã 6 số và thời hạn hết hạn theo từng email. Mỗi email một bản ghi; khi resend mã thì cập nhật `code` và `expires_at`. Sau khi verify thành công, bản ghi bị xóa. |
+
+**Tại sao không có relationship (FK) với các bảng khác?**
+
+- Hai bảng này là **dữ liệu tạm, tồn tại trong thời gian ngắn** (từ lúc gửi form đăng ký đến lúc nhập đúng mã hoặc hết hạn).
+- **Không có bảng nào khác tham chiếu đến chúng**: `logins`, `user_profiles`, `shops`, … không có cột FK trỏ tới `pending_registrations` hay `email_verification_codes`.
+- **Chúng cũng không cần FK trỏ ra ngoài**: dữ liệu được ghép với nhau bằng **email** (chuỗi), không bằng `login_id` hay `user_id`, vì lúc chưa verify thì chưa có bản ghi trong `logins`/`user_profiles`. Sau khi verify, ứng dụng **tạo mới** bản ghi trong `logins` và `user_profiles` rồi xóa dữ liệu tạm — không có ràng buộc tham chiếu cần khai báo trong schema.
+- Trong sơ đồ ER/diagram, có thể coi hai bảng này thuộc **lớp phụ trợ auth** (ephemeral), tách biệt với mô hình nghiệp vụ chính (User → Shops → Sites → …).
+
+**Thứ tự chạy:** Có thể chạy sau Sprint 1 (đã có `logins`, `user_profiles`). Dùng `gen_random_uuid()` (PostgreSQL 13+) nên không bắt buộc extension `uuid-ossp` cho hai bảng này.
+
+```sql
+-- ============================================================
+-- AUTH BỔ SUNG: Đăng ký chờ xác thực email (mã 6 số)
+-- ============================================================
+
+-- Bảng đăng ký tạm: chỉ chuyển sang logins + user_profiles sau khi verify
 CREATE TABLE IF NOT EXISTS pending_registrations (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  email VARCHAR(255) NOT NULL UNIQUE,
-  password_hash VARCHAR(255) NOT NULL,
-  name VARCHAR(255),
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    email        VARCHAR(255) NOT NULL UNIQUE,
+    password_hash VARCHAR(255) NOT NULL,
+    name         VARCHAR(255),
+    created_at   TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
+CREATE INDEX IF NOT EXISTS idx_pending_registrations_email ON pending_registrations (email);
+COMMENT ON TABLE pending_registrations IS 'Đăng ký tạm; sau khi verify thành công chuyển sang logins + user_profiles rồi xóa bản ghi.';
 
-CREATE INDEX IF NOT EXISTS idx_pending_registrations_email ON pending_registrations(email);
-
-COMMENT ON TABLE pending_registrations IS 'Temporary signup data; moved to logins+user_profiles after verify.';
-
+-- Mã 6 số gửi qua email; mỗi email một bản ghi, resend thì cập nhật code + expires_at
 CREATE TABLE IF NOT EXISTS email_verification_codes (
-  id         UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  email      VARCHAR(255) NOT NULL UNIQUE,
-  code       VARCHAR(6)   NOT NULL,
-  expires_at TIMESTAMPTZ  NOT NULL,
-  created_at TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+    id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    email      VARCHAR(255) NOT NULL UNIQUE,
+    code       VARCHAR(6)   NOT NULL,
+    expires_at TIMESTAMPTZ  NOT NULL,
+    created_at TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
-
 CREATE INDEX IF NOT EXISTS idx_email_verification_codes_email ON email_verification_codes (email);
 CREATE INDEX IF NOT EXISTS idx_email_verification_codes_expires ON email_verification_codes (expires_at);
-
-COMMENT ON TABLE email_verification_codes IS 'Mã 6 số gửi qua email để xác thực tài khoản (verify). Mỗi email một bản ghi; resend sẽ cập nhật code mới.';
-
+COMMENT ON TABLE email_verification_codes IS 'Mã 6 số xác thực email; sau khi verify thành công bản ghi bị xóa.';
+```
 
 ### 8.6 Tóm tắt SQL
 
-| Sprint | Bảng | Số lượng |
-|--------|------|----------|
+| Sprint / Nhóm | Bảng | Số lượng |
+|---------------|------|----------|
 | **1** | `logins`, `user_profiles`, `shops`, `sites`, `credit_transactions`, `payments` | 6 bảng |
 | **2** | `assets`, `facebook_page_tokens`, `marketing_content`, `pipeline_runs`, `prompt_templates`, `industry_tag_mappings` | 6 bảng + seed data |
 | **3** | `conversation_messages`, `site_deployments`, `activity_logs` | 3 bảng |
+| **Auth (bổ sung)** | `pending_registrations`, `email_verification_codes` | 2 bảng (không FK với bảng khác) |
 | **Util** | Trigger `updated_at`, Views (balance, revenue, error logs) | 1 function + 9 triggers + 3 views |
 
-**Tổng: 15 bảng, 1 trigger function, 9 triggers auto-update, 3 views admin, 61 seed rows (industry_tag_mappings).**
+**Tổng: 17 bảng (15 nghiệp vụ + 2 auth phụ trợ), 1 trigger function, 9 triggers auto-update, 3 views admin, 61 seed rows (industry_tag_mappings).**
 
 ---
 
