@@ -36,7 +36,8 @@ services:
         VITE_API_URL: http://103.77.215.133:4111
     container_name: aimap-frontend
     ports:
-      - "80:80"
+      # Port 80 trên host thường bị Nginx/Apache chiếm → dùng 8080
+      - "8080:80"
     depends_on:
       - backend
     restart: unless-stopped
