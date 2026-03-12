@@ -1,3 +1,4 @@
+import { useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import LanguageSwitcher from '../components/LanguageSwitcher'
 import { useAuth } from '../contexts/AuthContext'
@@ -6,6 +7,8 @@ import { useLocale } from '../contexts/LocaleContext'
 export default function HomePage() {
   const { t } = useLocale()
   const { user, logout } = useAuth()
+  const [userMenuOpen, setUserMenuOpen] = useState(false)
+  const userMenuRef = useRef<HTMLDivElement>(null)
 
   return (
     <div className="bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 font-display min-h-screen flex flex-col antialiased selection:bg-primary/30 selection:text-primary overflow-x-hidden">
@@ -25,11 +28,14 @@ export default function HomePage() {
         <div className="flex items-center gap-4 flex-shrink-0 ml-auto">
           <LanguageSwitcher />
           {user ? (
-            <>
-              <Link className="hidden sm:block text-sm font-medium text-slate-600 dark:text-slate-300 hover:text-primary dark:hover:text-primary transition-colors" to="/dashboard">
-                Dashboard
-              </Link>
-              <div className="flex items-center gap-2">
+            <div className="relative" ref={userMenuRef}>
+              <button
+                type="button"
+                onClick={() => setUserMenuOpen((o) => !o)}
+                className="flex items-center gap-2 rounded-full focus:outline-none focus:ring-2 focus:ring-primary/50"
+                aria-expanded={userMenuOpen}
+                aria-haspopup="true"
+              >
                 {user.avatarUrl ? (
                   <img src={user.avatarUrl} alt="" className="w-8 h-8 rounded-full object-cover border border-border-dark" />
                 ) : (
@@ -38,11 +44,43 @@ export default function HomePage() {
                   </div>
                 )}
                 <span className="text-sm font-medium text-slate-700 dark:text-slate-200 truncate max-w-[140px]">{user.name || user.email}</span>
-              </div>
-              <button type="button" onClick={() => logout()} className="text-sm font-medium text-slate-600 dark:text-slate-300 hover:text-primary dark:hover:text-primary transition-colors">
-                Logout
+                <span className="material-symbols-outlined text-slate-500 text-xl">{userMenuOpen ? 'expand_less' : 'expand_more'}</span>
               </button>
-            </>
+              {userMenuOpen && (
+                <>
+                  <div
+                    className="fixed inset-0 z-40"
+                    aria-hidden="true"
+                    onClick={() => setUserMenuOpen(false)}
+                  />
+                  <div className="absolute right-0 top-full mt-2 w-48 py-1 rounded-xl bg-surface-dark border border-border-dark shadow-xl z-50">
+                    <Link
+                      to="/dashboard"
+                      className="flex items-center gap-2 px-4 py-2.5 text-sm text-slate-200 hover:bg-white/10 hover:text-white"
+                      onClick={() => setUserMenuOpen(false)}
+                    >
+                      <span className="material-symbols-outlined text-lg">dashboard</span>
+                      {t('userMenu.dashboard')}
+                    </Link>
+                    <span className="flex items-center gap-2 px-4 py-2.5 text-sm text-slate-500 cursor-default">
+                      <span className="material-symbols-outlined text-lg">person</span>
+                      {t('userMenu.profile')}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setUserMenuOpen(false)
+                        logout()
+                      }}
+                      className="flex w-full items-center gap-2 px-4 py-2.5 text-sm text-slate-200 hover:bg-white/10 hover:text-white text-left"
+                    >
+                      <span className="material-symbols-outlined text-lg">logout</span>
+                      {t('userMenu.logout')}
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
           ) : (
             <>
               <a className="hidden sm:block text-sm font-medium text-slate-600 dark:text-slate-300 hover:text-primary dark:hover:text-primary transition-colors" href="/login">{t('nav.logIn')}</a>
