@@ -12,7 +12,8 @@ services:
       - DATABASE_URL=postgresql://postgres:Thinh%401234@host.docker.internal:5432/aimap
       - DATABASE_SSL=false
       - JWT_SECRET=aimap-jwt-secret-production-2026
-      - FRONTEND_URL=http://103.77.215.133
+      # Trên VPS khi dùng domain: đặt FRONTEND_URL=http://domain.com (hoặc trong .env)
+      - FRONTEND_URL=${FRONTEND_URL:-http://103.77.215.133}
       - ASSET_STORAGE_PATH=/app/storage
       - DOCKER_SOCKET_PATH=/var/run/docker.sock
       - SMTP_HOST=smtp.gmail.com
@@ -32,11 +33,12 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      # Dùng /api để gọi same-origin; Nginx trong container proxy /api → backend
       args:
-        VITE_API_URL: http://103.77.215.133:4111
+        VITE_API_URL: /api
     container_name: aimap-frontend
     ports:
-      # Port 80 trên host thường bị Nginx/Apache chiếm → dùng 8080
+      # Port 80 trên host thường bị Nginx chiếm → bind 8080; Nginx host proxy domain:80 → 8080
       - "8080:80"
     depends_on:
       - backend

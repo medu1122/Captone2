@@ -180,8 +180,4 @@ The system uses an **Orchestrator** to coordinate specialized agents:
 
 ---
 
-## Related Documents
-
-- **Quick read (Vietnamese):** `AIMAP-Quick-Read.md` — Vietnamese version of this document.
-- **Full architecture (Vietnamese):** See plan in `.cursor/plans` or main README.
-- **Architecture (English):** `AIMAP-Architecture-EN.md` — technical architecture in English.
+root@dncloud:~/Captone2/aimap# docker compose up -d --build 
