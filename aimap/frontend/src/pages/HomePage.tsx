@@ -1,8 +1,11 @@
+import { Link } from 'react-router-dom'
 import LanguageSwitcher from '../components/LanguageSwitcher'
+import { useAuth } from '../contexts/AuthContext'
 import { useLocale } from '../contexts/LocaleContext'
 
 export default function HomePage() {
   const { t } = useLocale()
+  const { user, logout } = useAuth()
 
   return (
     <div className="bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 font-display min-h-screen flex flex-col antialiased selection:bg-primary/30 selection:text-primary overflow-x-hidden">
@@ -21,10 +24,33 @@ export default function HomePage() {
         </nav>
         <div className="flex items-center gap-4 flex-shrink-0 ml-auto">
           <LanguageSwitcher />
-          <a className="hidden sm:block text-sm font-medium text-slate-600 dark:text-slate-300 hover:text-primary dark:hover:text-primary transition-colors" href="/login">{t('nav.logIn')}</a>
-          <a href="/register" className="bg-primary hover:bg-primary/90 text-white text-sm font-semibold py-2 px-5 rounded-full transition-all shadow-[0_0_15px_rgba(37,106,244,0.4)]">
-            {t('nav.getStarted')}
-          </a>
+          {user ? (
+            <>
+              <Link className="hidden sm:block text-sm font-medium text-slate-600 dark:text-slate-300 hover:text-primary dark:hover:text-primary transition-colors" to="/dashboard">
+                Dashboard
+              </Link>
+              <div className="flex items-center gap-2">
+                {user.avatarUrl ? (
+                  <img src={user.avatarUrl} alt="" className="w-8 h-8 rounded-full object-cover border border-border-dark" />
+                ) : (
+                  <div className="w-8 h-8 rounded-full bg-primary/30 flex items-center justify-center border border-border-dark">
+                    <span className="material-symbols-outlined text-primary text-lg">person</span>
+                  </div>
+                )}
+                <span className="text-sm font-medium text-slate-700 dark:text-slate-200 truncate max-w-[140px]">{user.name || user.email}</span>
+              </div>
+              <button type="button" onClick={() => logout()} className="text-sm font-medium text-slate-600 dark:text-slate-300 hover:text-primary dark:hover:text-primary transition-colors">
+                Logout
+              </button>
+            </>
+          ) : (
+            <>
+              <a className="hidden sm:block text-sm font-medium text-slate-600 dark:text-slate-300 hover:text-primary dark:hover:text-primary transition-colors" href="/login">{t('nav.logIn')}</a>
+              <a href="/register" className="bg-primary hover:bg-primary/90 text-white text-sm font-semibold py-2 px-5 rounded-full transition-all shadow-[0_0_15px_rgba(37,106,244,0.4)]">
+                {t('nav.getStarted')}
+              </a>
+            </>
+          )}
         </div>
       </header>
 

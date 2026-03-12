@@ -1,14 +1,14 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import AuthLayout from '../layouts/AuthLayout'
-import PasswordInput from '../components/PasswordInput'
-import { useLocale } from '../contexts/LocaleContext'
 import { authApi } from '../api/auth'
-
-const AUTH_TOKEN_KEY = 'aimap_token'
+import PasswordInput from '../components/PasswordInput'
+import { useAuth } from '../contexts/AuthContext'
+import { useLocale } from '../contexts/LocaleContext'
+import AuthLayout from '../layouts/AuthLayout'
 
 export default function LoginPage() {
   const { t } = useLocale()
+  const { login } = useAuth()
   const navigate = useNavigate()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -27,14 +27,10 @@ export default function LoginPage() {
       setError((data as { error?: string })?.error ?? err ?? 'Login failed')
       return
     }
-    if (data.token) {
-      try {
-        localStorage.setItem(AUTH_TOKEN_KEY, data.token)
-      } catch {
-        /* ignore */
-      }
+    if (data.token && data.user) {
+      login(data.token, data.user)
     }
-    navigate(data.redirectTo ?? '/', { replace: true })
+    navigate(data.redirectTo ?? '/dashboard', { replace: true })
   }
 
   return (

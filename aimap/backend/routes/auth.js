@@ -39,6 +39,21 @@ function verifyToken(token) {
   }
 }
 
+/** MIDDLEWARE: ĐỌC Bearer TOKEN, GẮN req.auth (loginId, profileId, email); 401 NẾU THIẾU/HỎNG */
+function requireAuth(req, res, next) {
+  const authHeader = req.headers.authorization
+  const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null
+  if (!token) {
+    return res.status(401).json({ error: 'Authentication required' })
+  }
+  const decoded = verifyToken(token)
+  if (!decoded) {
+    return res.status(401).json({ error: 'Invalid or expired token' })
+  }
+  req.auth = decoded
+  next()
+}
+
 // — ĐĂNG KÝ (CHỈ LƯU PENDING + MÃ 6 SỐ; TÀI KHOẢN CHỈ TẠO SAU KHI VERIFY)
 router.post('/register', async (req, res) => {
   const { email, password, name } = req.body || {}
@@ -98,7 +113,7 @@ router.post('/login', async (req, res) => {
   const client = await pool.connect()
   try {
     const row = await client.query(
-      `SELECT l.id AS login_id, l.email, l.password_hash, l.status, l.role, up.id AS profile_id, up.name, up.locale
+      `SELECT l.id AS login_id, l.email, l.password_hash, l.status, l.role, up.id AS profile_id, up.name, up.locale, up.avatar_url
        FROM logins l
        JOIN user_profiles up ON up.login_id = l.id
        WHERE l.email = $1`,
@@ -123,11 +138,51 @@ router.post('/login', async (req, res) => {
     res.json({
       success: true,
       token,
-      user: { id: login.profile_id, email: login.email, name: login.name, locale: login.locale || 'en' },
+      user: {
+        id: login.profile_id,
+        email: login.email,
+        name: login.name,
+        locale: login.locale || 'en',
+        avatarUrl: login.avatar_url || null,
+      },
     })
   } catch (err) {
     console.error('Login error:', err)
     res.status(500).json({ error: 'Login failed' })
+  } finally {
+    client.release()
+  }
+})
+
+// — LẤY THÔNG TIN USER HIỆN TẠI (HEADER: Authorization: Bearer <token>)
+router.get('/me', requireAuth, async (req, res) => {
+  const { profileId } = req.auth
+  const client = await pool.connect()
+  try {
+    const row = await client.query(
+      `SELECT up.id, up.name, up.locale, up.avatar_url, l.email
+       FROM user_profiles up
+       JOIN logins l ON l.id = up.login_id
+       WHERE up.id = $1`,
+      [profileId]
+    )
+    if (row.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' })
+    }
+    const u = row.rows[0]
+    res.json({
+      success: true,
+      user: {
+        id: u.id,
+        email: u.email,
+        name: u.name,
+        locale: u.locale || 'en',
+        avatarUrl: u.avatar_url || null,
+      },
+    })
+  } catch (err) {
+    console.error('Me error:', err)
+    res.status(500).json({ error: 'Failed to load user' })
   } finally {
     client.release()
   }

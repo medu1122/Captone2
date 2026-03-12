@@ -21,11 +21,24 @@ export interface LoginPayload {
   password: string
 }
 
+export interface AuthUser {
+  id: string
+  email: string
+  name: string
+  locale?: string
+  avatarUrl?: string | null
+}
+
 export interface LoginResponse {
   success: boolean
   token?: string
-  user?: { id: string; email: string; name: string; locale?: string }
+  user?: AuthUser
   redirectTo?: string
+}
+
+export interface MeResponse {
+  success: boolean
+  user?: AuthUser
 }
 
 export interface VerifyPayload {
@@ -89,4 +102,10 @@ export const authApi = {
 
   resetPassword: (payload: ResetPasswordPayload) =>
     apiFetch<ResetPasswordResponse>(`${AUTH_PREFIX}/reset-password`, { method: 'POST', body: payload }),
+
+  me: (token: string) =>
+    apiFetch<MeResponse>(`${AUTH_PREFIX}/me`, {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${token}` },
+    }),
 }
