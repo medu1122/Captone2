@@ -7,6 +7,7 @@ import express from 'express'
 import cors from 'cors'
 import { connectDB } from './db/index.js'
 import authRoutes from './routes/auth.js'
+import adminRoutes from './routes/admin.js'
 
 const app = express()
 const PORT = process.env.PORT ?? 4111
@@ -19,6 +20,7 @@ app.get('/health', (_, res) => {
 })
 
 app.use('/api/auth', authRoutes)
+app.use('/api/admin', adminRoutes)
 
 await connectDB()
 

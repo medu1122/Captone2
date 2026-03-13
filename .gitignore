@@ -1,2 +1,32 @@
 # MCP config may contain API keys — do not commit
 .cursor/mcp.json
+
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+
+# Environment files (có thể chứa secrets)
+.env.local
+.env.production
+
+# TypeScript cache
+*.tsbuildinfo
+
+# Vite generated files
+vite.config.js
+vite.config.d.ts
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*

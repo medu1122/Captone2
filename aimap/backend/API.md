@@ -135,3 +135,81 @@ Body:
 Không cần headers hay body
 ```
 Response: `{ "status": "ok" }`
+
+---
+
+## API TẠM THỜI (XÓA SAU KHI TEST XONG)
+
+**GET /auth/users** - Danh sách user (id, name, email)
+```
+Không cần headers
+```
+
+---
+
+**DELETE /auth/users/:id** - Xóa user theo id
+```
+Không cần headers hay body
+Thay :id bằng user id cần xóa
+VD: DELETE /api/auth/users/123e4567-e89b-12d3-a456-426614174000
+```
+
+---
+
+## ADMIN APIs (cần role = admin)
+
+Tất cả API admin cần header:
+```
+Authorization: Bearer <token của admin>
+```
+
+---
+
+**GET /admin/users** - Danh sách users (có pagination, search)
+```
+Query params:
+  page=1 (số trang)
+  limit=10 (số items mỗi trang)
+  search=keyword (tìm theo email hoặc name)
+  
+VD: GET /api/admin/users?page=1&limit=10&search=test
+```
+
+---
+
+**GET /admin/users/:id** - Chi tiết 1 user
+```
+VD: GET /api/admin/users/89897634-7222-424c-81bc-6ea486b98428
+```
+
+---
+
+**PUT /admin/users/:id** - Cập nhật thông tin user
+```
+Body (gửi fields muốn update):
+{
+  "name": "New Name",
+  "phone": "0901234567",
+  "city": "Ha Noi"
+}
+```
+Lưu ý: Không update được email, password, role
+
+---
+
+**PUT /admin/users/:id/status** - Block/Unblock user
+```
+Body:
+{
+  "status": "suspended"
+}
+```
+Giá trị: "active" (unblock) hoặc "suspended" (block)
+
+---
+
+**DELETE /admin/users/:id** - Xóa user
+```
+Không cần body
+Không thể xóa chính mình
+```

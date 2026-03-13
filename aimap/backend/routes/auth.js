@@ -495,4 +495,64 @@ router.post('/reset-password', async (req, res) => {
   }
 })
 
+// ============================================================
+// API TẠM THỜI CHO TEST - XÓA SAU KHI TEST XONG
+// ============================================================
+
+// — DANH SÁCH USER (CHỈ ID VÀ NAME) - CHO TEST
+router.get('/users', async (req, res) => {
+  const client = await pool.connect()
+  try {
+    const rows = await client.query(
+      `SELECT up.id, up.name, l.email 
+       FROM user_profiles up 
+       JOIN logins l ON l.id = up.login_id 
+       ORDER BY up.created_at DESC`
+    )
+    res.json({
+      success: true,
+      users: rows.rows.map(u => ({
+        id: u.id,
+        name: u.name,
+        email: u.email,
+      })),
+    })
+  } catch (err) {
+    console.error('List users error:', err)
+    res.status(500).json({ error: 'Failed to list users' })
+  } finally {
+    client.release()
+  }
+})
+
+// — XÓA USER THEO ID - CHO TEST (XÓA CẢ LOGIN VÀ PROFILE)
+router.delete('/users/:id', async (req, res) => {
+  const { id } = req.params
+  if (!id) {
+    return res.status(400).json({ error: 'Missing user id' })
+  }
+  const client = await pool.connect()
+  try {
+    // Tìm login_id từ profile
+    const profile = await client.query(
+      'SELECT login_id FROM user_profiles WHERE id = $1',
+      [id]
+    )
+    if (profile.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' })
+    }
+    const loginId = profile.rows[0].login_id
+
+    // Xóa login (cascade sẽ xóa profile theo)
+    await client.query('DELETE FROM logins WHERE id = $1', [loginId])
+
+    res.json({ success: true, message: 'User deleted' })
+  } catch (err) {
+    console.error('Delete user error:', err)
+    res.status(500).json({ error: 'Failed to delete user' })
+  } finally {
+    client.release()
+  }
+})
+
 export default router
