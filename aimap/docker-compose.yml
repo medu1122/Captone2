@@ -39,7 +39,7 @@ services:
     container_name: aimap-frontend
     ports:
       # Port 80 trên host thường bị Nginx chiếm → bind 8080; Nginx host proxy domain:80 → 8080
-      - "8080:80"
+      - "80:80"
     depends_on:
       - backend
     restart: unless-stopped
