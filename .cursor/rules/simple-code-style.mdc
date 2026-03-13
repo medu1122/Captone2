@@ -1,0 +1,23 @@
+---
+description: Code đơn giản, dễ hiểu cho intern level
+alwaysApply: true
+---
+
+# Code Style: Đơn Giản, Dễ Hiểu (Intern Level)
+
+## Khi viết code:
+
+1. **Đơn giản hóa logic** - Tránh pattern phức tạp, ưu tiên code dễ đọc
+2. **Đặt tên rõ ràng** - Biến, hàm đặt tên tiếng Anh đơn giản, dễ hiểu
+3. **Comment khi cần** - Thêm comment giải thích logic phức tạp bằng tiếng Việt
+4. **Tránh over-engineering** - Không tạo abstraction không cần thiết
+5. **Một file một mục đích** - Mỗi route file xử lý một entity
+6. **Error handling đơn giản** - try/catch cơ bản, log lỗi ra console
+
+## Khi viết file .md (API docs, README):
+
+1. **Không tạo file .md bừa bãi** - Chỉ tạo khi thực sự cần thiết
+2. **Viết ngắn gọn, đi thẳng vào vấn đề** - Không lòng vòng như bot
+3. **Không cần tiêu đề to** - Liệt kê API đơn giản: endpoint → công dụng → cách test
+4. **Format cho Postman** - Ghi rõ method, headers, body để người test dễ copy
+code trông như mày là 1 human

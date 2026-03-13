@@ -154,13 +154,32 @@ router.post('/login', async (req, res) => {
   }
 })
 
-// — LẤY THÔNG TIN USER HIỆN TẠI (HEADER: Authorization: Bearer <token>)
+// — LẤY THÔNG TIN USER HIỆN TẠI (TẤT CẢ FIELDS CHO PROFILE PAGE)
 router.get('/me', requireAuth, async (req, res) => {
   const { profileId } = req.auth
   const client = await pool.connect()
   try {
+    // Lấy tất cả thông tin profile + email từ logins
     const row = await client.query(
-      `SELECT up.id, up.name, up.locale, up.avatar_url, l.email
+      `SELECT 
+         up.id,
+         up.name,
+         up.phone,
+         up.avatar_url,
+         up.address,
+         up.city,
+         up.district,
+         up.country,
+         up.postal_code,
+         up.date_of_birth,
+         up.gender,
+         up.company_name,
+         up.bio,
+         up.timezone,
+         up.locale,
+         up.email_contact,
+         up.created_at,
+         l.email AS login_email
        FROM user_profiles up
        JOIN logins l ON l.id = up.login_id
        WHERE up.id = $1`,
@@ -174,15 +193,156 @@ router.get('/me', requireAuth, async (req, res) => {
       success: true,
       user: {
         id: u.id,
-        email: u.email,
         name: u.name,
-        locale: u.locale || 'en',
+        phone: u.phone || '',
         avatarUrl: u.avatar_url || null,
+        address: u.address || '',
+        city: u.city || '',
+        district: u.district || '',
+        country: u.country || 'Vietnam',
+        postalCode: u.postal_code || '',
+        dateOfBirth: u.date_of_birth || null,
+        gender: u.gender || '',
+        companyName: u.company_name || '',
+        bio: u.bio || '',
+        timezone: u.timezone || 'Asia/Ho_Chi_Minh',
+        locale: u.locale || 'vi',
+        emailContact: u.email_contact || '',
+        loginEmail: u.login_email,
+        createdAt: u.created_at,
       },
     })
   } catch (err) {
     console.error('Me error:', err)
     res.status(500).json({ error: 'Failed to load user' })
+  } finally {
+    client.release()
+  }
+})
+
+// — CẬP NHẬT THÔNG TIN PROFILE
+router.put('/me', requireAuth, async (req, res) => {
+  const { profileId } = req.auth
+  const {
+    name,
+    phone,
+    avatarUrl,
+    address,
+    city,
+    district,
+    country,
+    postalCode,
+    dateOfBirth,
+    gender,
+    companyName,
+    bio,
+    timezone,
+    locale,
+    emailContact,
+  } = req.body || {}
+
+  // Validate: name là bắt buộc
+  if (!name || name.trim() === '') {
+    return res.status(400).json({ error: 'Name is required' })
+  }
+
+  // Validate: locale chỉ được 'vi' hoặc 'en'
+  if (locale && !['vi', 'en'].includes(locale)) {
+    return res.status(400).json({ error: 'Locale must be vi or en' })
+  }
+
+  const client = await pool.connect()
+  try {
+    // Cập nhật tất cả fields
+    await client.query(
+      `UPDATE user_profiles SET
+         name = $1,
+         phone = $2,
+         avatar_url = $3,
+         address = $4,
+         city = $5,
+         district = $6,
+         country = $7,
+         postal_code = $8,
+         date_of_birth = $9,
+         gender = $10,
+         company_name = $11,
+         bio = $12,
+         timezone = $13,
+         locale = $14,
+         email_contact = $15,
+         updated_at = NOW()
+       WHERE id = $16`,
+      [
+        name.trim(),
+        phone || null,
+        avatarUrl || null,
+        address || null,
+        city || null,
+        district || null,
+        country || 'Vietnam',
+        postalCode || null,
+        dateOfBirth || null,
+        gender || null,
+        companyName || null,
+        bio || null,
+        timezone || 'Asia/Ho_Chi_Minh',
+        locale || 'vi',
+        emailContact || null,
+        profileId,
+      ]
+    )
+
+    res.json({ success: true, message: 'Profile updated successfully' })
+  } catch (err) {
+    console.error('Update profile error:', err)
+    res.status(500).json({ error: 'Failed to update profile' })
+  } finally {
+    client.release()
+  }
+})
+
+// — ĐỔI MẬT KHẨU (CẦN MẬT KHẨU CŨ)
+router.put('/password', requireAuth, async (req, res) => {
+  const { loginId } = req.auth
+  const { currentPassword, newPassword } = req.body || {}
+
+  // Validate input
+  if (!currentPassword || !newPassword) {
+    return res.status(400).json({ error: 'Current password and new password are required' })
+  }
+  if (newPassword.length < 6) {
+    return res.status(400).json({ error: 'New password must be at least 6 characters' })
+  }
+
+  const client = await pool.connect()
+  try {
+    // Lấy password hash hiện tại
+    const row = await client.query(
+      'SELECT password_hash FROM logins WHERE id = $1',
+      [loginId]
+    )
+    if (row.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' })
+    }
+
+    // Kiểm tra mật khẩu cũ có đúng không
+    const match = await bcrypt.compare(currentPassword, row.rows[0].password_hash)
+    if (!match) {
+      return res.status(401).json({ error: 'Current password is incorrect' })
+    }
+
+    // Hash mật khẩu mới và cập nhật
+    const newPasswordHash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS)
+    await client.query(
+      'UPDATE logins SET password_hash = $1, updated_at = NOW() WHERE id = $2',
+      [newPasswordHash, loginId]
+    )
+
+    res.json({ success: true, message: 'Password changed successfully' })
+  } catch (err) {
+    console.error('Change password error:', err)
+    res.status(500).json({ error: 'Failed to change password' })
   } finally {
     client.release()
   }
