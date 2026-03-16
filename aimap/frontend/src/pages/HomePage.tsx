@@ -1,15 +1,11 @@
-import { useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
 import LanguageSwitcher from '../components/LanguageSwitcher'
 import { useAuth } from '../contexts/AuthContext'
 import { useLocale } from '../contexts/LocaleContext'
+import UserMenu from '../components/UserMenu'
 
 export default function HomePage() {
   const { t } = useLocale()
   const { user, logout } = useAuth()
-  const [userMenuOpen, setUserMenuOpen] = useState(false)
-  const userMenuRef = useRef<HTMLDivElement>(null)
-
   return (
     <div className="bg-white text-slate-900 min-h-screen flex flex-col selection:bg-primary/30 selection:text-primary overflow-x-hidden">
       {/* Header: white, border-bottom */}
@@ -30,51 +26,7 @@ export default function HomePage() {
         <div className="flex items-center gap-4 flex-shrink-0 ml-auto">
           <LanguageSwitcher />
           {user ? (
-            <div className="relative" ref={userMenuRef}>
-              <button
-                type="button"
-                onClick={() => setUserMenuOpen((o) => !o)}
-                className="flex items-center gap-2 rounded-full focus:outline-none focus:ring-2 focus:ring-primary/50"
-                aria-expanded={userMenuOpen}
-                aria-haspopup="true"
-              >
-                {user.avatarUrl ? (
-                  <img src={user.avatarUrl} alt="" className="w-8 h-8 rounded-full object-cover border border-slate-300" />
-                ) : (
-                  <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center border border-slate-300 text-slate-600 text-sm font-medium">
-                    {user.name?.[0] ?? user.email?.[0] ?? '?'}
-                  </div>
-                )}
-                <span className="text-sm font-medium text-slate-700 truncate max-w-[140px]">{user.name || user.email}</span>
-                <span className="text-slate-500 text-lg" aria-hidden>{userMenuOpen ? '▲' : '▼'}</span>
-              </button>
-              {userMenuOpen && (
-                <>
-                  <div
-                    className="fixed inset-0 z-40"
-                    aria-hidden="true"
-                    onClick={() => setUserMenuOpen(false)}
-                  />
-                  <div className="absolute right-0 top-full mt-2 w-48 py-1 rounded-lg bg-white border border-slate-300 shadow z-50">
-                    <Link
-                      to="/dashboard"
-                      className="block px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-100"
-                      onClick={() => setUserMenuOpen(false)}
-                    >
-                      {t('userMenu.dashboard')}
-                    </Link>
-                    <span className="block px-4 py-2.5 text-sm text-slate-500 cursor-default">{t('userMenu.profile')}</span>
-                    <button
-                      type="button"
-                      onClick={() => { setUserMenuOpen(false); logout() }}
-                      className="block w-full px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-100 text-left"
-                    >
-                      {t('userMenu.logout')}
-                    </button>
-                  </div>
-                </>
-              )}
-            </div>
+            <UserMenu user={user} onLogout={logout} />
           ) : (
             <>
               <a className="hidden sm:block text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors" href="/login">{t('nav.logIn')}</a>

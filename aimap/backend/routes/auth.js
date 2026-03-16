@@ -302,12 +302,13 @@ router.put('/me', requireAuth, async (req, res) => {
   }
 })
 
-// — ĐỔI MẬT KHẨU (CẦN MẬT KHẨU CŨ)
-router.put('/password', requireAuth, async (req, res) => {
+// — ĐỔI MẬT KHẨU (2 BƯỚC: YÊU CẦU + XÁC NHẬN BẰNG MÃ EMAIL)
+
+// Bước 1: gửi yêu cầu đổi mật khẩu, kiểm tra mật khẩu hiện tại và gửi mã 6 số qua email
+router.post('/change-password/request', requireAuth, async (req, res) => {
   const { loginId } = req.auth
   const { currentPassword, newPassword } = req.body || {}
 
-  // Validate input
   if (!currentPassword || !newPassword) {
     return res.status(400).json({ error: 'Current password and new password are required' })
   }
@@ -317,32 +318,105 @@ router.put('/password', requireAuth, async (req, res) => {
 
   const client = await pool.connect()
   try {
-    // Lấy password hash hiện tại
     const row = await client.query(
-      'SELECT password_hash FROM logins WHERE id = $1',
+      'SELECT email, password_hash FROM logins WHERE id = $1',
       [loginId]
     )
     if (row.rows.length === 0) {
       return res.status(404).json({ error: 'User not found' })
     }
+    const { email, password_hash: passwordHash } = row.rows[0]
 
-    // Kiểm tra mật khẩu cũ có đúng không
-    const match = await bcrypt.compare(currentPassword, row.rows[0].password_hash)
+    const match = await bcrypt.compare(currentPassword, passwordHash)
     if (!match) {
       return res.status(401).json({ error: 'Current password is incorrect' })
     }
 
-    // Hash mật khẩu mới và cập nhật
+    const code = generateSixDigitCode()
+    const expiresAt = new Date(Date.now() + VERIFY_CODE_EXPIRES_MINUTES * 60 * 1000)
+
+    await client.query(
+      `INSERT INTO email_verification_codes (email, code, expires_at)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (email) DO UPDATE SET code = $2, expires_at = $3, created_at = NOW()`,
+      [email, code, expiresAt]
+    )
+
+    if (isEmailConfigured()) {
+      const { sent, error } = await sendVerificationCodeEmail(email, code)
+      if (!sent) console.error('Change password code email failed:', error)
+    }
+
+    const atIndex = email.indexOf('@')
+    const emailMasked =
+      atIndex > 1 ? `${email[0]}***${email.slice(atIndex - 1)}` : email
+
+    const payload = {
+      success: true,
+      message: 'A verification code was sent to your email.',
+      emailMasked,
+    }
+    if (!isEmailConfigured()) payload.code = code
+
+    res.json(payload)
+  } catch (err) {
+    console.error('Change password request error:', err)
+    res.status(500).json({ error: 'Failed to request password change' })
+  } finally {
+    client.release()
+  }
+})
+
+// Bước 2: xác nhận mã 6 số và cập nhật mật khẩu mới
+router.post('/change-password/confirm', requireAuth, async (req, res) => {
+  const { loginId } = req.auth
+  const { code, newPassword } = req.body || {}
+
+  if (!code || !newPassword) {
+    return res.status(400).json({ error: 'Verification code and new password are required' })
+  }
+  if (String(code).trim().length !== 6) {
+    return res.status(400).json({ error: 'Code must be 6 digits' })
+  }
+  if (newPassword.length < 6) {
+    return res.status(400).json({ error: 'New password must be at least 6 characters' })
+  }
+
+  const client = await pool.connect()
+  try {
+    const loginRow = await client.query(
+      'SELECT email FROM logins WHERE id = $1',
+      [loginId]
+    )
+    if (loginRow.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' })
+    }
+    const email = loginRow.rows[0].email
+    const codeStr = String(code).trim().replace(/\s/g, '')
+
+    const codeRow = await client.query(
+      `SELECT id FROM email_verification_codes
+       WHERE email = $1 AND code = $2 AND expires_at > NOW()`,
+      [email, codeStr]
+    )
+    if (codeRow.rows.length === 0) {
+      return res.status(400).json({ error: 'Invalid or expired code' })
+    }
+
     const newPasswordHash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS)
     await client.query(
       'UPDATE logins SET password_hash = $1, updated_at = NOW() WHERE id = $2',
       [newPasswordHash, loginId]
     )
+    await client.query(
+      'DELETE FROM email_verification_codes WHERE email = $1',
+      [email]
+    )
 
     res.json({ success: true, message: 'Password changed successfully' })
   } catch (err) {
-    console.error('Change password error:', err)
-    res.status(500).json({ error: 'Failed to change password' })
+    console.error('Change password confirm error:', err)
+    res.status(500).json({ error: 'Failed to confirm password change' })
   } finally {
     client.release()
   }

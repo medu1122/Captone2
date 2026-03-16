@@ -2,15 +2,17 @@ import { Link, Outlet, useLocation } from 'react-router-dom'
 import LanguageSwitcher from '../components/LanguageSwitcher'
 import { useAuth } from '../contexts/AuthContext'
 import { useLocale } from '../contexts/LocaleContext'
+import UserMenu from '../components/UserMenu'
 
 const navItems = [
   { path: '/dashboard', labelKey: 'dashboard.title', icon: 'dashboard' },
   { path: '/shops', labelKey: 'nav.shops', icon: 'store' },
+  { path: '/profile', labelKey: 'nav.profile', icon: 'person' },
 ]
 
 export default function DashboardLayout() {
   const { t } = useLocale()
-  const { user } = useAuth()
+  const { user, logout } = useAuth()
   const location = useLocation()
 
   return (
@@ -59,18 +61,7 @@ export default function DashboardLayout() {
           </h1>
           <div className="flex items-center gap-4">
             <LanguageSwitcher />
-            {user && (
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-slate-600 truncate max-w-[120px]">{user.name || user.email}</span>
-                {user.avatarUrl ? (
-                  <img src={user.avatarUrl} alt="" className="w-8 h-8 rounded-full object-cover border border-slate-300" />
-                ) : (
-                  <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center border border-slate-300 text-slate-600 text-sm font-medium">
-                    {user.name?.[0] ?? user.email?.[0] ?? '?'}
-                  </div>
-                )}
-              </div>
-            )}
+            {user && <UserMenu user={user} onLogout={logout} />}
           </div>
         </header>
         <main className="flex-1 overflow-auto p-6 bg-slate-100">
