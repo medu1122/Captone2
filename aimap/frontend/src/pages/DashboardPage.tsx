@@ -21,7 +21,7 @@ export default function DashboardPage() {
         <div className="bg-white border border-slate-300 rounded-lg p-6">
           <div className="flex items-center gap-3 mb-3">
             <div className="w-12 h-12 rounded-lg border border-slate-300 flex items-center justify-center bg-slate-50">
-              <span className="material-symbols-outlined text-slate-500 text-2xl">store</span>
+              <img src="/icons/shop.png" alt="" className="w-8 h-8" />
             </div>
             <span className="text-sm font-medium text-slate-600">{t('dashboard.activeShops')}</span>
           </div>
@@ -32,7 +32,7 @@ export default function DashboardPage() {
         <div className="bg-white border border-slate-300 rounded-lg p-6">
           <div className="flex items-center gap-3 mb-3">
             <div className="w-12 h-12 rounded-lg border border-slate-300 flex items-center justify-center bg-slate-50">
-              <span className="material-symbols-outlined text-slate-500 text-2xl">language</span>
+              <img src="/icons/website.png" alt="" className="w-8 h-8" />
             </div>
             <span className="text-sm font-medium text-slate-600">{t('dashboard.liveWebsites')}</span>
           </div>
@@ -44,9 +44,10 @@ export default function DashboardPage() {
 
       {/* Activity log */}
       <div className="bg-white border border-slate-300 rounded-lg overflow-hidden">
-        <h2 className="text-lg font-semibold text-slate-900 px-6 py-4 border-b border-slate-200">
-          {t('dashboard.activityLog')}
-        </h2>
+        <div className="flex items-center gap-2 px-6 py-4 border-b border-slate-200">
+          <img src="/icons/dashboard-stats.png" alt="" className="w-5 h-5" />
+          <h2 className="text-lg font-semibold text-slate-900">{t('dashboard.activityLog')}</h2>
+        </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm text-left">
             <thead>
