@@ -26,7 +26,7 @@ export default function ForgotPasswordPage() {
       setError(err)
       return
     }
-    setSuccess((data as { message?: string })?.message ?? 'If the email exists, a reset link was sent.')
+    setSuccess((data as { message?: string })?.message ?? t('auth.info.resetLinkSent'))
     const link = (data as { resetLink?: string })?.resetLink
     if (link) setResetLink(link)
   }
@@ -34,15 +34,10 @@ export default function ForgotPasswordPage() {
   return (
     <AuthLayout>
       <div className="w-full max-w-md">
-        <div className="bg-surface-dark border border-border-dark rounded-2xl p-8 card-glow shadow-xl">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="w-12 h-12 rounded-xl bg-primary/20 text-primary flex items-center justify-center">
-              <span className="material-symbols-outlined text-2xl">lock_reset</span>
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold text-white">{t('auth.forgot.title')}</h1>
-              <p className="text-sm text-slate-400">{t('auth.forgot.subtitle')}</p>
-            </div>
+        <div className="bg-white border border-slate-300 rounded-lg p-8">
+          <div className="mb-6">
+            <h1 className="text-xl font-bold text-slate-900">{t('auth.forgot.title')}</h1>
+            <p className="text-sm text-slate-600">{t('auth.forgot.subtitle')}</p>
           </div>
           {error && (
             <p className="mb-4 text-sm text-red-400 bg-red-400/10 rounded-lg px-3 py-2">{error}</p>
@@ -52,7 +47,7 @@ export default function ForgotPasswordPage() {
           )}
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
-              <label htmlFor="forgot-email" className="block text-sm font-medium text-slate-300 mb-2">
+              <label htmlFor="forgot-email" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
                 {t('auth.forgot.email')}
               </label>
               <input
@@ -61,8 +56,8 @@ export default function ForgotPasswordPage() {
                 name="email"
                 required
                 autoComplete="email"
-                className="w-full px-4 py-3 rounded-xl bg-background-dark border border-border-dark text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary"
-                placeholder="you@example.com"
+                className="w-full px-4 py-3 rounded-lg bg-white border border-slate-300 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:border-slate-400"
+                placeholder="ban@example.com"
               />
             </div>
             {resetLink && (
@@ -73,7 +68,7 @@ export default function ForgotPasswordPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-primary hover:bg-primary/90 disabled:opacity-50 text-white font-semibold py-3 px-6 rounded-full transition-all shadow-[0_0_15px_rgba(37,106,244,0.4)]"
+              className="w-full bg-primary hover:bg-primary/90 disabled:opacity-50 text-white font-semibold py-3 px-6 rounded-lg transition-colors"
             >
               {loading ? '...' : t('auth.forgot.submit')}
             </button>

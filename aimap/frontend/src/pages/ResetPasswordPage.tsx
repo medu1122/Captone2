@@ -33,7 +33,7 @@ export default function ResetPasswordPage() {
     const { data, error: err } = await authApi.resetPassword({ token, newPassword })
     setLoading(false)
     if (err || !(data as { success?: boolean })?.success) {
-      setError((data as { error?: string })?.error ?? err ?? 'Reset failed')
+      setError((data as { error?: string })?.error ?? err ?? t('auth.error.resetFailed'))
       return
     }
     setSuccess(true)
@@ -42,15 +42,10 @@ export default function ResetPasswordPage() {
   return (
     <AuthLayout>
       <div className="w-full max-w-md">
-        <div className="bg-surface-dark border border-border-dark rounded-2xl p-8 card-glow shadow-xl">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="w-12 h-12 rounded-xl bg-primary/20 text-primary flex items-center justify-center">
-              <span className="material-symbols-outlined text-2xl">key</span>
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold text-white">{t('auth.reset.title')}</h1>
-              <p className="text-sm text-slate-400">{t('auth.reset.subtitle')}</p>
-            </div>
+        <div className="bg-white border border-slate-300 rounded-lg p-8">
+          <div className="mb-6">
+            <h1 className="text-xl font-bold text-slate-900">{t('auth.reset.title')}</h1>
+            <p className="text-sm text-slate-600">{t('auth.reset.subtitle')}</p>
           </div>
           {!token && (
             <p className="mb-4 text-sm text-amber-400">
@@ -68,7 +63,7 @@ export default function ResetPasswordPage() {
           <form onSubmit={handleSubmit} className="space-y-5">
             <input type="hidden" name="token" value={token ?? ''} />
             <div>
-              <label htmlFor="reset-password" className="block text-sm font-medium text-slate-300 mb-2">
+              <label htmlFor="reset-password" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
                 {t('auth.reset.password')}
               </label>
               <PasswordInput
@@ -80,7 +75,7 @@ export default function ResetPasswordPage() {
               />
             </div>
             <div>
-              <label htmlFor="reset-confirm" className="block text-sm font-medium text-slate-300 mb-2">
+              <label htmlFor="reset-confirm" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
                 {t('auth.reset.confirmPassword')}
               </label>
               <PasswordInput
@@ -94,7 +89,7 @@ export default function ResetPasswordPage() {
             <button
               type="submit"
               disabled={!token || loading}
-              className="w-full bg-primary hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold py-3 px-6 rounded-full transition-all shadow-[0_0_15px_rgba(37,106,244,0.4)]"
+              className="w-full bg-primary hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold py-3 px-6 rounded-lg transition-colors"
             >
               {loading ? '...' : t('auth.reset.submit')}
             </button>

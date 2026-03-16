@@ -47,7 +47,7 @@ export default function RegisterPage() {
     const { data, error: err } = await authApi.register({ email, password: passwordValue, name })
     setLoading(false)
     if (err || !data?.success) {
-      setError((data as { error?: string })?.error ?? err ?? 'Registration failed')
+      setError((data as { error?: string })?.error ?? err ?? t('auth.error.registerFailed'))
       return
     }
     navigate('/verify', {
@@ -59,22 +59,17 @@ export default function RegisterPage() {
   return (
     <AuthLayout>
       <div className="w-full max-w-md">
-        <div className="bg-surface-dark border border-border-dark rounded-2xl p-8 card-glow shadow-xl">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="w-12 h-12 rounded-xl bg-primary/20 text-primary flex items-center justify-center">
-              <span className="material-symbols-outlined text-2xl">person_add</span>
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold text-white">{t('auth.register.title')}</h1>
-              <p className="text-sm text-slate-400">{t('auth.register.subtitle')}</p>
-            </div>
+        <div className="bg-white border border-slate-300 rounded-lg p-8">
+          <div className="mb-6">
+            <h1 className="text-xl font-bold text-slate-900">{t('auth.register.title')}</h1>
+            <p className="text-sm text-slate-600">{t('auth.register.subtitle')}</p>
           </div>
           {error && (
             <p className="mb-4 text-sm text-red-400 bg-red-400/10 rounded-lg px-3 py-2">{error}</p>
           )}
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
-              <label htmlFor="register-name" className="block text-sm font-medium text-slate-300 mb-2">
+              <label htmlFor="register-name" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
                 {t('auth.register.name')}
               </label>
               <input
@@ -83,12 +78,12 @@ export default function RegisterPage() {
                 name="name"
                 required
                 autoComplete="name"
-                className="w-full px-4 py-3 rounded-xl bg-background-dark border border-border-dark text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary"
-                placeholder="John Doe"
+                className="w-full px-4 py-3 rounded-lg bg-white border border-slate-300 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:border-slate-400"
+                placeholder="Nguyễn Văn A"
               />
             </div>
             <div>
-              <label htmlFor="register-email" className="block text-sm font-medium text-slate-300 mb-2">
+              <label htmlFor="register-email" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
                 {t('auth.register.email')}
               </label>
               <input
@@ -97,12 +92,12 @@ export default function RegisterPage() {
                 name="email"
                 required
                 autoComplete="email"
-                className="w-full px-4 py-3 rounded-xl bg-background-dark border border-border-dark text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary"
-                placeholder="you@example.com"
+                className="w-full px-4 py-3 rounded-lg bg-white border border-slate-300 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:border-slate-400"
+                placeholder="ban@example.com"
               />
             </div>
             <div>
-              <label htmlFor="register-password" className="block text-sm font-medium text-slate-300 mb-2">
+              <label htmlFor="register-password" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
                 {t('auth.register.password')}
               </label>
               <PasswordInput
@@ -114,7 +109,7 @@ export default function RegisterPage() {
                 onChange={(e) => setPassword((e.target as HTMLInputElement).value)}
               />
               <div className="mt-1.5 flex items-center gap-2">
-                <div className="flex-1 h-1.5 rounded-full bg-border-dark overflow-hidden">
+                <div className="flex-1 h-1.5 rounded-full bg-slate-200 dark:bg-slate-600 overflow-hidden">
                   <div
                     className={`h-full transition-all duration-200 ${
                       strength === 'weak'
@@ -139,7 +134,7 @@ export default function RegisterPage() {
               </div>
             </div>
             <div>
-              <label htmlFor="register-confirm" className="block text-sm font-medium text-slate-300 mb-2">
+              <label htmlFor="register-confirm" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
                 {t('auth.register.confirmPassword')}
               </label>
               <PasswordInput
@@ -153,12 +148,12 @@ export default function RegisterPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-primary hover:bg-primary/90 disabled:opacity-50 text-white font-semibold py-3 px-6 rounded-full transition-all shadow-[0_0_15px_rgba(37,106,244,0.4)]"
+              className="w-full bg-primary hover:bg-primary/90 disabled:opacity-50 text-white font-semibold py-3 px-6 rounded-lg transition-colors"
             >
               {loading ? '...' : t('auth.register.submit')}
             </button>
           </form>
-          <p className="mt-6 text-center text-sm text-slate-400">
+          <p className="mt-6 text-center text-sm text-slate-600 dark:text-slate-400">
             {t('auth.register.hasAccount')}{' '}
             <Link to="/login" className="text-primary font-medium hover:underline">
               {t('auth.register.logIn')}
