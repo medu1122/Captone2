@@ -73,67 +73,64 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6">
-      {/* Account overview: left = avatar + info, right = Change password */}
-      <div className="bg-white border border-slate-300 rounded-lg p-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div className="flex items-start gap-4">
-            {profile.avatarUrl ? (
-              <img
-                src={profile.avatarUrl}
-                alt=""
-                className="w-20 h-20 rounded-full object-cover border border-slate-300"
-              />
-            ) : (
-              <div className="w-20 h-20 rounded-full bg-slate-100 flex items-center justify-center border border-slate-300 text-slate-600 text-2xl font-semibold">
-                {profile.name?.[0] ?? loginEmail?.[0] ?? '?'}
+    <div className="max-w-5xl mx-auto">
+      <div className="grid grid-cols-1 lg:grid-cols-[minmax(260px,320px)_minmax(0,1fr)] gap-6">
+        {/* Account profile column */}
+        <div className="bg-white border border-slate-300 rounded-lg p-6">
+          <div className="flex flex-col gap-4">
+            <div className="flex items-start gap-4">
+              {profile.avatarUrl ? (
+                <img
+                  src={profile.avatarUrl}
+                  alt=""
+                  className="w-20 h-20 rounded-full object-cover border border-slate-300"
+                />
+              ) : (
+                <div className="w-20 h-20 rounded-full bg-slate-100 flex items-center justify-center border border-slate-300 text-slate-600 text-2xl font-semibold">
+                  {profile.name?.[0] ?? loginEmail?.[0] ?? '?'}
+                </div>
+              )}
+              <div className="space-y-1">
+                <h1 className="text-lg font-semibold text-slate-900">{t('profile.title')}</h1>
+                <p className="text-xl font-semibold text-slate-900">
+                  {profile.name || loginEmail}
+                </p>
+                <p className="text-sm text-slate-600">
+                  <span className="font-medium">{t('profile.loginEmailLabel')}: </span>
+                  {loginEmail}
+                </p>
               </div>
-            )}
-            <div className="space-y-1">
-              <h1 className="text-lg font-semibold text-slate-900">{t('profile.title')}</h1>
-              <p className="text-xl font-semibold text-slate-900">
-                {profile.name || loginEmail}
-              </p>
-              <p className="text-sm text-slate-600">
-                <span className="font-medium">{t('profile.loginEmailLabel')}: </span>
-                {loginEmail}
-              </p>
-              <p className="text-xs text-slate-500">{t('profile.subtitle')}</p>
+            </div>
+            <div className="flex justify-end">
+              <Link
+                to="/change-password"
+                className="inline-block px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-medium hover:bg-slate-50"
+              >
+                {t('profile.changePassword')}
+              </Link>
             </div>
           </div>
-          <div className="flex-shrink-0">
-            <Link
-              to="/change-password"
-              className="inline-block px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-medium hover:bg-slate-50"
-            >
-              {t('profile.changePassword')}
-            </Link>
-          </div>
         </div>
-      </div>
 
-      {/* Personal information */}
-      <div className="bg-white border border-slate-300 rounded-lg p-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
-          <div>
-            <h2 className="text-base font-semibold text-slate-900 mb-1">
-              {t('profile.personalInfoTitle')}
-            </h2>
-            <p className="text-xs text-slate-500">
-              {t('profile.personalInfoSubtitle')}
-            </p>
+        {/* Personal information column */}
+        <div className="bg-white border border-slate-300 rounded-lg p-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
+            <div>
+              <h2 className="text-base font-semibold text-slate-900 mb-1">
+                {t('profile.personalInfoTitle')}
+              </h2>
+            </div>
+            {!isEditing && (
+              <button
+                type="button"
+                onClick={() => setIsEditing(true)}
+                className="inline-block px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-medium hover:bg-slate-50 flex-shrink-0"
+              >
+                {t('profile.editProfile')}
+              </button>
+            )}
           </div>
-          {!isEditing && (
-            <button
-              type="button"
-              onClick={() => setIsEditing(true)}
-              className="inline-block px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-medium hover:bg-slate-50 flex-shrink-0"
-            >
-              {t('profile.editProfile')}
-            </button>
-          )}
-        </div>
-        <form className="space-y-5" onSubmit={handleSaveProfile}>
+          <form className="space-y-5" onSubmit={handleSaveProfile}>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-2">
@@ -302,8 +299,8 @@ export default function ProfilePage() {
             </div>
           )}
         </form>
+        </div>
       </div>
-
     </div>
   )
 }

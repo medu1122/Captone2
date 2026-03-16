@@ -24,7 +24,7 @@ export default function DashboardLayout() {
         </div>
         <div className="flex-1 flex flex-col justify-between">
           <nav className="p-3 flex flex-col gap-0.5">
-            {navItems.map(({ path, labelKey, icon }) => {
+            {navItems.filter((item) => item.path !== '/profile').map(({ path, labelKey, icon }) => {
               const active = location.pathname === path || (path !== '/dashboard' && location.pathname.startsWith(path))
               return (
                 <Link
