@@ -92,6 +92,32 @@ Lưu ý: `name` bắt buộc, `locale` chỉ được `vi` hoặc `en`
 
 ---
 
+**GET /auth/me/activity** - Nhật ký hoạt động (cho Dashboard Activity log)
+```
+Headers:
+  Authorization: Bearer <token>
+Query:
+  limit=20 (mặc định 20, tối đa 100)
+  offset=0
+```
+Response:
+```json
+{
+  "activity": [
+    {
+      "action": "create_shop",
+      "entity_type": "shop",
+      "entity_id": "uuid",
+      "details": { "shop_name": "...", "slug": "..." },
+      "severity": "info",
+      "created_at": "2025-03-16T..."
+    }
+  ]
+}
+```
+
+---
+
 **PUT /auth/password** - Đổi mật khẩu
 ```
 Headers:
@@ -127,6 +153,97 @@ Body:
   "newPassword": "newpass123"
 }
 ```
+
+---
+
+---
+
+## Shops API
+
+Tất cả endpoint shops (trừ GET /shops/slugs) cần header:
+```
+Authorization: Bearer <token>
+```
+
+---
+
+**GET /shops** - Danh sách shop của user
+```
+Headers: Authorization: Bearer <token>
+```
+Response:
+```json
+{
+  "shops": [
+    {
+      "id": "uuid",
+      "name": "...",
+      "slug": "my-shop",
+      "industry": "...",
+      "description": "...",
+      "logo_url": null,
+      "cover_url": null,
+      "status": "active",
+      "created_at": "..."
+    }
+  ]
+}
+```
+
+---
+
+**GET /shops/slugs** - Danh sách tất cả slug (dùng cho form tạo shop kiểm tra trùng)
+```
+Không bắt buộc token
+```
+Response: `["slug1", "slug2", ...]`
+
+---
+
+**POST /shops** - Tạo shop mới
+```
+Headers:
+  Content-Type: application/json
+  Authorization: Bearer <token>
+Body:
+{
+  "name": "Tên cửa hàng",
+  "slug": "my-shop",
+  "industry": "Đồ uống",
+  "description": "Mô tả ngắn",
+  "address": "123 Đường X",
+  "city": "TP.HCM",
+  "district": "Quận 1",
+  "country": "Vietnam",
+  "postal_code": "700000",
+  "contact_info": {
+    "phone": "0901234567",
+    "email": "shop@example.com",
+    "owner_name": "Nguyễn Văn A"
+  }
+}
+```
+- Bắt buộc: name, slug, contact_info.phone, contact_info.email, contact_info.owner_name.
+- Slug: chỉ a-z, 0-9, dấu gạch; unique (409 nếu trùng).
+Response: 201 + object shop vừa tạo. Ghi activity_log `create_shop`.
+
+---
+
+**GET /shops/:id** - Chi tiết một shop
+```
+Chỉ trả về nếu shop thuộc user (user_id = profileId). 404 nếu không tồn tại, 403 nếu không thuộc user.
+```
+
+---
+
+**PATCH /shops/:id** - Cập nhật shop
+```
+Headers:
+  Content-Type: application/json
+  Authorization: Bearer <token>
+Body (chỉ gửi fields cần đổi): name, industry, description, address, city, district, country, postal_code, contact_info, products, website_url, logo_url, cover_url, social_links, opening_hours, status
+```
+Chỉ chủ sở hữu. Ghi activity_log `update_shop`. Response: 200 + shop đã cập nhật.
 
 ---
 

@@ -44,7 +44,7 @@ export default function LoginPage() {
         <div className="bg-white border border-slate-300 rounded-lg p-8">
           <div className="mb-6">
             <h1 className="text-xl font-bold text-slate-900">{t('auth.login.title')}</h1>
-            <p className="text-sm text-slate-600">{t('auth.login.subtitle')}</p>
+            <p className="text-sm text-slate-600">{t('')}</p>
           </div>
           {error && (
             <p className="mb-4 text-sm text-red-400 bg-red-400/10 rounded-lg px-3 py-2">{error}</p>
@@ -61,7 +61,7 @@ export default function LoginPage() {
                 required
                 autoComplete="email"
                 className="w-full px-4 py-3 rounded-lg bg-white border border-slate-300 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:border-slate-400"
-                placeholder="ban@example.com"
+                placeholder="nguoidung@example.com"
               />
             </div>
             <div>

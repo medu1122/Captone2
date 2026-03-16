@@ -3,35 +3,10 @@
  * Chỉ user có role = 'admin' mới được truy cập
  */
 import { Router } from 'express'
-import jwt from 'jsonwebtoken'
 import pool from '../db/index.js'
+import { requireAuth } from '../middleware/auth.js'
 
 const router = Router()
-const JWT_SECRET = process.env.JWT_SECRET || 'aimap-dev-secret-change-in-production'
-
-/** Giải mã JWT */
-function verifyToken(token) {
-  try {
-    return jwt.verify(token, JWT_SECRET)
-  } catch {
-    return null
-  }
-}
-
-/** MIDDLEWARE: Kiểm tra đã login */
-function requireAuth(req, res, next) {
-  const authHeader = req.headers.authorization
-  const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null
-  if (!token) {
-    return res.status(401).json({ error: 'Authentication required' })
-  }
-  const decoded = verifyToken(token)
-  if (!decoded) {
-    return res.status(401).json({ error: 'Invalid or expired token' })
-  }
-  req.auth = decoded
-  next()
-}
 
 /** MIDDLEWARE: Kiểm tra là Admin (phải gọi sau requireAuth) */
 async function requireAdmin(req, res, next) {

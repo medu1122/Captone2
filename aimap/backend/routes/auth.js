@@ -4,8 +4,8 @@
  */
 import { Router } from 'express'
 import bcrypt from 'bcrypt'
-import jwt from 'jsonwebtoken'
 import pool from '../db/index.js'
+import { signToken, verifyToken, requireAuth } from '../middleware/auth.js'
 import {
   sendVerificationCodeEmail,
   sendResetPasswordEmail,
@@ -14,8 +14,6 @@ import {
 } from '../services/email.js'
 
 const router = Router()
-const JWT_SECRET = process.env.JWT_SECRET || 'aimap-dev-secret-change-in-production'
-const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d'
 const RESET_TOKEN_EXPIRES = '1h'
 const BCRYPT_ROUNDS = 10
 const VERIFY_CODE_EXPIRES_MINUTES = 15
@@ -23,35 +21,6 @@ const VERIFY_CODE_EXPIRES_MINUTES = 15
 /** SINH MÃ 6 SỐ NGẪU NHIÊN CHO XÁC THỰC EMAIL */
 function generateSixDigitCode() {
   return String(Math.floor(100000 + Math.random() * 900000))
-}
-
-/** KÝ JWT (LOGIN HOẶC RESET PASSWORD) */
-function signToken(payload, expiresIn = JWT_EXPIRES_IN) {
-  return jwt.sign(payload, JWT_SECRET, { expiresIn })
-}
-
-/** GIẢI MÃ VÀ KIỂM TRA JWT; TRẢ NULL NẾU LỖI HOẶC HẾT HẠN */
-function verifyToken(token) {
-  try {
-    return jwt.verify(token, JWT_SECRET)
-  } catch {
-    return null
-  }
-}
-
-/** MIDDLEWARE: ĐỌC Bearer TOKEN, GẮN req.auth (loginId, profileId, email); 401 NẾU THIẾU/HỎNG */
-function requireAuth(req, res, next) {
-  const authHeader = req.headers.authorization
-  const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null
-  if (!token) {
-    return res.status(401).json({ error: 'Authentication required' })
-  }
-  const decoded = verifyToken(token)
-  if (!decoded) {
-    return res.status(401).json({ error: 'Invalid or expired token' })
-  }
-  req.auth = decoded
-  next()
 }
 
 // — ĐĂNG KÝ (CHỈ LƯU PENDING + MÃ 6 SỐ; TÀI KHOẢN CHỈ TẠO SAU KHI VERIFY)
@@ -215,6 +184,30 @@ router.get('/me', requireAuth, async (req, res) => {
   } catch (err) {
     console.error('Me error:', err)
     res.status(500).json({ error: 'Failed to load user' })
+  } finally {
+    client.release()
+  }
+})
+
+// — NHẬT KÝ HOẠT ĐỘNG (cho Dashboard Activity log)
+router.get('/me/activity', requireAuth, async (req, res) => {
+  const { profileId } = req.auth
+  const limit = Math.min(parseInt(req.query.limit, 10) || 20, 100)
+  const offset = Math.max(0, parseInt(req.query.offset, 10) || 0)
+  const client = await pool.connect()
+  try {
+    const result = await client.query(
+      `SELECT action, entity_type, entity_id, details, severity, created_at
+       FROM activity_logs
+       WHERE user_id = $1
+       ORDER BY created_at DESC
+       LIMIT $2 OFFSET $3`,
+      [profileId, limit, offset]
+    )
+    res.json({ activity: result.rows })
+  } catch (err) {
+    console.error('Activity log error:', err)
+    res.status(500).json({ error: 'Failed to load activity' })
   } finally {
     client.release()
   }

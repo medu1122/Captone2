@@ -21,3 +21,6 @@ alwaysApply: true
 3. **Không cần tiêu đề to** - Liệt kê API đơn giản: endpoint → công dụng → cách test
 4. **Format cho Postman** - Ghi rõ method, headers, body để người test dễ copy
 code trông như mày là 1 human
+
+## Khi code form giao diện fromend ():
+1. **Không cần tạo các subtitle bừa bãi** - chỉ cần 1 tên form là đử

@@ -85,7 +85,7 @@ export default function VerifyPage() {
                 autoComplete="email"
                 defaultValue={stateEmail}
                 className="w-full px-4 py-3 rounded-lg bg-white border border-slate-300 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:border-slate-400"
-                placeholder="ban@example.com"
+                placeholder="nguoidung@example.com"
               />
             </div>
             <div>
