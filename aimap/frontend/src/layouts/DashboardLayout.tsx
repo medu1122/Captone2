@@ -6,10 +6,6 @@ import { useLocale } from '../contexts/LocaleContext'
 const navItems = [
   { path: '/dashboard', labelKey: 'dashboard.title', icon: 'dashboard' },
   { path: '/shops', labelKey: 'nav.shops', icon: 'store' },
-  { path: '/profile', labelKey: 'nav.profile', icon: 'person' },
-  { path: '/credit', labelKey: 'nav.credit', icon: 'account_balance_wallet' },
-  { path: '/assets', labelKey: 'nav.assets', icon: 'folder' },
-  { path: '/pipeline', labelKey: 'nav.pipeline', icon: 'account_tree' },
 ]
 
 export default function DashboardLayout() {
@@ -24,25 +20,35 @@ export default function DashboardLayout() {
           <img src="/icons/logo-aimap.png" alt="AIMAP logo" className="h-12 w-auto" />
           <span className="font-bold text-lg text-slate-900">AIMAP</span>
         </div>
-        <nav className="p-3 flex-1 flex flex-col gap-0.5">
-          {navItems.map(({ path, labelKey, icon }) => {
-            const active = location.pathname === path || (path !== '/dashboard' && location.pathname.startsWith(path))
-            return (
-              <Link
-                key={path}
-                to={path}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                  active
-                    ? 'bg-slate-100 text-slate-900 border-l-2 border-slate-400 pl-[10px]'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-                }`}
-              >
-                <span className="material-symbols-outlined text-xl text-slate-500">{icon}</span>
-                {t(labelKey)}
-              </Link>
-            )
-          })}
-        </nav>
+        <div className="flex-1 flex flex-col justify-between">
+          <nav className="p-3 flex flex-col gap-0.5">
+            {navItems.map(({ path, labelKey, icon }) => {
+              const active = location.pathname === path || (path !== '/dashboard' && location.pathname.startsWith(path))
+              return (
+                <Link
+                  key={path}
+                  to={path}
+                  className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                    active
+                      ? 'bg-slate-100 text-slate-900 border-l-2 border-slate-400 pl-[10px]'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                  }`}
+                >
+                  <span className="material-symbols-outlined text-xl text-slate-500">{icon}</span>
+                  {t(labelKey)}
+                </Link>
+              )
+            })}
+          </nav>
+          <div className="border-t border-slate-200 p-3">
+            <div className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-medium text-slate-600">{t('dashboard.creditBalance')}</span>
+                <span className="text-xs text-slate-500">—</span>
+              </div>
+            </div>
+          </div>
+        </div>
       </aside>
       <div className="flex-1 flex flex-col min-w-0">
         <header className="h-14 border-b border-slate-300 bg-white flex items-center justify-between px-6 flex-shrink-0">
