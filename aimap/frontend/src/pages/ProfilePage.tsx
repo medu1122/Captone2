@@ -75,26 +75,18 @@ export default function ProfilePage() {
   return (
     <div className="max-w-5xl mx-auto">
       <div className="grid grid-cols-1 lg:grid-cols-[minmax(260px,320px)_minmax(0,1fr)] gap-6">
-        {/* Account profile column */}
-        <div className="bg-white border border-slate-300 rounded-lg p-6">
-          <div className="flex justify-between items-center mb-4">
-            <h1 className="text-lg font-semibold text-slate-900">{t('profile.title')}</h1>
-            <Link
-              to="/change-password"
-              className="inline-block px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-medium hover:bg-slate-50"
-            >
-              {t('profile.changePassword')}
-            </Link>
-          </div>
-          <div className="flex items-start gap-4">
+        {/* Account profile column - self-start so card does not stretch with right column */}
+        <div className="bg-white border border-slate-300 rounded-lg p-6 self-start">
+          <h1 className="text-lg font-semibold text-slate-900 mb-4">{t('profile.title')}</h1>
+          <div className="flex items-start gap-4 mb-4">
             {profile.avatarUrl ? (
               <img
                 src={profile.avatarUrl}
                 alt=""
-                className="w-20 h-20 rounded-full object-cover border border-slate-300"
+                className="w-20 h-20 flex-shrink-0 rounded-full object-cover border border-slate-300 aspect-square"
               />
             ) : (
-              <div className="w-20 h-20 rounded-full bg-slate-100 flex items-center justify-center border border-slate-300 text-slate-600 text-2xl font-semibold">
+              <div className="w-20 h-20 flex-shrink-0 rounded-full aspect-square bg-slate-100 flex items-center justify-center border border-slate-300 text-slate-600 text-2xl font-semibold">
                 {profile.name?.[0] ?? loginEmail?.[0] ?? '?'}
               </div>
             )}
@@ -108,17 +100,20 @@ export default function ProfilePage() {
               </p>
             </div>
           </div>
+          <div className="flex justify-end">
+            <Link
+              to="/change-password"
+              className="inline-block px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-medium hover:bg-slate-50"
+            >
+              {t('profile.changePassword')}
+            </Link>
+          </div>
         </div>
 
-        {/* Personal information column */}
+        {/* Personal information column - no redundant title; Edit profile button only */}
         <div className="bg-white border border-slate-300 rounded-lg p-6">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
-            <div>
-              <h2 className="text-base font-semibold text-slate-900 mb-1">
-                {t('profile.personalInfoTitle')}
-              </h2>
-            </div>
-            {!isEditing && (
+          {!isEditing && (
+            <div className="flex justify-end mb-4">
               <button
                 type="button"
                 onClick={() => setIsEditing(true)}
@@ -126,8 +121,8 @@ export default function ProfilePage() {
               >
                 {t('profile.editProfile')}
               </button>
-            )}
-          </div>
+            </div>
+          )}
           <form className="space-y-5" onSubmit={handleSaveProfile}>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
@@ -150,6 +145,7 @@ export default function ProfilePage() {
               <input
                 type="tel"
                 readOnly={!isEditing}
+                placeholder={t('profile.phonePlaceholder')}
                 className={`w-full px-4 py-2.5 rounded-lg border border-slate-300 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:border-slate-400 ${!isEditing ? 'bg-slate-50 cursor-default' : 'bg-white'}`}
                 value={profile.phone || ''}
                 onChange={(e) => handleFieldChange('phone', e.target.value)}
@@ -165,6 +161,7 @@ export default function ProfilePage() {
               <input
                 type="text"
                 readOnly={!isEditing}
+                placeholder={t('profile.companyPlaceholder')}
                 className={`w-full px-4 py-2.5 rounded-lg border border-slate-300 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:border-slate-400 ${!isEditing ? 'bg-slate-50 cursor-default' : 'bg-white'}`}
                 value={profile.companyName || ''}
                 onChange={(e) => handleFieldChange('companyName', e.target.value)}
@@ -179,6 +176,7 @@ export default function ProfilePage() {
             <textarea
               rows={2}
               readOnly={!isEditing}
+              placeholder={t('profile.addressPlaceholder')}
               className={`w-full px-4 py-2.5 rounded-lg border border-slate-300 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:border-slate-400 min-h-[80px] ${!isEditing ? 'bg-slate-50 cursor-default' : 'bg-white'}`}
               value={profile.address || ''}
               onChange={(e) => handleFieldChange('address', e.target.value)}
@@ -193,6 +191,7 @@ export default function ProfilePage() {
               <input
                 type="text"
                 readOnly={!isEditing}
+                placeholder={t('profile.cityPlaceholder')}
                 className={`w-full px-4 py-2.5 rounded-lg border border-slate-300 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:border-slate-400 ${!isEditing ? 'bg-slate-50 cursor-default' : 'bg-white'}`}
                 value={profile.city || ''}
                 onChange={(e) => handleFieldChange('city', e.target.value)}
@@ -205,6 +204,7 @@ export default function ProfilePage() {
               <input
                 type="text"
                 readOnly={!isEditing}
+                placeholder={t('profile.districtPlaceholder')}
                 className={`w-full px-4 py-2.5 rounded-lg border border-slate-300 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:border-slate-400 ${!isEditing ? 'bg-slate-50 cursor-default' : 'bg-white'}`}
                 value={profile.district || ''}
                 onChange={(e) => handleFieldChange('district', e.target.value)}
@@ -217,6 +217,7 @@ export default function ProfilePage() {
               <input
                 type="text"
                 readOnly={!isEditing}
+                placeholder={t('profile.postalCodePlaceholder')}
                 className={`w-full px-4 py-2.5 rounded-lg border border-slate-300 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:border-slate-400 ${!isEditing ? 'bg-slate-50 cursor-default' : 'bg-white'}`}
                 value={profile.postalCode || ''}
                 onChange={(e) => handleFieldChange('postalCode', e.target.value)}
@@ -258,6 +259,7 @@ export default function ProfilePage() {
             <textarea
               rows={3}
               readOnly={!isEditing}
+              placeholder={t('profile.bioPlaceholder')}
               className={`w-full px-4 py-2.5 rounded-lg border border-slate-300 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:border-slate-400 ${!isEditing ? 'bg-slate-50 cursor-default' : 'bg-white'}`}
               value={profile.bio || ''}
               onChange={(e) => handleFieldChange('bio', e.target.value)}
