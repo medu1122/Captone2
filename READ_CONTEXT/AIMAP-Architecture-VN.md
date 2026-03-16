@@ -7,6 +7,8 @@ isProject: false
 
 # AIMAP – Kiến trúc hệ thống production-ready
 
+**Trang web hệ thống hiện tại:** [captone2.site](https://captone2.site)
+
 **AIMAP** = *AI-Powered Marketing Automation Platform for Small Businesses*  
 Capstone Project 2 – International School, Duy Tan University | Mentor: Prof Dr Anand Nayyar | Team: C2SE.10
 

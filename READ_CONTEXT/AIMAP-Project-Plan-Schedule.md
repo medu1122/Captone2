@@ -7,6 +7,8 @@ isProject: false
 
 # AIMAP - Detailed Schedule for Project Plan
 
+**Trang web hệ thống hiện tại:** [captone2.site](https://captone2.site)
+
 **Note:** Effort below is estimated in **person-hours** for project planning purposes.
 
 | No. | Task name | Start | Finish | Effort |

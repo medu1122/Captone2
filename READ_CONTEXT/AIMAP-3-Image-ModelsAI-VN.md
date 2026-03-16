@@ -1,5 +1,7 @@
 # Chọn 3 model AI tạo ảnh cho AIMAP (ứng dụng thực tế)
 
+**Trang web hệ thống hiện tại:** [captone2.site](https://captone2.site)
+
 **AIMAP** = *AI-Powered Marketing Automation Platform for Small Businesses*
 
 Tài liệu này mô tả 3 model tạo ảnh có API công khai và được dùng thực tế trong sản phẩm, để AIMAP sinh nhiều phiên bản ảnh từ kho prompt và cho người dùng chọn.

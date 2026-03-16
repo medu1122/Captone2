@@ -7,6 +7,8 @@ isProject: false
 
 # Cấu trúc thư mục AIMAP (tối ưu, đơn giản, dễ hiểu)
 
+**Trang web hệ thống hiện tại:** [captone2.site](https://captone2.site)
+
 Tài liệu mô tả **struct folder** của dự án AIMAP sau khi gộp bớt, mỗi folder có **một mục tiêu chính** rõ ràng. Tham chiếu: [READ_CONTEXT/AIMAP-Architecture-VN.md](../READ_CONTEXT/AIMAP-Architecture-VN.md).
 
 ---

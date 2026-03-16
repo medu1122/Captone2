@@ -1,6 +1,17 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useLocale } from '../contexts/LocaleContext'
+import {
+  INDUSTRIES,
+  filterIndustries,
+  getIndustryByTag,
+  getIndustryLabel,
+  normalizeSlug,
+  type IndustryOption,
+} from '../constants/industries'
+
+/** Subdomain domain: trang web hệ thống hiện tại */
+const SUBDOMAIN_DOMAIN = 'captone2.site'
 
 // Form payload matches DB: shops + contact_info (database_design.md)
 export interface CreateShopForm {
@@ -33,21 +44,94 @@ const initialForm: CreateShopForm = {
   ownerName: '',
 }
 
+/** Load danh sách slug đã dùng một lần, cache để kiểm tra mỗi lần nhập (không gọi DB liên tục). */
+async function fetchTakenSlugs(): Promise<Set<string>> {
+  // TODO: GET /api/shops/slugs hoặc GET /shops?fields=slug — trả string[]
+  try {
+    // const res = await fetch('/api/shops/slugs'); const data = await res.json(); return new Set(data.slugs ?? [])
+    const slugs: string[] = []
+    return new Set(slugs.map((s) => normalizeSlug(s)))
+  } catch {
+    return new Set()
+  }
+}
+
 export default function CreateShopPage() {
-  const { t } = useLocale()
+  const { t, locale } = useLocale()
   const navigate = useNavigate()
   const [form, setForm] = useState<CreateShopForm>(initialForm)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // Cache slug đã dùng — load một lần khi mount
+  const [takenSlugs, setTakenSlugs] = useState<Set<string>>(new Set())
+  const [slugTaken, setSlugTaken] = useState(false)
+
+  // Industry combobox: gợi ý theo từ khóa, bắt chọn từ 40 mục
+  const [industryInput, setIndustryInput] = useState('')
+  const [industryDropdownOpen, setIndustryDropdownOpen] = useState(false)
+  const industryContainerRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    fetchTakenSlugs().then((set) => {
+      if (!cancelled) setTakenSlugs(set)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  // Mỗi lần nhập slug: chuẩn hóa và kiểm tra ngay (không đợi blur/submit)
+  useEffect(() => {
+    const normalized = normalizeSlug(form.slug)
+    if (!normalized) {
+      setSlugTaken(false)
+      return
+    }
+    setSlugTaken(takenSlugs.has(normalized))
+  }, [form.slug, takenSlugs])
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (industryContainerRef.current && !industryContainerRef.current.contains(e.target as Node)) {
+        setIndustryDropdownOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  const filteredIndustries = filterIndustries(industryInput, locale)
+  const industryValid = form.industry && INDUSTRIES.some((i) => i.tag === form.industry)
 
   function update<K extends keyof CreateShopForm>(key: K, value: CreateShopForm[K]) {
     setForm((prev) => ({ ...prev, [key]: value }))
     setError(null)
   }
 
+  function handleSlugChange(raw: string) {
+    const normalized = raw.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '')
+    update('slug', normalized)
+  }
+
+  function selectIndustry(opt: IndustryOption) {
+    update('industry', opt.tag)
+    setIndustryInput(getIndustryLabel(opt, locale))
+    setIndustryDropdownOpen(false)
+  }
+
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     setError(null)
+    if (slugTaken) {
+      setError(t('shops.slugTaken'))
+      return
+    }
+    if (!industryValid) {
+      setError(t('shops.industryRequired'))
+      return
+    }
     setSaving(true)
     // TODO: POST /shops with form; then navigate to /shops or /shops/[id]
     await new Promise((r) => setTimeout(r, 500))
@@ -77,7 +161,6 @@ export default function CreateShopPage() {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Section 1: Thông tin cửa hàng */}
           <div>
             <h3 className="text-sm font-semibold text-slate-800 mb-3">{t('shops.sectionStoreInfo')}</h3>
             <div className="grid grid-cols-1 gap-4">
@@ -92,34 +175,75 @@ export default function CreateShopPage() {
                   onChange={(e) => update('name', e.target.value)}
                 />
               </div>
+
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">{t('shops.fieldSlug')}</label>
                 <input
                   type="text"
                   required
                   placeholder="my-shop"
-                  className="w-full px-4 py-2.5 rounded-lg border border-slate-300 text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-400"
+                  className={`w-full px-4 py-2.5 rounded-lg border text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-400 ${
+                    slugTaken ? 'border-red-400 bg-red-50' : 'border-slate-300'
+                  }`}
                   value={form.slug}
-                  onChange={(e) => update('slug', e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-'))}
+                  onChange={(e) => handleSlugChange(e.target.value)}
                 />
-                <p className="text-xs text-slate-500 mt-1">my-shop.aimap.app</p>
+                <p className="text-xs text-slate-500 mt-1">
+                  {form.slug ? `${form.slug}.${SUBDOMAIN_DOMAIN}` : `my-shop.${SUBDOMAIN_DOMAIN}`}
+                </p>
+                {slugTaken && (
+                  <p className="text-sm text-red-600 mt-1" role="alert">
+                    {t('shops.slugTaken')}
+                  </p>
+                )}
               </div>
-              <div>
+
+              {/* Industry: chọn từ 40 ngành, gợi ý khi gõ */}
+              <div ref={industryContainerRef} className="relative">
                 <label className="block text-sm font-medium text-slate-700 mb-1">{t('shops.fieldIndustry')}</label>
-                <select
-                  required
+                <input
+                  type="text"
+                  autoComplete="off"
                   className="w-full px-4 py-2.5 rounded-lg border border-slate-300 text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-400"
-                  value={form.industry}
-                  onChange={(e) => update('industry', e.target.value)}
-                >
-                  <option value="">—</option>
-                  <option value="Đồ uống">Đồ uống</option>
-                  <option value="Đồ ăn">Đồ ăn</option>
-                  <option value="Thời trang">Thời trang</option>
-                  <option value="Mỹ phẩm">Mỹ phẩm</option>
-                  <option value="Khác">Khác</option>
-                </select>
+                  value={industryInput || (form.industry ? getIndustryLabel(getIndustryByTag(form.industry)!, locale) : '')}
+                  onChange={(e) => {
+                    const v = e.target.value
+                    setIndustryInput(v)
+                    setIndustryDropdownOpen(true)
+                    if (!v) update('industry', '')
+                  }}
+                  onFocus={() => setIndustryDropdownOpen(true)}
+                />
+                {industryDropdownOpen && (
+                  <ul
+                    className="absolute z-10 mt-1 w-full max-h-56 overflow-auto rounded-lg border border-slate-300 bg-white shadow-lg py-1 text-sm"
+                    role="listbox"
+                  >
+                    {filteredIndustries.length === 0 ? (
+                      <li className="px-4 py-2 text-slate-500">{t('shops.industryNoMatch')}</li>
+                    ) : (
+                      filteredIndustries.map((opt) => (
+                        <li
+                          key={opt.tag}
+                          role="option"
+                          aria-selected={form.industry === opt.tag}
+                          className={`px-4 py-2 cursor-pointer hover:bg-slate-100 ${
+                            form.industry === opt.tag ? 'bg-slate-100 font-medium' : ''
+                          }`}
+                          onMouseDown={(e) => {
+                            e.preventDefault()
+                            selectIndustry(opt)
+                          }}
+                        >
+                          <span className="text-slate-900">{getIndustryLabel(opt, locale)}</span>
+                          <span className="ml-2 text-xs text-slate-400">({opt.tag})</span>
+                        </li>
+                      ))
+                    )}
+                  </ul>
+                )}
               </div>
+
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">{t('shops.fieldDescription')}</label>
                 <textarea
@@ -185,7 +309,6 @@ export default function CreateShopPage() {
             </div>
           </div>
 
-          {/* Section 2: Liên hệ & Chủ shop (contact_info) */}
           <div>
             <h3 className="text-sm font-semibold text-slate-800 mb-3">{t('shops.sectionContact')}</h3>
             <div className="grid grid-cols-1 gap-4">
@@ -231,7 +354,7 @@ export default function CreateShopPage() {
             </Link>
             <button
               type="submit"
-              disabled={saving}
+              disabled={saving || slugTaken || !industryValid}
               className="bg-primary hover:bg-primary/90 disabled:opacity-50 text-white font-semibold py-2.5 px-6 rounded-lg transition-colors"
             >
               {saving ? '...' : t('shops.submitCreate')}

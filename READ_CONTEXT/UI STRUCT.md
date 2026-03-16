@@ -1,5 +1,7 @@
 # Kế hoạch Triển khai Cấu trúc Trang (Routing & Pages) cho AIMAP
 
+**Trang web hệ thống hiện tại:** [captone2.site](https://captone2.site)
+
 Kế hoạch này vạch ra các bước cụ thể để xây dựng toàn bộ giao diện người dùng (frontend routes) dựa trên tài liệu Backend và Product Backlog.
 
 ## Danh sách chi tiết các Trang (Pages) theo Nhóm

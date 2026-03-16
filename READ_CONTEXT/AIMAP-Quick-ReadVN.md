@@ -1,5 +1,7 @@
 # AIMAP – Đọc nhanh: Nền tảng Marketing & Website AI cho Shop nhỏ
 
+**Trang web hệ thống hiện tại:** [captone2.site](https://captone2.site)
+
 **AIMAP** = *AI-Powered Marketing Automation Platform for Small Businesses*  
 Capstone Project 2 – International School, Duy Tan University
 

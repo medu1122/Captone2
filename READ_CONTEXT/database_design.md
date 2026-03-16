@@ -7,6 +7,8 @@ isProject: false
 
 # AIMAP – Thiết kế Database & Tài liệu đọc tham chiếu
 
+**Trang web hệ thống hiện tại:** [captone2.site](https://captone2.site)
+
 **AIMAP** = *AI-Powered Marketing Automation Platform for Small Businesses*
 
 Tài liệu này là **nguồn tham chiếu chính** cho thiết kế database của hệ thống AIMAP: entities, quan hệ, schema chi tiết (Sprint 1–3), hai vùng dữ liệu (Centralized vs Per-shop Docker), và danh sách migrations. Dùng cho dev implement và cho prompt/context khi làm backend, migrations hoặc tích hợp AI (kho prompt, assets theo model).

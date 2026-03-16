@@ -86,7 +86,7 @@ export default function ShopListPage() {
                   )}
                   <div className="min-w-0 flex-1">
                     <h3 className="font-semibold text-slate-900 truncate">{shop.name}</h3>
-                    <p className="text-xs text-slate-500 truncate">{shop.slug}.aimap.app</p>
+                    <p className="text-xs text-slate-500 truncate">{shop.slug}.captone2.site</p>
                     <span className="inline-block mt-1 text-xs px-2 py-0.5 rounded bg-slate-100 text-slate-600">
                       {shop.industry || '—'}
                     </span>
