@@ -1,8 +1,8 @@
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useLocale } from '../contexts/LocaleContext'
-
-// Placeholder until API: GET /shops
-const shops: { id: string; name: string; slug: string; industry: string; status: string; logoUrl?: string }[] = []
+import { useAuth } from '../contexts/AuthContext'
+import { shopsApi, type ShopListItem } from '../api/shops'
 
 function formatCount(t: (key: string) => string, key: string, count: number | null): string {
   if (count === null) return '—'
@@ -11,6 +11,43 @@ function formatCount(t: (key: string) => string, key: string, count: number | nu
 
 export default function ShopListPage() {
   const { t } = useLocale()
+  const { token } = useAuth()
+  const [shops, setShops] = useState<ShopListItem[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!token) {
+      setLoading(false)
+      return
+    }
+    let cancelled = false
+    setLoading(true)
+    setError(null)
+    shopsApi.list(token).then(({ data, error: err }) => {
+      if (cancelled) return
+      setLoading(false)
+      if (err) setError(err)
+      else if (data?.shops) setShops(data.shops)
+    })
+    return () => { cancelled = true }
+  }, [token])
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <p className="text-slate-600">...</p>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-red-800">
+        <p>{error}</p>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">
@@ -73,9 +110,9 @@ export default function ShopListPage() {
                 className="border border-slate-200 rounded-lg p-4 hover:border-slate-300 transition-colors"
               >
                 <div className="flex items-start gap-3 mb-3">
-                  {shop.logoUrl ? (
+                  {shop.logo_url ? (
                     <img
-                      src={shop.logoUrl}
+                      src={shop.logo_url}
                       alt=""
                       className="w-12 h-12 rounded-lg object-cover border border-slate-200"
                     />

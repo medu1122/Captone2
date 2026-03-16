@@ -167,10 +167,11 @@ Authorization: Bearer <token>
 
 ---
 
-**GET /shops** - Danh sách shop của user
+**GET /shops** - Danh sách shop mà user sở hữu (dùng cho trang Danh sách shop – ShopListPage)
 ```
 Headers: Authorization: Bearer <token>
 ```
+Trả về các shop có `user_id` = profileId của user đăng nhập, sắp xếp theo `created_at` giảm dần.
 Response:
 ```json
 {
