@@ -29,10 +29,46 @@ Kế hoạch này vạch ra các bước cụ thể để xây dựng toàn bộ
 
 **Quản lý Cửa hàng (Shops):**
 
-- `/shops`: Danh sách các cửa hàng (grid/list view).
-- `/shops/create`: Form tạo cửa hàng mới — **chỉ thu thập thông tin cơ bản** (tên shop, slug, ngành, mô tả ngắn, địa chỉ trụ sở, tên chủ shop, quốc gia, mã zip, SĐT shop, email shop). Không nhập product hay website URL lúc tạo; người dùng bổ sung sau tại `/shops/[id]/edit`. Các thông tin này dùng làm context (kèm prompt người dùng + prompt trong kho) để AI sinh content, ảnh và web sau này.
-- **`/shops/[id]` (Chi tiết cửa hàng):** Trang đọc + hub cho một shop. Bao gồm: thông tin shop (identity, location, contact, branding), **sản phẩm** (products), **hình ảnh của shop** (assets: logo, banner, ảnh bài đăng), **kho content** (marketing_content: ad post, mô tả, caption). Có **nút "AI Tool"**: bấm vào mở Agent tạo content, Agent tạo ảnh, …; khi Lưu thì lưu vào kho (assets + marketing_content) của shop này. Có **nút "AI Pipeline"** (hoặc "Pipeline"): bấm vào để **cấu hình và chạy** pipeline cho shop này (Store → Branding → Content → Visual Post …). Các quick action: Edit Shop, Website Builder, Manage Assets, **AI Pipeline**, Facebook.
-- `/shops/[id]/edit`: Form cập nhật thông tin cửa hàng (thêm product, địa chỉ, social links).
+- **`/shops` (ShopListPage)** — Dùng **Dashboard Layout** (sidebar Dashboard + Shops, Credit balance; header chung).
+  - **Nội dung:** Danh sách shop của user hiển thị theo **grid** (card) hoặc **list** (row). Mỗi card/row gồm: logo shop (hoặc placeholder), **tên shop**, **slug/subdomain** (ví dụ myshop.aimap.app), **ngành hàng** (industry), **trạng thái** (active/inactive); quick actions: **"Vào shop"** (→ `/shops/[id]`), **"Chỉnh sửa"** (→ `/shops/[id]/edit`).
+  - **CTA:** Nút **"Tạo cửa hàng"** (primary) → `/shops/create`, đặt góc phải header của main content hoặc trên cùng danh sách.
+  - **Empty state:** Khi user chưa có shop: thông báo "Bạn chưa có cửa hàng nào", nút "Tạo cửa hàng đầu tiên" → `/shops/create`.
+  - **Tùy chọn:** Thống kê nhanh (card "Tổng số shop", "Website đang live") giống DashboardPage.
+  - **API:** GET danh sách shop của user (id, name, slug, industry, description rút gọn, logo_url, cover_url, status, created_at; nếu có: site status để badge "Live"). Phân trang hoặc "Load more" nếu số shop nhiều.
+
+- **`/shops/create` (Form tạo cửa hàng)** — Có thể dùng **Dashboard Layout** hoặc layout đơn giản với header chung.
+  - **Chỉ thu thập thông tin cơ bản** theo DB; **không** nhập products hay website URL lúc tạo — bổ sung sau tại `/shops/[id]/edit`. Các thông tin này dùng làm context (kèm prompt người dùng + prompt trong kho) để AI sinh content, ảnh và web sau này.
+  - **12 trường bắt buộc (theo database_design.md):**
+
+    | Trường form            | DB / JSON                 | Ghi chú                                                                 |
+    |------------------------|---------------------------|-------------------------------------------------------------------------|
+    | Tên cửa hàng           | `shops.name`              | Text, max ~255                                                          |
+    | Slug (URL/subdomain)   | `shops.slug`              | Unique; chỉ chữ thường, số, gạch ngang; validate unique qua API         |
+    | Ngành hàng             | `shops.industry`          | Select/autocomplete từ industry_tag_mappings (hoặc danh sách 40 tag)   |
+    | Mô tả ngắn             | `shops.description`      | Textarea                                                                |
+    | Địa chỉ trụ sở         | `shops.address`           | Text/textarea                                                           |
+    | Thành phố              | `shops.city`              | Text                                                                    |
+    | Quận/Huyện             | `shops.district`          | Text                                                                    |
+    | Quốc gia               | `shops.country`           | Text hoặc select (mặc định Vietnam)                                     |
+    | Mã bưu chính           | `shops.postal_code`      | Text                                                                    |
+    | Số điện thoại shop     | `contact_info.phone`      | Tel input                                                               |
+    | Email shop             | `contact_info.email`      | Email input                                                             |
+    | Tên chủ shop          | `contact_info.owner_name` | Text                                                                    |
+
+  - **Optional lúc tạo (chỉ thu thập ở Edit shop):** website_url, social_links, opening_hours, brand_preferences, logo_url, cover_url, tags.
+  - **UX:** Một trang form (có thể chia 2 section: "Thông tin cửa hàng" và "Liên hệ & Chủ shop"); validation required, format (email, slug), unique slug (API); submit → POST tạo shop → redirect `/shops/[id]` hoặc `/shops` với thông báo thành công.
+
+- **`/shops/[id]` (Chi tiết cửa hàng)** — **Layout riêng** (không dùng sidebar Dashboard/Shops), dùng **header chung** (LanguageSwitcher + UserMenu); tiêu đề header có thể là tên shop hoặc "Shop Dashboard".
+  - **Left sidebar (riêng cho Shop Detail):**
+    1. **Shop Dashboard** — Trang tổng quan của shop (mặc định khi vào `/shops/[id]`): thống kê nhanh (số ảnh, số content, site status, pipeline gần nhất…).
+    2. **Bot tạo ảnh** — Entry vào AI tạo ảnh (logo, banner, post) cho shop này; lưu vào assets của shop.
+    3. **Storage (Lưu trữ)** — Toàn bộ hình ảnh của shop (assets: logo, banner, cover, post); có thể mở rộng xem marketing_content. Upload ảnh vào shop tại đây hoặc route `/shops/[id]/storage/upload`.
+    4. **Support marketing** — Kho content marketing (ad post, product description, caption/hashtag): tạo/sửa/xem.
+    5. **Pipeline** — Quản lý và xem quy trình tự động (chạy pipeline, xem lịch sử runs, trạng thái từng bước).
+  - **Dưới cùng sidebar:** Khối **Credit balance** giống left sidebar của Dashboard (hiện số dư user hoặc "—" nếu chưa có API). Credit balance theo **user**, không theo shop.
+  - **Route con:** `/shops/[id]` (index = Shop Dashboard), `/shops/[id]/image-bot`, `/shops/[id]/storage`, `/shops/[id]/marketing`, `/shops/[id]/pipeline`. Quick action từ trang chi tiết: Edit Shop, Website Builder, Facebook (trong ngữ cảnh shop).
+
+- **`/shops/[id]/edit`:** Form cập nhật thông tin cửa hàng (thêm product, địa chỉ, social links, website_url, branding…).
 
 **Quản lý Credit & Thanh toán:**
 
@@ -43,24 +79,24 @@ Kế hoạch này vạch ra các bước cụ thể để xây dựng toàn bộ
 **Quản lý Tài sản (Assets / Storage):**
 
 - **Lưu ý:** Mỗi shop có **kho lưu trữ riêng** (ảnh + content); không dùng chung giữa các shop.
-- **Trang Assets (`/assets`):**
-  - **Mức 1 — Danh sách kho theo shop:** Hiển thị **các shop** của user, mỗi shop một card/row với **dung lượng đã dùng** và **còn trống** của bộ nhớ (storage Docker / object storage của shop đó). User nhìn tổng quan toàn bộ kho chứa theo từng shop.
-  - **Mức 2 — Khi click vào một shop:** Chuyển sang xem **ảnh (assets)** và **kho content (marketing_content)** của đúng shop đó: logo, banner, ảnh bài đăng; và nội dung đã tạo (ad post, product description, caption). Có thể dùng route `/assets` (chọn shop) rồi `/shops/[id]/assets` hoặc `/assets?shop=[id]` để hiển thị ảnh + content của shop.
-- **Upload:** Giao diện tải ảnh lên **vào shop đã chọn** (trong màn hình xem ảnh/content của shop đó), route ví dụ `/shops/[id]/assets/upload`.
+- **Điểm vào (entry):** Xem và quản lý ảnh/content của một shop qua **Shop Detail** — mục **Storage** trong sidebar (`/shops/[id]/storage`). Không có mục "Assets" riêng trên sidebar Dashboard chính cho từng shop; khi vào Shop Detail, user chọn **Storage** để xem toàn bộ hình ảnh (assets) và có thể mở rộng xem marketing_content của shop đó.
+- **Trang Storage trong Shop Detail (`/shops/[id]/storage`):** Hiển thị **ảnh (assets)** của shop: logo, banner, cover, ảnh bài đăng; có thể kèm kho content (marketing_content). **Upload** ảnh vào shop tại đây hoặc route `/shops/[id]/storage/upload`.
+- **Trang Assets tổng quan (`/assets`) — tùy chọn:**
+  - **Mức 1 — Danh sách kho theo shop:** Hiển thị **các shop** của user, mỗi shop một card/row với **dung lượng đã dùng** và **còn trống**; click vào shop → chuyển sang **Shop Detail > Storage** (`/shops/[id]/storage`) để xem ảnh + content của shop đó.
 
-**Công cụ AI (AI Tools) — Truy cập từ trang chi tiết shop:**
+**Công cụ AI (AI Tools) — Truy cập từ Shop Detail:**
 
-- **AI Tools không nằm ở sidebar Dashboard** như mục độc lập; chúng nằm **trong trang chi tiết shop** `/shops/[id]`.
-- Trên trang **Chi tiết shop (`/shops/[id]`)** có **một nút "AI Tool"** (hoặc "AI Tools"). Khi user bấm: mở giao diện/modal dùng **Agent tạo content**, **Agent tạo ảnh** (logo, banner, post), v.v. Khi user bấm **Lưu**, toàn bộ kết quả (content, ảnh) được **lưu vào kho của shop đó** (assets + marketing_content).
-- Routes thực thi có thể vẫn là `/ai-tools/logo`, `/ai-tools/content`, … nhưng **điểm vào (entry)** là từ `/shops/[id]` (shop context luôn có sẵn); không cần mục "AI Tools" riêng trên sidebar chính.
+- **AI Tools không nằm ở sidebar Dashboard** như mục độc lập; **điểm vào (entry)** là từ **Shop Detail** — sidebar có **Bot tạo ảnh** và **Support marketing**.
+- **Bot tạo ảnh** (`/shops/[id]/image-bot`): Entry vào AI tạo ảnh (logo, banner, post) cho shop này; khi user **Lưu**, kết quả lưu vào **assets** của shop. Shop context luôn có sẵn.
+- **Support marketing** (`/shops/[id]/marketing`): Kho content marketing (ad post, product description, caption/hashtag) — tạo/sửa/xem bằng Agent tạo content; khi **Lưu** lưu vào **marketing_content** của shop.
+- Routes thực thi có thể vẫn là `/ai-tools/logo`, `/ai-tools/content`, … nhưng **entry** luôn từ Shop Detail (sidebar); không cần mục "AI Tools" riêng trên sidebar Dashboard chính.
 
 **Tự động hóa (Pipeline) & Facebook:**
 
 - Kết nối và đăng bài Facebook là **theo từng shop** (shop context hoặc `/shops/[id]/facebook`); không dùng chung giữa các shop.
-- **Tạo và sử dụng Pipeline:** Chỉ xuất hiện **trong từng shop**. Trên trang **Chi tiết shop (`/shops/[id]`)** có nút **"AI Pipeline"** (hoặc "Pipeline"): user bấm vào để **cấu hình và chạy** pipeline cho đúng shop đó (Store info → Branding → Content → Visual Post → …). Không có mục "Chạy pipeline" ở sidebar chính — điểm vào duy nhất để **tạo/chạy** pipeline là từ trang chi tiết shop.
-- **Sidebar "Pipeline" (tùy chọn):** Nếu giữ mục **Pipeline** trên sidebar, nó đóng vai trò **dashboard xem** — hiển thị **danh sách / lịch sử** tất cả pipeline runs của user (có thể lọc theo shop), trạng thái từng bước; route ví dụ `/pipeline` hoặc `/pipeline/runs`. Không dùng sidebar này để tạo/chạy pipeline mới.
-- `/facebook`: Trang quản lý tài khoản Meta/Fanpage đã liên kết (trong ngữ cảnh shop hiện tại).
-- `/facebook/publish`: Giao diện soạn thảo và đăng bài trực tiếp lên Fanpage (của shop đó).
+- **Tạo và sử dụng Pipeline:** **Điểm vào duy nhất** là từ **Shop Detail** — mục **Pipeline** trong sidebar (`/shops/[id]/pipeline`). User vào đây để **cấu hình và chạy** pipeline cho đúng shop đó (Store info → Branding → Content → Visual Post → …). Không có mục "Chạy pipeline" trên sidebar Dashboard chính.
+- **Pipeline view-only (tùy chọn):** Nếu giữ route `/pipeline` hoặc `/pipeline/runs` (từ Dashboard Layout), nó đóng vai trò **dashboard xem** — danh sách/lịch sử tất cả pipeline runs của user (có thể lọc theo shop), trạng thái từng bước. Không dùng để tạo/chạy pipeline mới.
+- `/facebook`, `/facebook/publish`: Trang quản lý Fanpage và đăng bài (trong ngữ cảnh shop); có thể đặt trong Shop Detail hoặc route riêng với shop context.
 
 **Trình tạo & Triển khai Website (Website Builder):**
 
@@ -82,6 +118,9 @@ Kế hoạch này vạch ra các bước cụ thể để xây dựng toàn bộ
 
 ## Sơ đồ Cấu trúc Routing
 
+- **Dashboard Layout** dùng cho: `/dashboard`, `/profile`, **`/shops`** (ShopListPage), **`/shops/create`** (Form tạo shop).
+- **Shop Detail Layout** (layout riêng: header chung + sidebar 5 mục + Credit balance) dùng cho **`/shops/[id]`** và tất cả route con bên dưới.
+
 ```mermaid
 flowchart TD
   Root["App Root Router"] --> AuthRoute["Auth Layout (Public)"]
@@ -89,17 +128,24 @@ flowchart TD
   Root --> AdminRoute["Admin Layout (Protected: Admin)"]
 
   AuthRoute --> Login["/login, /register, /verify, /forgot-password, /reset-password"]
-  
+
   UserRoute --> Dashboard["/dashboard"]
   UserRoute --> Profile["/profile"]
-  UserRoute --> Shops["/shops, /shops/create, /shops/[id], /shops/[id]/edit"]
+  UserRoute --> ShopsList["/shops (ShopListPage)"]
+  UserRoute --> ShopsCreate["/shops/create (Form tạo shop)"]
+  UserRoute --> ShopDetailLayout["Shop Detail Layout: /shops/[id]"]
   UserRoute --> Credit["/credit, /credit/topup, /credit/history"]
-  UserRoute --> Assets["/assets (list shop storages), /shops/[id]/assets (images+content)"]
+  UserRoute --> Assets["/assets (list shop storages)"]
   UserRoute --> PipelineView["/pipeline or /pipeline/runs (view-only dashboard of runs)"]
-  Shops -->|"AI Pipeline button"| PipelineRun["create/run pipeline for shop — from /shops/[id]"]
   UserRoute --> Facebook["/facebook, /facebook/publish"]
   UserRoute --> WebBuilder["/website, /website/builder, /website/deploy"]
-  Shops -->|"AI Tool button"| AITools["/ai-tools/* (content, image, …) — entry from /shops/[id]"]
+
+  ShopDetailLayout --> ShopDash["/shops/[id] — Shop Dashboard"]
+  ShopDetailLayout --> ShopImageBot["/shops/[id]/image-bot — Bot tạo ảnh"]
+  ShopDetailLayout --> ShopStorage["/shops/[id]/storage — Storage (ảnh)"]
+  ShopDetailLayout --> ShopMarketing["/shops/[id]/marketing — Support marketing"]
+  ShopDetailLayout --> ShopPipeline["/shops/[id]/pipeline — Pipeline"]
+  ShopDetailLayout --> ShopEdit["/shops/[id]/edit — Edit shop"]
 
   AdminRoute --> AdminDash["/admin/dashboard"]
   AdminRoute --> AdminUsers["/admin/users"]

@@ -77,37 +77,35 @@ export default function ProfilePage() {
       <div className="grid grid-cols-1 lg:grid-cols-[minmax(260px,320px)_minmax(0,1fr)] gap-6">
         {/* Account profile column */}
         <div className="bg-white border border-slate-300 rounded-lg p-6">
-          <div className="flex flex-col gap-4">
-            <div className="flex items-start gap-4">
-              {profile.avatarUrl ? (
-                <img
-                  src={profile.avatarUrl}
-                  alt=""
-                  className="w-20 h-20 rounded-full object-cover border border-slate-300"
-                />
-              ) : (
-                <div className="w-20 h-20 rounded-full bg-slate-100 flex items-center justify-center border border-slate-300 text-slate-600 text-2xl font-semibold">
-                  {profile.name?.[0] ?? loginEmail?.[0] ?? '?'}
-                </div>
-              )}
-              <div className="space-y-1">
-                <h1 className="text-lg font-semibold text-slate-900">{t('profile.title')}</h1>
-                <p className="text-xl font-semibold text-slate-900">
-                  {profile.name || loginEmail}
-                </p>
-                <p className="text-sm text-slate-600">
-                  <span className="font-medium">{t('profile.loginEmailLabel')}: </span>
-                  {loginEmail}
-                </p>
+          <div className="flex justify-between items-center mb-4">
+            <h1 className="text-lg font-semibold text-slate-900">{t('profile.title')}</h1>
+            <Link
+              to="/change-password"
+              className="inline-block px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-medium hover:bg-slate-50"
+            >
+              {t('profile.changePassword')}
+            </Link>
+          </div>
+          <div className="flex items-start gap-4">
+            {profile.avatarUrl ? (
+              <img
+                src={profile.avatarUrl}
+                alt=""
+                className="w-20 h-20 rounded-full object-cover border border-slate-300"
+              />
+            ) : (
+              <div className="w-20 h-20 rounded-full bg-slate-100 flex items-center justify-center border border-slate-300 text-slate-600 text-2xl font-semibold">
+                {profile.name?.[0] ?? loginEmail?.[0] ?? '?'}
               </div>
-            </div>
-            <div className="flex justify-end">
-              <Link
-                to="/change-password"
-                className="inline-block px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-medium hover:bg-slate-50"
-              >
-                {t('profile.changePassword')}
-              </Link>
+            )}
+            <div className="space-y-1">
+              <p className="text-xl font-semibold text-slate-900">
+                {profile.name || loginEmail}
+              </p>
+              <p className="text-sm text-slate-600">
+                <span className="font-medium">{t('profile.loginEmailLabel')}: </span>
+                {loginEmail}
+              </p>
             </div>
           </div>
         </div>
