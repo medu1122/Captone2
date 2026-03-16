@@ -70,7 +70,7 @@ export function normalizeSlug(raw: string): string {
 }
 
 /** Filter industries by search string (tag + labelVi + labelEn, case-insensitive). */
-export function filterIndustries(search: string, locale: Locale = 'vi'): IndustryOption[] {
+export function filterIndustries(search: string, _locale: Locale = 'vi'): IndustryOption[] {
   if (!search.trim()) return INDUSTRIES
   const q = search.trim().toLowerCase()
   return INDUSTRIES.filter(
