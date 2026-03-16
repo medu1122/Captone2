@@ -1,6 +1,7 @@
 import { apiFetch } from './client'
 
-const AUTH_PREFIX = '/api/auth'
+// Path relative to API_BASE: prod uses base /api, dev uses http://localhost:4111/api
+const AUTH_PREFIX = '/auth'
 
 export interface RegisterPayload {
   email: string

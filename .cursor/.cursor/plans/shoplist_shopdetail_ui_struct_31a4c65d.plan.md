@@ -296,5 +296,7 @@ Backend cần cung cấp API và dịch vụ để frontend ShopList, form tạo
 1. Migrations: `shops`, `sites`, `industry_tag_mappings` (nếu chưa có).
 2. Implement Phase 1 (shops CRUD + slugs) → frontend ShopListPage, CreateShopPage có thể gọi API thật.
 3. Implement Phase 3 (credit balance) → hiển thị số dư thật trên sidebar.
-4. Implement Phase 2 (assets, marketing, pipeline) → các trang Shop Detail (Storage, Marketing, Pipeline) có dữ liệu thật.
+4. Implement Phase 2 (assets, marketing, pipeline) → các trang Shop Detail (Storage, Marketing, Pipeline) có dữ liệu thật.  
+  
+lưu ý tới phần **Nhật ký hoạt động , luôn cập nhật khi member thực hiện thao tác gì đó** 
 
