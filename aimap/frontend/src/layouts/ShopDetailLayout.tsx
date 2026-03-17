@@ -5,11 +5,11 @@ import { useLocale } from '../contexts/LocaleContext'
 import UserMenu from '../components/UserMenu'
 
 const shopNavItems = [
-  { path: '', labelKey: 'shopDetail.nav.dashboard', icon: 'dashboard' },
-  { path: 'image-bot', labelKey: 'shopDetail.nav.imageBot', icon: 'image' },
-  { path: 'storage', labelKey: 'shopDetail.nav.storage', icon: 'folder' },
-  { path: 'marketing', labelKey: 'shopDetail.nav.marketing', icon: 'campaign' },
-  { path: 'pipeline', labelKey: 'shopDetail.nav.pipeline', icon: 'account_tree' },
+  { path: '', labelKey: 'shopDetail.nav.dashboard' },
+  { path: 'image-bot', labelKey: 'shopDetail.nav.imageBot' },
+  { path: 'storage', labelKey: 'shopDetail.nav.storage' },
+  { path: 'marketing', labelKey: 'shopDetail.nav.marketing' },
+  { path: 'pipeline', labelKey: 'shopDetail.nav.pipeline' },
 ]
 
 export default function ShopDetailLayout() {
@@ -32,20 +32,19 @@ export default function ShopDetailLayout() {
         </div>
         <div className="flex-1 flex flex-col justify-between">
           <nav className="p-3 flex flex-col gap-0.5">
-            {shopNavItems.map(({ path, labelKey, icon }) => {
+            {shopNavItems.map(({ path, labelKey }) => {
               const itemPath = path ? `${basePath}/${path}` : basePath
               const active = pathname === itemPath || (path !== '' && pathname.startsWith(itemPath))
               return (
                 <Link
                   key={path || 'dashboard'}
                   to={itemPath}
-                  className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                  className={`flex items-center px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
                     active
-                      ? 'bg-slate-100 text-slate-900 border-l-2 border-slate-400 pl-[10px]'
+                      ? 'bg-slate-100 text-slate-900 border-l-2 border-slate-400'
                       : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
                   }`}
                 >
-                  <span className="material-symbols-outlined text-xl text-slate-500">{icon}</span>
                   {t(labelKey)}
                 </Link>
               )

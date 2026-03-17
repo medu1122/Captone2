@@ -5,8 +5,8 @@ import { useLocale } from '../contexts/LocaleContext'
 import UserMenu from '../components/UserMenu'
 
 const navItems = [
-  { path: '/dashboard', labelKey: 'dashboard.title', icon: 'dashboard' },
-  { path: '/shops', labelKey: 'nav.shops', icon: 'store' },
+  { path: '/dashboard', labelKey: 'dashboard.title' },
+  { path: '/shops', labelKey: 'nav.shops' },
 ]
 
 export default function DashboardLayout() {
@@ -23,19 +23,18 @@ export default function DashboardLayout() {
         </div>
         <div className="flex-1 flex flex-col justify-between">
           <nav className="p-3 flex flex-col gap-0.5">
-            {navItems.map(({ path, labelKey, icon }) => {
+            {navItems.map(({ path, labelKey }) => {
               const active = location.pathname === path || (path !== '/dashboard' && location.pathname.startsWith(path))
               return (
                 <Link
                   key={path}
                   to={path}
-                  className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                  className={`flex items-center px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
                     active
-                      ? 'bg-slate-100 text-slate-900 border-l-2 border-slate-400 pl-[10px]'
+                      ? 'bg-slate-100 text-slate-900 border-l-2 border-slate-400'
                       : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
                   }`}
                 >
-                  <span className="material-symbols-outlined text-xl text-slate-500">{icon}</span>
                   {t(labelKey)}
                 </Link>
               )
