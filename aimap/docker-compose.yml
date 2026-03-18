@@ -6,14 +6,17 @@ services:
     container_name: aimap-backend
     ports:
       - "4111:4111"
+    env_file:
+      - ./backend/.env.production
     environment:
+      # These override anything in .env.production
       - NODE_ENV=production
       - PORT=4111
       - DATABASE_URL=postgresql://postgres:Thinh%401234@host.docker.internal:5432/aimap
       - DATABASE_SSL=false
       - JWT_SECRET=aimap-jwt-secret-production-2026
-      # Trên VPS khi dùng domain: đặt FRONTEND_URL=http://domain.com (hoặc trong .env)
-      - FRONTEND_URL=${FRONTEND_URL:-http://103.77.215.133}
+      - FRONTEND_URL=https://captone2.site
+      - API_PUBLIC_URL=https://captone2.site
       - ASSET_STORAGE_PATH=/app/storage
       - DOCKER_SOCKET_PATH=/var/run/docker.sock
       - SMTP_HOST=smtp.gmail.com

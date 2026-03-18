@@ -91,6 +91,9 @@ router.get('/:id/image-prompts', requireAuth, async (req, res) => {
 })
 
 router.post('/:id/images/generate', requireAuth, async (req, res) => {
+  // #region agent log
+  console.error('[bb1f55][H:api-key] generate called. OPENAI_KEY_SET=' + !!process.env.OPENAI_API_KEY + ' GEMINI_KEY_SET=' + !!process.env.GEMINI_API_KEY + ' API_PUBLIC_URL=' + process.env.API_PUBLIC_URL)
+  // #endregion
   const profileId = req.auth.profileId
   const { id } = req.params
   const b = req.body || {}

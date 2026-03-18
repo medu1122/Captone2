@@ -13,8 +13,21 @@ export function apiUrl(path: string): string {
 /** Ảnh lưu tại /uploads (không nằm dưới /api). */
 export function assetStorageUrl(path: string | null | undefined): string {
   if (!path) return ''
-  if (/^https?:\/\//i.test(path)) return path
-  const origin = API_BASE.replace(/\/api\/?$/i, '') || 'http://localhost:4111'
+  if (/^https?:\/\//i.test(path)) {
+    // Rewrite any localhost URL to a same-origin relative path so HTTPS pages
+    // never load mixed-content and the nginx /uploads/ proxy handles the request.
+    try {
+      const u = new URL(path)
+      if (u.hostname === 'localhost' || u.hostname === '127.0.0.1') {
+        // #region agent log
+        console.warn('[bb1f55][H:rewrite] assetStorageUrl rewriting localhost URL → relative. original=' + path + ' result=' + (u.pathname + u.search))
+        // #endregion
+        return u.pathname + u.search
+      }
+    } catch { /* fall through */ }
+    return path
+  }
+  const origin = API_BASE.replace(/\/api\/?$/i, '') || ''
   return `${origin.replace(/\/$/, '')}${path.startsWith('/') ? path : `/${path}`}`
 }
 

@@ -27,8 +27,13 @@ export async function saveShopAssetFile(buffer, shopId, ext = 'png') {
   const name = `${randomUUID()}.${ext.replace(/^\./, '')}`
   const filePath = path.join(dir, name)
   await fs.writeFile(filePath, buffer)
+  // Store the relative path so it works regardless of domain/protocol.
+  // The frontend reconstructs the full URL via assetStorageUrl().
   const rel = `/uploads/shops/${shopId}/${name}`
-  return { filePath, publicUrl: `${publicBaseUrl()}${rel}` }
+  // #region agent log
+  console.error('[bb1f55][H:rel-path] saveShopAssetFile rel=' + rel)
+  // #endregion
+  return { filePath, publicUrl: rel }
 }
 
 export async function fetchImageToBuffer(url) {
