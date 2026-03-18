@@ -142,8 +142,28 @@ export default function ShopProductsPage() {
     ])
   }
 
-  const removeRow = (index: number) => {
-    setRows((prev) => prev.filter((_, i) => i !== index))
+  const removeRow = async (index: number) => {
+    if (!token || !id) return
+    const newRows = rows.filter((_, i) => i !== index)
+    setRows(newRows)
+    setSaving(true)
+    setError(null)
+    const payload = newRows.map((r, i) => ({
+      id: r.id.startsWith('new-') ? `item-${i}` : r.id,
+      name: r.name.trim(),
+      price: r.price.trim() || undefined,
+      description: r.description.trim() || undefined,
+      image_url: r.image_url.trim() || undefined,
+      tags: r.tag ? [r.tag] : [],
+    }))
+    const { error: err, status } = await shopsApi.updateProducts(token, id, payload)
+    setSaving(false)
+    if (err || status >= 400) {
+      setError(err ?? t('products.saveError'))
+      return
+    }
+    setOkMsg(t('products.saved'))
+    setTimeout(() => setOkMsg(null), 3000)
   }
 
   const loadGallery = () => {
