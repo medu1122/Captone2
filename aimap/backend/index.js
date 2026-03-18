@@ -13,6 +13,10 @@ import shopsRoutes from './routes/shops.js'
 const app = express()
 const PORT = process.env.PORT ?? 4111
 
+if (process.env.TRUST_PROXY === '1' || process.env.TRUST_PROXY === 'true') {
+  app.set('trust proxy', 1)
+}
+
 app.use(cors({ origin: process.env.FRONTEND_URL || true, credentials: true }))
 app.use(express.json())
 

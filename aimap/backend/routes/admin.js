@@ -300,6 +300,44 @@ router.put('/users/:id/status', requireAuth, requireAdmin, async (req, res) => {
   }
 })
 
+// — CẤP CREDIT CHO USER (admin)
+router.post('/users/:id/credits', requireAuth, requireAdmin, async (req, res) => {
+  const { id: targetProfileId } = req.params
+  const { amount, description } = req.body || {}
+  const n = parseInt(amount, 10)
+  if (!Number.isFinite(n) || n < 1 || n > 1_000_000) {
+    return res.status(400).json({ error: 'amount must be a positive integer (1–1000000)' })
+  }
+  const { profileId: adminProfileId } = req.auth
+  const desc =
+    typeof description === 'string' && description.trim()
+      ? description.trim().slice(0, 500)
+      : 'Admin credit grant'
+
+  const client = await pool.connect()
+  try {
+    const check = await client.query('SELECT id FROM user_profiles WHERE id = $1', [targetProfileId])
+    if (check.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' })
+    }
+    await client.query(
+      `INSERT INTO credit_transactions (user_id, amount, type, reference_type, reference_id, description)
+       VALUES ($1, $2, 'bonus', 'admin_grant', $3, $4)`,
+      [targetProfileId, n, String(adminProfileId), desc]
+    )
+    const bal = await client.query(
+      `SELECT COALESCE(SUM(amount), 0)::int AS balance FROM credit_transactions WHERE user_id = $1`,
+      [targetProfileId]
+    )
+    res.json({ success: true, creditBalance: bal.rows[0].balance })
+  } catch (err) {
+    console.error('Admin grant credit error:', err)
+    res.status(500).json({ error: 'Failed to grant credits' })
+  } finally {
+    client.release()
+  }
+})
+
 // — XÓA USER
 router.delete('/users/:id', requireAuth, requireAdmin, async (req, res) => {
   const { id } = req.params

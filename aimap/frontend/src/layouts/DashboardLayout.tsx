@@ -11,7 +11,7 @@ const navItems = [
 
 export default function DashboardLayout() {
   const { t } = useLocale()
-  const { user, logout } = useAuth()
+  const { user, logout, loading } = useAuth()
   const location = useLocation()
 
   return (
@@ -44,7 +44,9 @@ export default function DashboardLayout() {
             <div className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-medium text-slate-600">{t('dashboard.creditBalance')}</span>
-                <span className="text-xs text-slate-500">—</span>
+                <span className="text-xs font-medium text-slate-800 tabular-nums">
+                  {loading ? '…' : (user?.creditBalance ?? 0)}
+                </span>
               </div>
             </div>
           </div>

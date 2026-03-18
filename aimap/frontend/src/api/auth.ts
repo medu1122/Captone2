@@ -42,6 +42,8 @@ export interface AuthUser {
   timezone?: string
   emailContact?: string
   loginEmail?: string
+  creditBalance?: number
+  createdAt?: string
 }
 
 export interface LoginResponse {
@@ -121,6 +123,20 @@ export interface ResetPasswordResponse {
   redirectTo?: string
 }
 
+export interface ActivityLogItem {
+  action: string
+  entity_type: string | null
+  entity_id: string | null
+  details: Record<string, unknown> | null
+  severity: string
+  created_at: string
+}
+
+export interface AccessLogItem {
+  ip_address: string | null
+  created_at: string
+}
+
 export const authApi = {
   register: (payload: RegisterPayload) =>
     apiFetch<RegisterResponse>(`${AUTH_PREFIX}/register`, { method: 'POST', body: payload }),
@@ -166,4 +182,26 @@ export const authApi = {
       body: payload,
       headers: { Authorization: `Bearer ${token}` },
     }),
+
+  getActivity: (token: string, opts?: { limit?: number; offset?: number }) => {
+    const q = new URLSearchParams()
+    if (opts?.limit != null) q.set('limit', String(opts.limit))
+    if (opts?.offset != null) q.set('offset', String(opts.offset))
+    const qs = q.toString()
+    return apiFetch<{ activity: ActivityLogItem[] }>(
+      `${AUTH_PREFIX}/me/activity${qs ? `?${qs}` : ''}`,
+      { method: 'GET', headers: { Authorization: `Bearer ${token}` } }
+    )
+  },
+
+  getAccessLog: (token: string, opts?: { limit?: number; offset?: number }) => {
+    const q = new URLSearchParams()
+    if (opts?.limit != null) q.set('limit', String(opts.limit))
+    if (opts?.offset != null) q.set('offset', String(opts.offset))
+    const qs = q.toString()
+    return apiFetch<{ access: AccessLogItem[] }>(
+      `${AUTH_PREFIX}/me/access-log${qs ? `?${qs}` : ''}`,
+      { method: 'GET', headers: { Authorization: `Bearer ${token}` } }
+    )
+  },
 }

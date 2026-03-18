@@ -18,14 +18,6 @@ Response: trả về mã 6 số gửi qua email (nếu chưa config SMTP thì tr
 
 ---
 
-## Credit (số dư)
-
-- Số dư = tổng `amount` trong bảng `credit_transactions` theo `user_id` (profile id).
-- Sau **POST /auth/verify** thành công, user mới nhận **100 credit** (bonus đăng ký, `reference_type`: `signup_bonus`).
-- User cũ (tạo trước khi có tính năng) có thể có số dư **0** cho đến khi admin cấp thêm.
-
----
-
 **POST /auth/verify** - Xác thực email bằng mã 6 số
 ```
 Headers: Content-Type: application/json
@@ -58,7 +50,7 @@ Body:
   "password": "123456"
 }
 ```
-Response: trả về `token` và `user` (gồm **`creditBalance`**: số credit hiện có).
+Response: trả về `token` và `user` info
 
 ---
 
@@ -68,7 +60,7 @@ Headers:
   Content-Type: application/json
   Authorization: Bearer <token>
 ```
-Response: tất cả fields của user profile + **`creditBalance`** (integer).
+Response: tất cả fields của user profile
 
 ---
 
@@ -126,6 +118,27 @@ Response:
 
 ---
 
+**GET /auth/me/access-log** - Nhật ký truy cập (đăng nhập: IP + thời gian)
+```
+Headers:
+  Authorization: Bearer <token>
+Query:
+  limit=20 (mặc định 20, tối đa 100)
+  offset=0
+```
+Response:
+```json
+{
+  "access": [
+    { "ip_address": "1.2.3.4", "created_at": "2025-03-16T..." }
+  ]
+}
+```
+- Chỉ trả các lần **đăng nhập thành công** sau khi backend ghi log (`action = login` trong `activity_logs`). Lần đăng nhập trước khi deploy tính năng này sẽ không có trong danh sách.
+- IP chính xác hơn khi reverse proxy bật: đặt biến môi trường **`TRUST_PROXY=1`** trên server (xem `index.js`).
+
+---
+
 **PUT /auth/password** - Đổi mật khẩu
 ```
 Headers:
@@ -175,11 +188,10 @@ Authorization: Bearer <token>
 
 ---
 
-**GET /shops** - Danh sách shop mà user sở hữu (dùng cho trang Danh sách shop – ShopListPage)
+**GET /shops** - Danh sách shop của user
 ```
 Headers: Authorization: Bearer <token>
 ```
-Trả về các shop có `user_id` = profileId của user đăng nhập, sắp xếp theo `created_at` giảm dần.
 Response:
 ```json
 {
@@ -242,14 +254,6 @@ Response: 201 + object shop vừa tạo. Ghi activity_log `create_shop`.
 ```
 Chỉ trả về nếu shop thuộc user (user_id = profileId). 404 nếu không tồn tại, 403 nếu không thuộc user.
 ```
-
----
-
-**GET /shops/:id/assets** - Danh sách ảnh (assets) của shop
-```
-Headers: Authorization: Bearer <token>
-```
-Dùng cho Image bot gallery / Storage. Trả `{ "assets": [ { id, type, name, storage_path_or_url, mime_type, model_source, created_at } ] }`. Nếu bảng `assets` chưa có thì trả `assets: []`.
 
 ---
 
@@ -328,32 +332,6 @@ Body (gửi fields muốn update):
 }
 ```
 Lưu ý: Không update được email, password, role
-
----
-
-**POST /admin/users/:id/credits** - Admin cấp thêm credit cho user (`:id` = `user_profiles.id`)
-
-```
-Headers:
-  Content-Type: application/json
-  Authorization: Bearer <token admin>
-Body:
-{
-  "amount": 50,
-  "description": "Khuyến mãi tháng 3"
-}
-```
-
-- `amount`: số nguyên dương, tối đa 1_000_000 (bắt buộc).
-- `description`: tùy chọn, tối đa 500 ký tự.
-
-Response:
-
-```json
-{ "success": true, "creditBalance": 150 }
-```
-
-(`creditBalance` = số dư mới của user sau khi cộng.)
 
 ---
 

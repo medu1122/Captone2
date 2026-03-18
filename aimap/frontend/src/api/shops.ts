@@ -18,10 +18,40 @@ export interface ListShopsResponse {
   shops: ShopListItem[]
 }
 
+export interface ShopDetail {
+  id: string
+  name: string
+  slug: string
+  industry: string | null
+  products: unknown
+  [key: string]: unknown
+}
+
+export interface ShopAsset {
+  id: string
+  type: string | null
+  name: string | null
+  storage_path_or_url: string | null
+  mime_type: string | null
+  model_source: string | null
+  created_at: string
+}
+
 export const shopsApi = {
-  /** Danh sách shop mà user sở hữu – dùng cho ShopListPage */
   list: (token: string) =>
     apiFetch<ListShopsResponse>(SHOPS_PREFIX, {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+
+  get: (token: string, shopId: string) =>
+    apiFetch<ShopDetail>(`${SHOPS_PREFIX}/${shopId}`, {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+
+  listAssets: (token: string, shopId: string) =>
+    apiFetch<{ assets: ShopAsset[] }>(`${SHOPS_PREFIX}/${shopId}/assets`, {
       method: 'GET',
       headers: { Authorization: `Bearer ${token}` },
     }),

@@ -12,15 +12,30 @@ import {
   isEmailConfigured,
   FRONTEND_URL,
 } from '../services/email.js'
+import { logActivity } from '../services/activityLog.js'
 
 const router = Router()
 const RESET_TOKEN_EXPIRES = '1h'
 const BCRYPT_ROUNDS = 10
 const VERIFY_CODE_EXPIRES_MINUTES = 15
+const SIGNUP_CREDIT_BONUS = 100
 
 /** SINH MÃ 6 SỐ NGẪU NHIÊN CHO XÁC THỰC EMAIL */
 function generateSixDigitCode() {
   return String(Math.floor(100000 + Math.random() * 900000))
+}
+
+/** Client IP for access log (trust proxy when TRUST_PROXY is set on app). */
+function clientIp(req) {
+  const xff = req.headers['x-forwarded-for']
+  if (typeof xff === 'string' && xff.trim()) {
+    return xff.split(',')[0].trim().slice(0, 80)
+  }
+  if (Array.isArray(xff) && xff[0]) {
+    return String(xff[0]).trim().slice(0, 80)
+  }
+  const ip = req.ip || req.socket?.remoteAddress
+  return ip ? String(ip).slice(0, 80) : null
 }
 
 // — ĐĂNG KÝ (CHỈ LƯU PENDING + MÃ 6 SỐ; TÀI KHOẢN CHỈ TẠO SAU KHI VERIFY)
@@ -82,7 +97,8 @@ router.post('/login', async (req, res) => {
   const client = await pool.connect()
   try {
     const row = await client.query(
-      `SELECT l.id AS login_id, l.email, l.password_hash, l.status, l.role, up.id AS profile_id, up.name, up.locale, up.avatar_url
+      `SELECT l.id AS login_id, l.email, l.password_hash, l.status, l.role, up.id AS profile_id, up.name, up.locale, up.avatar_url,
+              COALESCE((SELECT SUM(ct.amount) FROM credit_transactions ct WHERE ct.user_id = up.id), 0)::int AS credit_balance
        FROM logins l
        JOIN user_profiles up ON up.login_id = l.id
        WHERE l.email = $1`,
@@ -103,6 +119,19 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ error: 'Invalid email or password' })
     }
     await client.query('UPDATE logins SET last_login_at = NOW() WHERE id = $1', [login.login_id])
+    try {
+      await logActivity(pool, {
+        userId: login.profile_id,
+        action: 'login',
+        entityType: 'session',
+        entityId: null,
+        details: {},
+        severity: 'info',
+        ipAddress: clientIp(req),
+      })
+    } catch (logErr) {
+      console.error('Login activity log error:', logErr)
+    }
     const token = signToken({ loginId: login.login_id, profileId: login.profile_id, email: login.email })
     res.json({
       success: true,
@@ -113,6 +142,7 @@ router.post('/login', async (req, res) => {
         name: login.name,
         locale: login.locale || 'en',
         avatarUrl: login.avatar_url || null,
+        creditBalance: login.credit_balance ?? 0,
       },
     })
   } catch (err) {
@@ -148,7 +178,8 @@ router.get('/me', requireAuth, async (req, res) => {
          up.locale,
          up.email_contact,
          up.created_at,
-         l.email AS login_email
+         l.email AS login_email,
+         COALESCE((SELECT SUM(ct.amount) FROM credit_transactions ct WHERE ct.user_id = up.id), 0)::int AS credit_balance
        FROM user_profiles up
        JOIN logins l ON l.id = up.login_id
        WHERE up.id = $1`,
@@ -179,6 +210,7 @@ router.get('/me', requireAuth, async (req, res) => {
         emailContact: u.email_contact || '',
         loginEmail: u.login_email,
         createdAt: u.created_at,
+        creditBalance: u.credit_balance ?? 0,
       },
     })
   } catch (err) {
@@ -208,6 +240,30 @@ router.get('/me/activity', requireAuth, async (req, res) => {
   } catch (err) {
     console.error('Activity log error:', err)
     res.status(500).json({ error: 'Failed to load activity' })
+  } finally {
+    client.release()
+  }
+})
+
+// — NHẬT KÝ TRUY CẬP (đăng nhập: IP + thời gian; bảng activity_logs action = login)
+router.get('/me/access-log', requireAuth, async (req, res) => {
+  const { profileId } = req.auth
+  const limit = Math.min(parseInt(req.query.limit, 10) || 20, 100)
+  const offset = Math.max(0, parseInt(req.query.offset, 10) || 0)
+  const client = await pool.connect()
+  try {
+    const result = await client.query(
+      `SELECT ip_address, created_at
+       FROM activity_logs
+       WHERE user_id = $1 AND action = 'login'
+       ORDER BY created_at DESC
+       LIMIT $2 OFFSET $3`,
+      [profileId, limit, offset]
+    )
+    res.json({ access: result.rows })
+  } catch (err) {
+    console.error('Access log error:', err)
+    res.status(500).json({ error: 'Failed to load access log' })
   } finally {
     client.release()
   }
@@ -444,17 +500,30 @@ router.post('/verify', async (req, res) => {
       return res.status(400).json({ error: 'Registration expired or invalid. Please register again.' })
     }
     const { password_hash: passwordHash, name: userName } = pending.rows[0]
-    const loginResult = await client.query(
-      `INSERT INTO logins (email, password_hash, status) VALUES ($1, $2, 'active') RETURNING id`,
-      [normalizedEmail, passwordHash]
-    )
-    const loginId = loginResult.rows[0].id
-    await client.query(
-      'INSERT INTO user_profiles (login_id, name) VALUES ($1, $2)',
-      [loginId, userName || '']
-    )
-    await client.query('DELETE FROM pending_registrations WHERE email = $1', [normalizedEmail])
-    await client.query('DELETE FROM email_verification_codes WHERE email = $1', [normalizedEmail])
+    await client.query('BEGIN')
+    try {
+      const loginResult = await client.query(
+        `INSERT INTO logins (email, password_hash, status) VALUES ($1, $2, 'active') RETURNING id`,
+        [normalizedEmail, passwordHash]
+      )
+      const loginId = loginResult.rows[0].id
+      const profileResult = await client.query(
+        'INSERT INTO user_profiles (login_id, name) VALUES ($1, $2) RETURNING id',
+        [loginId, userName || '']
+      )
+      const profileId = profileResult.rows[0].id
+      await client.query(
+        `INSERT INTO credit_transactions (user_id, amount, type, reference_type, reference_id, description)
+         VALUES ($1, $2, 'bonus', 'signup_bonus', $3, 'Welcome bonus')`,
+        [profileId, SIGNUP_CREDIT_BONUS, String(loginId)]
+      )
+      await client.query('DELETE FROM pending_registrations WHERE email = $1', [normalizedEmail])
+      await client.query('DELETE FROM email_verification_codes WHERE email = $1', [normalizedEmail])
+      await client.query('COMMIT')
+    } catch (txErr) {
+      await client.query('ROLLBACK')
+      throw txErr
+    }
     res.json({ success: true, message: 'Email verified. You can now log in.', redirectTo: '/login' })
   } catch (err) {
     console.error('Verify error:', err)

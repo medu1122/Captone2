@@ -102,6 +102,36 @@ router.get('/slugs', async (req, res) => {
   }
 })
 
+// — GET /api/shops/:id/assets — ảnh trong shop (Image bot gallery / Storage)
+router.get('/:id/assets', requireAuth, async (req, res) => {
+  const profileId = req.auth.profileId
+  const { id } = req.params
+  const client = await pool.connect()
+  try {
+    const shop = await client.query('SELECT id FROM shops WHERE id = $1 AND user_id = $2', [id, profileId])
+    if (shop.rows.length === 0) {
+      const any = await client.query('SELECT id FROM shops WHERE id = $1', [id])
+      if (any.rows.length === 0) return res.status(404).json({ error: 'Shop not found' })
+      return res.status(403).json({ error: 'Access denied' })
+    }
+    const r = await client.query(
+      `SELECT id, type, name, storage_path_or_url, mime_type, model_source, created_at
+       FROM assets WHERE shop_id = $1 ORDER BY created_at DESC`,
+      [id]
+    )
+    res.json({ assets: r.rows })
+  } catch (err) {
+    if (err.code === '42P01') {
+      res.json({ assets: [] })
+    } else {
+      console.error('List assets error:', err)
+      res.status(500).json({ error: 'Failed to list assets' })
+    }
+  } finally {
+    client.release()
+  }
+})
+
 // — POST /api/shops — tạo shop mới
 router.post('/', requireAuth, async (req, res) => {
   const profileId = req.auth.profileId
