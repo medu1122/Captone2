@@ -36,6 +36,79 @@ function formatDateTime(iso: string, locale: Locale): string {
   })
 }
 
+const IPV4_RE = /^(\d{1,3}\.){3}\d{1,3}$/
+
+function stripIpZoneAndBrackets(raw: string): string {
+  let s = raw.trim()
+  if (s.startsWith('[') && s.includes(']')) s = s.slice(1, s.indexOf(']'))
+  const zi = s.indexOf('%')
+  if (zi > 0) s = s.slice(0, zi)
+  return s
+}
+
+/** Shortest IPv6 text (RFC5952-style) for display. */
+function compressIPv6(ip: string): string {
+  const s = stripIpZoneAndBrackets(ip).toLowerCase()
+  if (!s.includes(':')) return ip.trim()
+  let parts: string[]
+  if (s.includes('::')) {
+    const [a, b] = s.split('::', 2)
+    const left = a ? a.split(':').filter(Boolean) : []
+    const right = b ? b.split(':').filter(Boolean) : []
+    const miss = 8 - left.length - right.length
+    if (miss < 0) return ip.trim()
+    parts = [...left, ...Array(miss).fill('0'), ...right]
+  } else {
+    parts = s.split(':')
+  }
+  if (parts.length !== 8) return ip.trim()
+  const hex = parts.map((h) => parseInt(h, 16).toString(16))
+  let bestStart = -1
+  let bestLen = 0
+  for (let i = 0; i < 8; ) {
+    if (hex[i] === '0') {
+      let j = i
+      while (j < 8 && hex[j] === '0') j++
+      const len = j - i
+      if (len > bestLen) {
+        bestLen = len
+        bestStart = i
+      }
+      i = j
+    } else i++
+  }
+  if (bestLen < 2) return hex.join(':')
+  const before = hex.slice(0, bestStart).join(':')
+  const after = hex.slice(bestStart + bestLen).join(':')
+  if (bestStart === 0 && bestStart + bestLen === 8) return '::'
+  if (bestStart === 0) return `::${after}`
+  if (bestStart + bestLen === 8) return `${before}::`
+  return `${before}::${after}`
+}
+
+function formatAccessIpDisplay(
+  raw: string | null | undefined,
+  t: (key: string) => string
+): { primary: string; sub?: string; title: string } {
+  const title = (raw ?? '').trim() || '—'
+  if (!raw?.trim()) return { primary: '—', title }
+  const s = stripIpZoneAndBrackets(raw).toLowerCase()
+  if (s === '::1' || s === '0:0:0:0:0:0:0:1' || s === '127.0.0.1') {
+    return { primary: t('dashboard.accessLogLocalhost'), title }
+  }
+  const v4map = s.match(/^::ffff:(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/)
+  if (v4map) return { primary: v4map[1], title: v4map[1] }
+  if (IPV4_RE.test(s)) return { primary: s, title: s }
+  if (s.includes(':')) {
+    return {
+      primary: compressIPv6(raw),
+      sub: t('dashboard.accessLogIpv6Hint'),
+      title,
+    }
+  }
+  return { primary: raw.trim(), title }
+}
+
 export default function DashboardPage() {
   const { t, locale } = useLocale()
   const { token } = useAuth()
@@ -100,10 +173,10 @@ export default function DashboardPage() {
     () =>
       accessItems.map((row, i) => ({
         key: `${row.created_at}-${i}`,
-        ip: row.ip_address?.trim() || '—',
+        ipDisplay: formatAccessIpDisplay(row.ip_address, t),
         time: formatDateTime(row.created_at, locale),
       })),
-    [accessItems, locale]
+    [accessItems, locale, t]
   )
 
   return (
@@ -210,7 +283,17 @@ export default function DashboardPage() {
               ) : (
                 accessRows.map((row) => (
                   <tr key={row.key} className="border-b border-slate-100 hover:bg-slate-50">
-                    <td className="px-6 py-3 text-slate-900 font-mono text-xs">{row.ip}</td>
+                    <td className="px-6 py-3 text-slate-900">
+                      <div
+                        className="font-mono text-xs break-all"
+                        title={row.ipDisplay.title}
+                      >
+                        {row.ipDisplay.primary}
+                      </div>
+                      {row.ipDisplay.sub ? (
+                        <div className="text-xs text-slate-500 mt-1">{row.ipDisplay.sub}</div>
+                      ) : null}
+                    </td>
                     <td className="px-6 py-3 text-slate-600">{row.time}</td>
                   </tr>
                 ))

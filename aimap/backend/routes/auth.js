@@ -25,17 +25,33 @@ function generateSixDigitCode() {
   return String(Math.floor(100000 + Math.random() * 900000))
 }
 
+/** Normalize IP for storage/display: drop zone id, IPv4-mapped → IPv4. */
+function normalizeClientIp(raw) {
+  if (!raw || typeof raw !== 'string') return null
+  let s = raw.trim().slice(0, 80)
+  const zi = s.indexOf('%')
+  if (zi > 0) s = s.slice(0, zi)
+  if (s.startsWith('[') && s.includes(']')) s = s.slice(1, s.indexOf(']'))
+  const low = s.toLowerCase()
+  const v4map = low.match(/^::ffff:(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/)
+  if (v4map) return v4map[1]
+  return s || null
+}
+
 /** Client IP for access log (trust proxy when TRUST_PROXY is set on app). */
 function clientIp(req) {
   const xff = req.headers['x-forwarded-for']
+  let candidate = null
   if (typeof xff === 'string' && xff.trim()) {
-    return xff.split(',')[0].trim().slice(0, 80)
+    candidate = xff.split(',')[0].trim()
+  } else if (Array.isArray(xff) && xff[0]) {
+    candidate = String(xff[0]).trim()
   }
-  if (Array.isArray(xff) && xff[0]) {
-    return String(xff[0]).trim().slice(0, 80)
+  if (!candidate) {
+    candidate = req.ip || req.socket?.remoteAddress
+    candidate = candidate ? String(candidate) : null
   }
-  const ip = req.ip || req.socket?.remoteAddress
-  return ip ? String(ip).slice(0, 80) : null
+  return normalizeClientIp(candidate || '')
 }
 
 // — ĐĂNG KÝ (CHỈ LƯU PENDING + MÃ 6 SỐ; TÀI KHOẢN CHỈ TẠO SAU KHI VERIFY)
