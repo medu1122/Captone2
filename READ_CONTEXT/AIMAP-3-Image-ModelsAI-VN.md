@@ -100,7 +100,7 @@ flowchart LR
 
 - **Cấu hình:** Thêm biến môi trường cho từng provider (API key / endpoint): `GOOGLE_AI_API_KEY` (hoặc Vertex), `OPENAI_API_KEY`, `FAL_KEY` (hoặc key tương ứng cho FLUX).
 - **Backend:** Trong `aimap/backend`, mở rộng **Image API client** (hoặc lib tương đương) thành **multi-provider**: một interface chung (ví dụ `generateImage(prompt, options)`) gọi Imagen, DALL·E 3, FLUX theo config; gọi song song khi cần "3 model cùng lúc".
-- **Credit:** Nếu mỗi lần gen tính 1 credit, khi gọi 3 model cùng lúc có thể tính 3 credit hoặc 1 credit cho "một bộ 3 ảnh" tùy product decision.
+- **Credit:** Hệ thống đã có **số dư user** (`credit_transactions`, hiển thị `creditBalance`). Khi triển khai trừ credit lúc gen ảnh: nếu mỗi lần gen tính 1 credit thì gọi 3 model song song có thể tính 3 credit hoặc 1 credit cho "một bộ 3 ảnh" — tùy quyết định sản phẩm. Xem `database_design.md`, `AIMAP-Architecture-VN.md` (mục triển khai credit).
 - **Kho prompt:** Giữ cấu trúc kho prompt theo loại (logo, banner, post); Prompt Builder map loại + store info vào template, có thể có biến thể prompt riêng cho từng model (ví dụ format prompt Imagen vs DALL·E) nếu cần tối ưu chất lượng.
 
 ---

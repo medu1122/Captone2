@@ -26,6 +26,9 @@ Phạm vi (theo Proposal): Thu thập store info | AI Branding (logo, banner, co
 - **F6 – Multi-Agent Orchestration:** Orchestrator điều phối Branding Agent, Content Agent, Visual Post Agent, Website Builder Agent, Deploy Agent, Social Posting Agent.
 - **Credit & Payment:** Mô hình sử dụng theo credit; tích hợp Payment Gateway để mua credit; Admin theo dõi doanh thu và giao dịch.
 - **Administrator:** Quản lý user, xem activity log, theo dõi revenue/credit, dashboard hiệu năng hệ thống.
+- **User dashboard:** User thường xem **activity log** và **access log** (lịch sử đăng nhập / IP) trên trang tổng quan — cùng bảng **`activity_logs`**, API **`GET /api/auth/me/activity`** và **`GET /api/auth/me/access-log`** (xem `aimap/backend/API.md`).
+
+**Triển khai số dư credit (phiên bản code hiện tại):** Nguồn sự thật là bảng **`credit_transactions`**; số dư user = **SUM(`amount`)** theo **`user_profiles.id`**. Khi **verify email** sau đăng ký: ghi nhận **+100** (`type` bonus, `reference_type` **signup_bonus**). **`GET /api/auth/me`** và **POST /api/auth/login** trả **`creditBalance`**. Admin cấp thêm: **`POST /api/admin/users/:id/credits`**. Payment gateway, trừ credit khi gọi AI — giai đoạn sau.
 
 ---
 

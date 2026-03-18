@@ -17,8 +17,9 @@ Capstone Project 2 – International School, Duy Tan University
 - **Đăng Facebook tự động:** OAuth qua Meta Graph API, lưu token an toàn, đăng nội dung đã tạo lên Facebook Page đã ủy quyền.
 - **AI hiểu ngữ cảnh:** Chỉnh website nhiều lần liên tiếp; AI nhớ cấu trúc hiện tại và lịch sử hội thoại, không phá layout.
 - **Zero code:** Không cần HTML/CSS/JS; mọi thay đổi website qua prompt tự nhiên; không cần công cụ thiết kế rời rạc.
-- **Credit & thanh toán:** Sử dụng dịch vụ theo credit; tích hợp payment gateway để mua credit; Admin theo dõi doanh thu và giao dịch.
+- **Credit & thanh toán:** Tài khoản **sau khi xác thực email (verify)** nhận **100 credit** welcome; số dư hiển thị trên dashboard (sidebar). **Admin** có thể cấp thêm credit qua API **`POST /api/admin/users/:id/credits`**. **Còn làm sau:** payment gateway (mua credit), trừ credit khi dùng AI, trang lịch sử giao dịch `/credit/history`.
 - **Cách ly & scale:** Mỗi shop = 1 Docker container riêng; Admin quản lý user, xem log hoạt động và dashboard hiệu năng.
+- **Dashboard user:** Xem **nhật ký hoạt động** (tạo/sửa shop, v.v.) và **nhật ký truy cập** (đăng nhập theo IP) — dữ liệu từ bảng `activity_logs`, không cần bảng riêng cho access log.
 
 ---
 

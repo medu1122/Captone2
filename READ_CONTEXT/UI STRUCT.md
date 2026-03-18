@@ -26,12 +26,12 @@ Kế hoạch này vạch ra các bước cụ thể để xây dựng toàn bộ
 **Tổng quan & Cá nhân:**
 
 - **Header/Layout (Dashboard Layout):** Phải có **nút chuyển ngôn ngữ EN/VN** (hoặc EN/VI) trên header để user chọn Tiếng Việt hoặc English; lưu vào `user_profiles.locale`. **Không bỏ** nút này; đây là i18n chính thức của hệ thống.
-- `/dashboard`: Trang tổng quan thống kê của user (số dư credit, số shop, trạng thái website).
+- `/dashboard` **(DashboardPage):** Tổng quan user — **Active shops** (số shop từ API), **Live websites** (placeholder `—` cho đến khi có API site/deploy), bảng **Activity log** (tạo/sửa shop, … từ `GET /auth/me/activity`), bảng **Access log** (IP + thời gian đăng nhập từ `GET /auth/me/access-log`). Số dư credit hiển thị ở sidebar (**`creditBalance`** từ **`GET /api/auth/me`**), không nhất thiết lặp lại trên `/dashboard`.
 - `/profile`: Cập nhật thông tin cá nhân (tên, avatar, đổi mật khẩu, đổi ngôn ngữ vi/en).
 
 **Quản lý Cửa hàng (Shops):**
 
-- **`/shops` (ShopListPage)** — Dùng **Dashboard Layout** (sidebar Dashboard + Shops, Credit balance; header chung).
+- **`/shops` (ShopListPage)** — Dùng **Dashboard Layout** (sidebar: mục **Dashboard**, **Shops** — nhãn chữ, không icon; khối **Credit balance**; header chung).
   - **Nội dung:** Danh sách shop của user hiển thị theo **grid** (card) hoặc **list** (row). Mỗi card/row gồm: logo shop (hoặc placeholder), **tên shop**, **slug/subdomain** (ví dụ myshop.aimap.app), **ngành hàng** (industry), **trạng thái** (active/inactive); quick actions: **"Vào shop"** (→ `/shops/[id]`), **"Chỉnh sửa"** (→ `/shops/[id]/edit`).
   - **CTA:** Nút **"Tạo cửa hàng"** (primary) → `/shops/create`, đặt góc phải header của main content hoặc trên cùng danh sách.
   - **Empty state:** Khi user chưa có shop: thông báo "Bạn chưa có cửa hàng nào", nút "Tạo cửa hàng đầu tiên" → `/shops/create`.
@@ -60,21 +60,22 @@ Kế hoạch này vạch ra các bước cụ thể để xây dựng toàn bộ
   - **Optional lúc tạo (chỉ thu thập ở Edit shop):** website_url, social_links, opening_hours, brand_preferences, logo_url, cover_url, tags.
   - **UX:** Một trang form (có thể chia 2 section: "Thông tin cửa hàng" và "Liên hệ & Chủ shop"); validation required, format (email, slug), unique slug (API); submit → POST tạo shop → redirect `/shops/[id]` hoặc `/shops` với thông báo thành công.
 
-- **`/shops/[id]` (Chi tiết cửa hàng)** — **Layout riêng** (không dùng sidebar Dashboard/Shops), dùng **header chung** (LanguageSwitcher + UserMenu); tiêu đề header có thể là tên shop hoặc "Shop Dashboard".
-  - **Left sidebar (riêng cho Shop Detail):**
+- **`/shops/[id]` (Chi tiết cửa hàng)** — **Shop Detail Layout** (sidebar **riêng cho shop**, khác sidebar Dashboard — không có mục Dashboard/Shops toàn hệ thống); **header chung** (LanguageSwitcher + UserMenu); tiêu đề header có thể là tên shop hoặc "Shop Dashboard".
+  - **Left sidebar (Shop Detail — nav theo shop):**
     1. **Shop Dashboard** — Trang tổng quan của shop (mặc định khi vào `/shops/[id]`): thống kê nhanh (số ảnh, số content, site status, pipeline gần nhất…).
     2. **Bot tạo ảnh** — Entry vào AI tạo ảnh (logo, banner, post) cho shop này; lưu vào assets của shop.
     3. **Storage (Lưu trữ)** — Toàn bộ hình ảnh của shop (assets: logo, banner, cover, post); có thể mở rộng xem marketing_content. Upload ảnh vào shop tại đây hoặc route `/shops/[id]/storage/upload`.
     4. **Support marketing** — Kho content marketing (ad post, product description, caption/hashtag): tạo/sửa/xem.
     5. **Pipeline** — Quản lý và xem quy trình tự động (chạy pipeline, xem lịch sử runs, trạng thái từng bước).
-  - **Dưới cùng sidebar:** Khối **Credit balance** giống left sidebar của Dashboard (hiện số dư user hoặc "—" nếu chưa có API). Credit balance theo **user**, không theo shop.
+  - **Dưới cùng sidebar:** Khối **Credit balance** giống Dashboard — hiển thị số dư **user** từ API (**`GET /api/auth/me`** → field **`creditBalance`**, tổng `credit_transactions`). Khi đang tải profile có thể hiện "…". Sau khi admin cấp thêm credit, user **F5** hoặc đăng nhập lại để thấy số mới (nếu chưa có refetch tự động). Credit theo **user**, không theo shop.
   - **Route con:** `/shops/[id]` (index = Shop Dashboard), `/shops/[id]/image-bot`, `/shops/[id]/storage`, `/shops/[id]/marketing`, `/shops/[id]/pipeline`. Quick action từ trang chi tiết: Edit Shop, Website Builder, Facebook (trong ngữ cảnh shop).
 
 - **`/shops/[id]/edit`:** Form cập nhật thông tin cửa hàng (thêm product, địa chỉ, social links, website_url, branding…).
 
 **Quản lý Credit & Thanh toán:**
 
-- `/credit`: Xem tổng quan số dư.
+- **Đã có trên UI:** Số dư hiển thị trên sidebar Dashboard và Shop Detail (theo user).
+- `/credit`: Xem tổng quan số dư (route tùy chọn — có thể làm sau).
 - `/credit/topup`: Chọn gói nạp và thanh toán (chuyển hướng VNPay/Stripe...).
 - `/credit/history`: Bảng lịch sử các giao dịch cộng/trừ credit.
 

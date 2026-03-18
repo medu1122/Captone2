@@ -44,6 +44,8 @@ isProject: false
 | 4 | Project Retrospective | 04-May-2026 | 04-May-2026 | 4 hrs |
 | 5 | Deployment and Final Presentation | 10-May-2026 | 10-May-2026 | 12 hrs |
 
+
+
 ## Summary
 
 - Sprint 1 focuses on core system foundation.

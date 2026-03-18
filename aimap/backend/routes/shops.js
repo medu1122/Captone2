@@ -6,6 +6,9 @@ import { Router } from 'express'
 import pool from '../db/index.js'
 import { requireAuth } from '../middleware/auth.js'
 import { logActivity } from '../services/activityLog.js'
+import { buildImagePrompt } from '../services/imagePromptBuilder.js'
+import { generateImageVariants } from '../services/imageGeneration.js'
+import { saveShopAssetFile, fetchImageToBuffer, parseDataUrl } from '../services/assetStorage.js'
 
 const router = Router()
 

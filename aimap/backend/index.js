@@ -9,6 +9,7 @@ import { connectDB } from './db/index.js'
 import authRoutes from './routes/auth.js'
 import adminRoutes from './routes/admin.js'
 import shopsRoutes from './routes/shops.js'
+import { getUploadRoot } from './services/assetStorage.js'
 
 const app = express()
 const PORT = process.env.PORT ?? 4111
@@ -18,7 +19,8 @@ if (process.env.TRUST_PROXY === '1' || process.env.TRUST_PROXY === 'true') {
 }
 
 app.use(cors({ origin: process.env.FRONTEND_URL || true, credentials: true }))
-app.use(express.json())
+app.use(express.json({ limit: '20mb' }))
+app.use('/uploads', express.static(getUploadRoot()))
 
 app.get('/health', (_, res) => {
   res.json({ ok: true, service: 'aimap-backend' })

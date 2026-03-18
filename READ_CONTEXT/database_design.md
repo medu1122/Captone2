@@ -42,7 +42,7 @@ Tài liệu này là **nguồn tham chiếu chính** cho thiết kế database c
 | **2** | industry_tag_mappings | Map ngành hàng (shops.industry) → tag(s) cho prompt (40 tag, seed data) |
 | **3** | conversation_messages | Lịch sử chỉnh website bằng prompt (site_id, role, content) |
 | **3** | site_deployments | Deploy: container_id, subdomain, status; 1 site → 1 container |
-| **3** | activity_logs | Log từng công đoạn (create_site, edit_site_prompt, build_site, deploy_site); severity, details JSONB |
+| **3** | activity_logs | Log hành động user + công đoạn web: **đã triển khai** `login`, `create_shop`, `update_shop` (+ `ip_address`); Sprint 3 thêm create_site, deploy_site, …; **không** có bảng `access_logs` — access log = các dòng `action = login` |
 | **Auth (bổ sung)** | pending_registrations | Đăng ký tạm (email, password_hash, name); chuyển sang logins + user_profiles sau khi verify |
 | **Auth (bổ sung)** | email_verification_codes | Mã 6 số xác thực email; mỗi email một bản ghi, hết hạn hoặc sau verify thì xóa |
 
@@ -145,6 +145,7 @@ flowchart LR
   - **Create shop (form `/shops/create`):** Chỉ thu thập thông tin cơ bản. **Bắt buộc:** name, slug, industry, description, address, city, district, country, postal_code, contact_info.phone, contact_info.email, contact_info.owner_name. **Không** nhập products hay website_url lúc tạo — người dùng bổ sung sau tại `/shops/[id]/edit`. Xem [AIMAP-Data-Hierarchy.md](AIMAP-Data-Hierarchy.md) và [UI STRUCT.md](UI%20STRUCT.md).
 - **sites:** id (PK), shop_id (FK), user_id (FK → user_profiles), name, slug (UNIQUE), config_json (JSONB), status (draft/deployed), created_at, updated_at. Khớp Architecture VII và “1 shop = 1 site”.
 - **credit_transactions:** id (PK), user_id (FK → user_profiles), amount (integer), type, reference_type, reference_id, description, created_at. Index (user_id, created_at).
+  - **Đã triển khai trong backend:** sau **verify** tạo tài khoản → một dòng **+100**, `type` = `bonus`, `reference_type` = **`signup_bonus`**; admin cấp thêm → `reference_type` = **`admin_grant`**, `reference_id` = profile id admin. API trả số dư qua **`creditBalance`** (login + `/me`).
 - **payments:** id (PK), user_id (FK → user_profiles), amount_money, credits, gateway, gateway_txn_id (UNIQUE), status, callback_data (JSONB), created_at, updated_at.
 
 ### Bước 5: Schema chi tiết Sprint 2 (đủ để viết migration)
@@ -169,6 +170,12 @@ Phân tích Sprint 3 (P3.1–P3.14) và thiết kế đủ bảng cho deploy, pr
 Sprint 3 không thêm bảng cho revenue/credit reports (P3.12): dùng sẵn credit_transactions và payments với aggregate query.
 
 **Log cho từng công đoạn tạo web:** Mỗi bước liên quan web (tạo site, chỉnh config bằng prompt, build, deploy, update static) đều ghi vào **activity_logs**: action = create_site | edit_site_prompt | build_site | deploy_site | update_site_static; entity_type = site; entity_id = site_id; details (JSONB) chứa step, status, error (nếu có), duration. Khi có lỗi: details.error = true, details.error_message = string. Nhờ vậy khi lỗi có thể tra log theo site_id hoặc thời gian để fix. Có thể bổ sung cột **severity** (info | warning | error) trong activity_logs nếu cần filter nhanh lỗi.
+
+**Triển khai hiện tại (đồng bộ code `aimap/backend`):**
+
+- **Không có bảng `access_logs`.** Dashboard user — mục “Nhật ký truy cập” — dùng các bản ghi `activity_logs` với **`action = 'login'`**, cột **`ip_address`** và **`created_at`**.
+- **Đã ghi log:** mỗi **đăng nhập thành công** (`login`, `entity_type = session`), **tạo shop** (`create_shop`), **cập nhật shop** (`update_shop`); có thể kèm `ip_address`. Các action website/deploy sẽ bổ sung khi làm Sprint 3.
+- **API (JWT Bearer):** `GET /api/auth/me/activity` — nhật ký hoạt động theo `user_id`; `GET /api/auth/me/access-log` — chỉ các lần đăng nhập. Mô tả đầy đủ: **`aimap/backend/API.md`**.
 
 ### Bước 5d: Hỗ trợ Admin (đã bao gồm trong database)
 
@@ -977,6 +984,8 @@ CREATE INDEX idx_activity_severity   ON activity_logs (severity);
 CREATE INDEX idx_activity_created_at ON activity_logs (created_at);
 CREATE INDEX idx_activity_action     ON activity_logs (action);
 ```
+
+**Ghi chú triển khai:** Xem mục **Bước 5c** (đoạn “Triển khai hiện tại”) về `login` / `create_shop` / `update_shop`, API `/auth/me/activity` và `/auth/me/access-log`, và việc không dùng bảng `access_logs`.
 
 ### 8.4 Trigger auto-update `updated_at`
 
