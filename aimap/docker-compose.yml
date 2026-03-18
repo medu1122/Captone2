@@ -6,10 +6,7 @@ services:
     container_name: aimap-backend
     ports:
       - "4111:4111"
-    env_file:
-      - ./backend/.env.production
     environment:
-      # These override anything in .env.production
       - NODE_ENV=production
       - PORT=4111
       - DATABASE_URL=postgresql://postgres:Thinh%401234@host.docker.internal:5432/aimap
@@ -25,6 +22,12 @@ services:
       - SMTP_USER=chuanbiradi@gmail.com
       - SMTP_PASS=ssem avrq dgvm uips
       - MAIL_FROM=AIMAP <AIMAP@gmail.com>
+      # API keys — docker-compose reads these from aimap/.env on the VPS (gitignored)
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OPENAI_IMAGE_MODEL=${OPENAI_IMAGE_MODEL:-gpt-image-1}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - GEMINI_IMAGEN_MODEL=${GEMINI_IMAGEN_MODEL:-imagen-3.0-generate-002}
+      - GEMINI_IMAGE_MODEL=${GEMINI_IMAGE_MODEL:-gemini-2.5-flash-preview-05-20}
     volumes:
       - backend-storage:/app/storage
       - /var/run/docker.sock:/var/run/docker.sock
