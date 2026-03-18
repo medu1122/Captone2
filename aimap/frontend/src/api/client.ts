@@ -25,10 +25,17 @@ export function assetStorageUrl(path: string | null | undefined): string {
         return u.pathname + u.search
       }
     } catch { /* fall through */ }
+    // #region agent log
+    fetch('http://127.0.0.1:7761/ingest/05cf90d4-996a-4cce-828d-8d12f370426f',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'5c42cf'},body:JSON.stringify({sessionId:'5c42cf',location:'client.ts:assetStorageUrl',message:'H-C: non-localhost absolute URL passed through',data:{path},timestamp:Date.now(),hypothesisId:'H-C'})}).catch(()=>{});
+    // #endregion
     return path
   }
   const origin = API_BASE.replace(/\/api\/?$/i, '') || ''
-  return `${origin.replace(/\/$/, '')}${path.startsWith('/') ? path : `/${path}`}`
+  const result = `${origin.replace(/\/$/, '')}${path.startsWith('/') ? path : `/${path}`}`
+  // #region agent log
+  fetch('http://127.0.0.1:7761/ingest/05cf90d4-996a-4cce-828d-8d12f370426f',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'5c42cf'},body:JSON.stringify({sessionId:'5c42cf',location:'client.ts:assetStorageUrl',message:'H-C: relative path resolved',data:{path,API_BASE,origin,result},timestamp:Date.now(),hypothesisId:'H-C'})}).catch(()=>{});
+  // #endregion
+  return result
 }
 
 export type ApiFetchOptions = Omit<RequestInit, 'body'> & { body?: object }
