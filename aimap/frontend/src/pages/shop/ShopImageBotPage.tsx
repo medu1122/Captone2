@@ -99,11 +99,22 @@ export default function ShopImageBotPage() {
 
   const handleGenerate = async (state: ImageBotFormState) => {
     if (!token || !shopId) return
+    const VARIANTS = 3
+    const SLOT_IDS = ['1', '2', '3'] as const
     lastAspectRef.current = state.aspect
     setGenerating(true)
     slotMetaRef.current = {}
+    setSlots(
+      SLOT_IDS.map((id, i) => ({
+        id,
+        imageUrl: null,
+        placeholder: true,
+        loading: i < VARIANTS,
+      }))
+    )
+
+    let anyImage = false
     try {
-      // Convert uploaded reference files to base64 data URLs
       const refDataUrls: string[] = []
       for (const file of state.referenceFiles) {
         try {
@@ -112,12 +123,11 @@ export default function ShopImageBotPage() {
           console.warn('ref image convert error:', e)
         }
       }
-      // Also include any direct URL references (filtered to data URLs only)
       for (const u of state.referenceUrls) {
         if (u.startsWith('data:')) refDataUrls.push(u)
       }
 
-      const { data, error, status } = await shopsApi.generateImages(token, shopId, {
+      const body = {
         prompt_template_id: promptTemplateId || undefined,
         aspect: state.aspect,
         image_style: state.style,
@@ -125,27 +135,82 @@ export default function ShopImageBotPage() {
         selectedProductKeys: state.shopOnly ? [] : state.selectedProductKeys,
         user_prompt: state.userPrompt,
         model: state.model === 'gpt' ? 'openai' : 'gemini',
-        variant_count: 3,
+        variant_count: VARIANTS,
         ref_images: refDataUrls.length ? refDataUrls : undefined,
+      }
+
+      console.log('[ImageBot] Gọi API generate-stream', {
+        shopId,
+        aspect: state.aspect,
+        model: body.model,
+        refImages: refDataUrls.length,
+        userPromptPreview: (state.userPrompt || '').slice(0, 120),
       })
-      if (error || status >= 400 || !data) {
-        showToast(error ?? t('imageBot.generateError'))
+
+      const { ok, status, streamError } = await shopsApi.generateImagesStream(token, shopId, body, (ev) => {
+        if (ev.type === 'prompt') {
+          console.log('[ImageBot] API hoạt động — prompt gửi tới model (full text):\n', ev.final_prompt)
+          console.log('[ImageBot] Meta:', {
+            promptChars: ev.final_prompt.length,
+            prompt_template_id: ev.prompt_template_id,
+            variant_count: ev.variant_count,
+            model: ev.model,
+          })
+        }
+        if (ev.type === 'variant') {
+          const slotId = SLOT_IDS[ev.index]
+          if (!slotId) return
+          const url = ev.image_data_url || ev.image_url || null
+          if (url) anyImage = true
+          setSlots((prev) =>
+            prev.map((s) =>
+              s.id === slotId
+                ? { ...s, imageUrl: url, placeholder: !url, loading: false }
+                : s
+            )
+          )
+          console.log('[ImageBot] Ô', ev.index + 1, url ? 'đã có ảnh' : 'trống')
+        }
+        if (ev.type === 'error') {
+          console.error('[ImageBot] Lỗi variant', ev.index + 1, ':', ev.message)
+          showToast(ev.message)
+          const slotId = SLOT_IDS[ev.index]
+          if (slotId) {
+            setSlots((prev) =>
+              prev.map((s) => (s.id === slotId ? { ...s, loading: false } : s))
+            )
+          }
+        }
+        if (ev.type === 'done') {
+          const m: SlotMeta = {
+            final_prompt: ev.final_prompt || '',
+            prompt_template_id: ev.prompt_template_id ?? null,
+            model_source: ev.model_source || 'dall-e-3',
+          }
+          SLOT_IDS.forEach((id) => {
+            slotMetaRef.current[id] = m
+          })
+          console.log('[ImageBot] Hoàn tất stream — ảnh tạo được:', ev.generated, 'model:', ev.model_source)
+        }
+        if (ev.type === 'fatal') {
+          showToast(ev.message)
+        }
+      })
+
+      if (!ok) {
+        console.error('[ImageBot] Stream thất bại:', status, streamError)
+        showToast(streamError || t('imageBot.generateError'))
+        setSlots(INITIAL_SLOTS)
         return
       }
-      const metaBase: SlotMeta = {
-        final_prompt: data.final_prompt || '',
-        prompt_template_id: data.prompt_template_id ?? null,
-        model_source: data.model_source || 'dall-e-3',
-      }
-      const next: ResultSlot[] = ['1', '2', '3'].map((id, i) => {
-        const url = firstImageUrl(data.image_urls, data.image_data_urls, i)
-        slotMetaRef.current[id] = { ...metaBase }
-        return { id, imageUrl: url, placeholder: !url }
-      })
-      setSlots(next)
-      if (!next.some((s) => s.imageUrl)) showToast(t('imageBot.generateError'))
+      if (!anyImage) showToast(t('imageBot.generateError'))
+    } catch (e) {
+      console.error('[ImageBot] Exception:', e)
+      showToast(t('imageBot.generateError'))
+      setSlots(INITIAL_SLOTS)
     } finally {
       setGenerating(false)
+      setSlots((prev) => prev.map((s) => ({ ...s, loading: false })))
     }
   }
 

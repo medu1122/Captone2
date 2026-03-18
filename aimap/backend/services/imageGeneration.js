@@ -196,6 +196,27 @@ async function googleGenerateOne(prompt, aspect, key, refImages = []) {
 }
 
 /**
+ * Generate one variant (index 0-based, totalCount for prompt diversity).
+ * @param {string[]} [refImages]
+ */
+export async function generateSingleImageVariant(prompt, aspect, model, refImages, variantIndex, totalCount) {
+  const key = process.env.GEMINI_API_KEY
+  const count = Math.max(1, totalCount || 1)
+  const i = variantIndex
+  const p = count > 1 ? `${prompt}\n(Variant ${i + 1} of ${count}, unique composition.)` : prompt
+  if (model === 'google') {
+    if (!key) {
+      const r = await openaiGenerateOne(p, aspect)
+      return { url: r.url, dataUrl: r.dataUrl, modelSource: r.modelSource }
+    }
+    const r = await googleGenerateOne(p, aspect, key, refImages || [])
+    return { url: r.url, dataUrl: r.dataUrl, modelSource: r.modelSource }
+  }
+  const r = await openaiGenerateOne(p, aspect)
+  return { url: r.url, dataUrl: r.dataUrl, modelSource: r.modelSource }
+}
+
+/**
  * @param {string} prompt
  * @param {string} aspect
  * @param {'openai'|'google'} model
@@ -203,31 +224,14 @@ async function googleGenerateOne(prompt, aspect, key, refImages = []) {
  * @param {string[]} [refImages] - optional array of base64 data URLs for reference
  */
 export async function generateImageVariants(prompt, aspect, model, count = 3, refImages = []) {
-  const key = process.env.GEMINI_API_KEY
   const urls = []
   const dataUrls = []
   let modelSource = 'dall-e-3'
   for (let i = 0; i < count; i++) {
-    const p = count > 1 ? `${prompt}\n(Variant ${i + 1} of ${count}, unique composition.)` : prompt
-    if (model === 'google') {
-      if (!key) {
-        // No Gemini key — fall back to OpenAI
-        const r = await openaiGenerateOne(p, aspect)
-        modelSource = r.modelSource
-        if (r.dataUrl) dataUrls.push(r.dataUrl)
-        else if (r.url) urls.push(r.url)
-      } else {
-        const r = await googleGenerateOne(p, aspect, key, refImages)
-        modelSource = r.modelSource
-        if (r.dataUrl) dataUrls.push(r.dataUrl)
-        else if (r.url) urls.push(r.url)
-      }
-    } else {
-      const r = await openaiGenerateOne(p, aspect)
-      modelSource = r.modelSource
-      if (r.dataUrl) dataUrls.push(r.dataUrl)
-      else if (r.url) urls.push(r.url)
-    }
+    const r = await generateSingleImageVariant(prompt, aspect, model, refImages, i, count)
+    modelSource = r.modelSource
+    if (r.dataUrl) dataUrls.push(r.dataUrl)
+    else if (r.url) urls.push(r.url)
   }
   return { urls, dataUrls, modelSource }
 }

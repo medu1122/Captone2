@@ -6,7 +6,7 @@ import pool from '../db/index.js'
 import { requireAuth } from '../middleware/auth.js'
 import { logActivity } from '../services/activityLog.js'
 import { buildImagePrompt } from '../services/imagePromptBuilder.js'
-import { generateImageVariants } from '../services/imageGeneration.js'
+import { generateImageVariants, generateSingleImageVariant } from '../services/imageGeneration.js'
 import { saveShopAssetFile, fetchImageToBuffer, parseDataUrl } from '../services/assetStorage.js'
 
 const router = Router()
@@ -167,6 +167,134 @@ router.get('/:id/image-prompts', requireAuth, async (req, res) => {
   } catch (err) {
     console.error('image-prompts error:', err)
     res.status(500).json({ error: 'Failed to list image prompts' })
+  } finally {
+    client.release()
+  }
+})
+
+/**
+ * Stream NDJSON: first line = prompt meta, then one line per variant, last = done.
+ * Keeps connection alive (avoids 504) and lets UI show each image as it completes.
+ */
+router.post('/:id/images/generate-stream', requireAuth, async (req, res) => {
+  const profileId = req.auth.profileId
+  const { id } = req.params
+  const b = req.body || {}
+  const aspect = b.aspect || '1:1'
+  const imageStyle = b.image_style || b.style || 'ad'
+  const shopOnly = Boolean(b.shop_only)
+  const userPrompt = String(b.user_prompt || '')
+  const model = apiModel(b.model)
+  const variantCount = Math.min(5, Math.max(1, Number(b.variant_count) || 3))
+  const refImages = Array.isArray(b.ref_images)
+    ? b.ref_images.filter((x) => typeof x === 'string' && x.startsWith('data:'))
+    : []
+
+  const writeLine = (obj) => {
+    res.write(`${JSON.stringify(obj)}\n`)
+  }
+
+  const client = await pool.connect()
+  try {
+    const o = await shopOwnedBy(client, id, profileId)
+    if (o.err) {
+      res.status(o.err).json({ error: o.msg })
+      return
+    }
+    const { shop } = o
+
+    let templateId, content
+    try {
+      ;({ templateId, content } = await resolveTemplate(client, b.prompt_template_id || null, shop))
+    } catch (e) {
+      res.status(e.status || 503).json({ error: e.message })
+      return
+    }
+
+    const products = parseProductsJson(shop)
+    let selected = products
+    if (!shopOnly && Array.isArray(b.product_indices)) {
+      selected = b.product_indices.map((i) => products[Number(i)]).filter(Boolean)
+    } else if (!shopOnly && b.selectedProductKeys?.length) {
+      selected = products.filter((p, i) =>
+        b.selectedProductKeys.includes(String(p?.id ?? `${i}-${p?.name}`))
+      )
+    }
+
+    const maxLength = model === 'openai' ? 28000 : 3900
+    const finalPrompt = buildImagePrompt({
+      templateContent: content,
+      shop,
+      aspect,
+      imageStyle,
+      shopOnly,
+      selectedProducts: selected,
+      userPrompt,
+      maxLength,
+    })
+
+    console.log(
+      `[image-bot stream] shop=${id} variants=${variantCount} model=${model} prompt_chars=${finalPrompt.length} template=${templateId}`
+    )
+
+    res.setHeader('Content-Type', 'application/x-ndjson; charset=utf-8')
+    res.setHeader('Cache-Control', 'no-cache, no-transform')
+    res.setHeader('X-Accel-Buffering', 'no')
+    res.status(200)
+    res.flushHeaders?.()
+
+    writeLine({
+      type: 'prompt',
+      final_prompt: finalPrompt,
+      prompt_template_id: templateId,
+      variant_count: variantCount,
+      model,
+    })
+
+    let modelSource = 'dall-e-3'
+    let successCount = 0
+    for (let i = 0; i < variantCount; i++) {
+      try {
+        const r = await generateSingleImageVariant(finalPrompt, aspect, model, refImages, i, variantCount)
+        modelSource = r.modelSource || modelSource
+        successCount += 1
+        writeLine({
+          type: 'variant',
+          index: i,
+          image_url: r.url || null,
+          image_data_url: r.dataUrl || null,
+        })
+      } catch (err) {
+        console.error(`[image-bot stream] variant ${i} failed:`, err.message)
+        writeLine({ type: 'error', index: i, message: err.message || 'Generation failed' })
+        break
+      }
+    }
+
+    if (successCount > 0) {
+      await deductImageCredit(profileId, id, successCount)
+    }
+
+    writeLine({
+      type: 'done',
+      model_source: modelSource,
+      prompt_template_id: templateId,
+      final_prompt: finalPrompt,
+      generated: successCount,
+    })
+    res.end()
+  } catch (err) {
+    console.error('images/generate-stream error:', err)
+    if (!res.headersSent) {
+      res.status(502).json({ error: err.message || 'Image generation failed' })
+    } else {
+      try {
+        writeLine({ type: 'fatal', message: err.message })
+        res.end()
+      } catch (_) {
+        res.end()
+      }
+    }
   } finally {
     client.release()
   }

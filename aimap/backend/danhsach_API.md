@@ -354,6 +354,13 @@ Body:
 Trả: `image_urls[]`, `image_data_urls[]`, `model_source`, `prompt_template_id`, `final_prompt`.
 Trừ credit sau khi tạo thành công: `IMAGE_GENERATE_CREDIT_COST × variant_count` credit (default 10/variant).
 
+**POST /shops/:id/images/generate-stream** — Cùng body như `generate`, response **NDJSON** (mỗi dòng một JSON):
+- `{ type: "prompt", final_prompt, prompt_template_id, variant_count, model }` — gửi ngay sau khi build prompt (giữ kết nối, tránh 504).
+- `{ type: "variant", index, image_url?, image_data_url? }` — mỗi ảnh xong một dòng.
+- `{ type: "error", index, message }` — lỗi tại variant (stream có thể dừng).
+- `{ type: "done", model_source, prompt_template_id, final_prompt, generated }` — kết thúc.
+Trừ credit theo số variant tạo thành công.
+
 ---
 
 **POST /shops/:id/images/save** - Lưu ảnh vào disk + bảng `assets`

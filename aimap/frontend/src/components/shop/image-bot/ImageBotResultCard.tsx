@@ -6,6 +6,8 @@ export type ResultSlot = {
   id: string
   imageUrl: string | null
   placeholder?: boolean
+  /** Đang chờ API trả ảnh cho ô này */
+  loading?: boolean
 }
 
 type PanelMode = 'none' | 'edit' | 'rebuild'
@@ -56,7 +58,12 @@ export default function ImageBotResultCard({
   return (
     <div className="border border-slate-300 rounded-lg bg-white overflow-hidden flex flex-col">
       <div className="h-48 bg-slate-100 flex items-center justify-center shrink-0">
-        {slot.imageUrl ? (
+        {slot.loading ? (
+          <div className="flex flex-col items-center gap-2 text-slate-500">
+            <div className="w-8 h-8 border-2 border-slate-300 border-t-primary rounded-full animate-spin" />
+            <span className="text-xs">{t('imageBot.generatingSlot')}</span>
+          </div>
+        ) : slot.imageUrl ? (
           <img src={slot.imageUrl} alt="" className="max-h-full max-w-full object-contain" />
         ) : (
           <span className="text-slate-400 text-sm">{slot.placeholder ? t('imageBot.previewPlaceholder') : '—'}</span>

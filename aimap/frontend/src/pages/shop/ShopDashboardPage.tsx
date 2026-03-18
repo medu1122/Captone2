@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useLocale } from '../../contexts/LocaleContext'
 import { useAuth } from '../../contexts/AuthContext'
+import { assetStorageUrl } from '../../api/client'
 import { shopsApi, type ShopAsset, type ShopDetail } from '../../api/shops'
 import RecentAssetsStrip from '../../components/shop/RecentAssetsStrip'
 
@@ -422,11 +423,8 @@ export default function ShopDashboardPage() {
               {products.slice(0, 6).map((p, i) => (
                 <div key={i} className="flex items-center gap-3 p-3 rounded-lg border border-slate-100 hover:border-slate-200 transition-colors">
                   {p.image_url ? (
-                    // #region agent log
-                    fetch('http://127.0.0.1:7761/ingest/05cf90d4-996a-4cce-828d-8d12f370426f',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'5c42cf'},body:JSON.stringify({sessionId:'5c42cf',location:'ShopDashboardPage.tsx:product-img',message:'H-B: product image_url direct render',data:{image_url:p.image_url,isLocalhost:/localhost|127\.0\.0\.1/.test(String(p.image_url))},timestamp:Date.now(),hypothesisId:'H-B'})}).catch(()=>{}) as unknown as null,
-                    // #endregion
                     <img
-                      src={p.image_url}
+                      src={assetStorageUrl(p.image_url)}
                       alt={p.name ?? ''}
                       className="w-12 h-12 rounded-lg object-cover flex-shrink-0 bg-slate-100"
                     />

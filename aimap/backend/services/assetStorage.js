@@ -30,9 +30,6 @@ export async function saveShopAssetFile(buffer, shopId, ext = 'png') {
   // Store the relative path so it works regardless of domain/protocol.
   // The frontend reconstructs the full URL via assetStorageUrl().
   const rel = `/uploads/shops/${shopId}/${name}`
-  // #region agent log
-  console.error('[bb1f55][H:rel-path] saveShopAssetFile rel=' + rel)
-  // #endregion
   return { filePath, publicUrl: rel }
 }
 

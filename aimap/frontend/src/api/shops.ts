@@ -1,4 +1,4 @@
-import { apiFetch } from './client'
+import { apiFetch, apiUrl } from './client'
 
 const SHOPS_PREFIX = '/shops'
 
@@ -104,6 +104,25 @@ export interface GenerateImagesResponse {
   final_prompt: string
 }
 
+export type GenerateImagesStreamEvent =
+  | {
+      type: 'prompt'
+      final_prompt: string
+      prompt_template_id: string
+      variant_count: number
+      model: string
+    }
+  | { type: 'variant'; index: number; image_url: string | null; image_data_url: string | null }
+  | { type: 'error'; index: number; message: string }
+  | {
+      type: 'done'
+      model_source: string
+      prompt_template_id: string
+      final_prompt: string
+      generated: number
+    }
+  | { type: 'fatal'; message: string }
+
 function auth(token: string) {
   return { Authorization: `Bearer ${token}` }
 }
@@ -154,6 +173,74 @@ export const shopsApi = {
       headers: auth(token),
       body: body as unknown as Record<string, unknown>,
     }),
+
+  /**
+   * NDJSON stream: prompt line first, then variant lines, then done.
+   * Use for progressive UI + long runs (avoids single 504 on 3× image gen).
+   */
+  async generateImagesStream(
+    token: string,
+    shopId: string,
+    body: GenerateImagesBody,
+    onEvent: (ev: GenerateImagesStreamEvent) => void
+  ): Promise<{ ok: boolean; status: number; streamError?: string }> {
+    const url = apiUrl(`${SHOPS_PREFIX}/${shopId}/images/generate-stream`)
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        ...auth(token),
+        'Content-Type': 'application/json',
+        Accept: 'application/x-ndjson, application/json',
+      },
+      body: JSON.stringify(body),
+    })
+    const ct = res.headers.get('content-type') || ''
+    if (!res.ok && !ct.includes('ndjson')) {
+      let errText = res.statusText
+      try {
+        const j = await res.json()
+        if (j?.error) errText = j.error
+      } catch {
+        /* ignore */
+      }
+      return { ok: false, status: res.status, streamError: errText }
+    }
+    if (!res.body) {
+      return { ok: false, status: res.status, streamError: 'No response body' }
+    }
+    const reader = res.body.getReader()
+    const decoder = new TextDecoder()
+    let buffer = ''
+    try {
+      for (;;) {
+        const { done, value } = await reader.read()
+        if (done) break
+        buffer += decoder.decode(value, { stream: true })
+        const parts = buffer.split('\n')
+        buffer = parts.pop() ?? ''
+        for (const line of parts) {
+          const s = line.trim()
+          if (!s) continue
+          try {
+            onEvent(JSON.parse(s) as GenerateImagesStreamEvent)
+          } catch {
+            console.warn('[ImageBot] bad NDJSON line:', s.slice(0, 120))
+          }
+        }
+      }
+      const tail = buffer.trim()
+      if (tail) {
+        try {
+          onEvent(JSON.parse(tail) as GenerateImagesStreamEvent)
+        } catch {
+          /* ignore */
+        }
+      }
+    } finally {
+      reader.releaseLock()
+    }
+    return { ok: res.ok, status: res.status }
+  },
 
   saveImage: (
     token: string,
