@@ -1,4 +1,5 @@
 import { useCallback, useRef, useState } from 'react'
+import ImageBotModelPicker from './ImageBotModelPicker'
 
 export type AspectRatio = '1:1' | '2:3' | '3:2' | '4:5' | '16:9'
 export type ImageStyle = 'ad' | 'product_intro' | 'price_board' | 'banner_shop'
@@ -213,28 +214,7 @@ export default function ImageBotInputPanel({ t, products, onGenerate, generating
 
         <div>
           <p className="text-xs font-medium text-slate-500 mb-2">{t('imageBot.model')}</p>
-          <div className="flex flex-wrap gap-3">
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="radio"
-                name="image-bot-model"
-                checked={model === 'gpt'}
-                onChange={() => setModel('gpt')}
-                className="border-slate-300"
-              />
-              <span className="text-sm">GPT</span>
-            </label>
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="radio"
-                name="image-bot-model"
-                checked={model === 'gemini'}
-                onChange={() => setModel('gemini')}
-                className="border-slate-300"
-              />
-              <span className="text-sm">Gemini</span>
-            </label>
-          </div>
+          <ImageBotModelPicker name="image-bot-model" value={model} onChange={setModel} />
         </div>
       </div>
 

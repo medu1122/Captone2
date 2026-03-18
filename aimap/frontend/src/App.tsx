@@ -18,6 +18,7 @@ import ShopImageBotPage from './pages/shop/ShopImageBotPage'
 import ShopStoragePage from './pages/shop/ShopStoragePage'
 import ShopMarketingPage from './pages/shop/ShopMarketingPage'
 import ShopPipelinePage from './pages/shop/ShopPipelinePage'
+import ShopWebsitePage from './pages/shop/ShopWebsitePage'
 import ShopEditPage from './pages/shop/ShopEditPage'
 
 function App() {
@@ -83,6 +84,7 @@ function App() {
           <Route path="storage" element={<ShopStoragePage />} />
           <Route path="marketing" element={<ShopMarketingPage />} />
           <Route path="pipeline" element={<ShopPipelinePage />} />
+          <Route path="website" element={<ShopWebsitePage />} />
           <Route path="edit" element={<ShopEditPage />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />

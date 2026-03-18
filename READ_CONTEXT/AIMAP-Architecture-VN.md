@@ -114,6 +114,8 @@ flowchart TB
 - **Tái sử dụng:** Website config JSON tham chiếu asset bằng URL (backend trả signed URL hoặc path nội bộ); template render dùng URL đó cho img/background.
 - **Flow:** User submit form → Backend gọi **Image AI** (API hoặc self-host) → lưu file vào object storage (S3/MinIO/local) → trả URL và lưu metadata (tên, loại: logo/banner/marketing) → Dashboard hiển thị thư viện; khi tạo/sửa website, user chọn asset từ thư viện hoặc AI gắn asset vào config (imageUrl, logoUrl).
 
+**Image bot (triển khai backend):** `services/imagePromptBuilder.js` ghép template từ bảng `prompt_templates` (category=`image`, tag theo `industry_tag_mappings`) + dữ liệu shop/sản phẩm; `services/imageGeneration.js` gọi OpenAI DALL·E 3 hoặc Gemini image; route `routes/shopImageBot.js` (mount `/api/shops`): `GET …/image-prompts`, `POST …/images/generate|save|edit|rebuild`. Ảnh lưu disk (`ASSET_STORAGE_PATH`) serve tại `/uploads/…`; metadata `assets` ghi `model_source`, `prompt_template_id`. Xem `danhsach_API.md`, `AIMAP-3-Image-ModelsAI-VN.md`.
+
 ### 2. Data Flow A – Tạo website lần đầu
 
 ```

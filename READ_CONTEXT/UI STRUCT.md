@@ -90,7 +90,7 @@ Kế hoạch này vạch ra các bước cụ thể để xây dựng toàn bộ
 **Công cụ AI (AI Tools) — Truy cập từ Shop Detail:**
 
 - **AI Tools không nằm ở sidebar Dashboard** như mục độc lập; **điểm vào (entry)** là từ **Shop Detail** — sidebar có **Bot tạo ảnh** và **Support marketing**.
-- **Bot tạo ảnh** (`/shops/[id]/image-bot`): Entry vào AI tạo ảnh (logo, banner, post) cho shop này; khi user **Lưu**, kết quả lưu vào **assets** của shop. Shop context luôn có sẵn.
+- **Bot tạo ảnh** (`/shops/[id]/image-bot`): Chọn mẫu prompt gốc (optional, `GET …/image-prompts`) hoặc để hệ thống chọn theo ngành; **Tạo ảnh** → `POST …/images/generate`; **Lưu** → `POST …/images/save`; chỉnh/sửa/tạo lại → `edit` / `rebuild`. Sản phẩm chỉnh tại `/shops/[id]/edit` (`PUT …/products`). Shop context luôn có sẵn.
 - **Support marketing** (`/shops/[id]/marketing`): Kho content marketing (ad post, product description, caption/hashtag) — tạo/sửa/xem bằng Agent tạo content; khi **Lưu** lưu vào **marketing_content** của shop.
 - Routes thực thi có thể vẫn là `/ai-tools/logo`, `/ai-tools/content`, … nhưng **entry** luôn từ Shop Detail (sidebar); không cần mục "AI Tools" riêng trên sidebar Dashboard chính.
 

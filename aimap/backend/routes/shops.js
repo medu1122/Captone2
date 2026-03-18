@@ -6,9 +6,8 @@ import { Router } from 'express'
 import pool from '../db/index.js'
 import { requireAuth } from '../middleware/auth.js'
 import { logActivity } from '../services/activityLog.js'
-import { buildImagePrompt } from '../services/imagePromptBuilder.js'
-import { generateImageVariants } from '../services/imageGeneration.js'
-import { saveShopAssetFile, fetchImageToBuffer, parseDataUrl } from '../services/assetStorage.js'
+import { deleteLocalShopAssetFile } from '../services/assetStorage.js'
+import { agentDbgFile } from '../utils/agentDbgFile.js'
 
 const router = Router()
 
@@ -122,14 +121,75 @@ router.get('/:id/assets', requireAuth, async (req, res) => {
        FROM assets WHERE shop_id = $1 ORDER BY created_at DESC`,
       [id]
     )
+    // #region agent log
+    agentDbgFile({
+      hypothesisId: 'H4',
+      location: 'shops.js:GET/:id/assets',
+      message: 'list assets db',
+      data: { rowCount: r.rows.length, shopIdPrefix: String(id).slice(0, 8) },
+    })
+    // #endregion
     res.json({ assets: r.rows })
   } catch (err) {
     if (err.code === '42P01') {
+      // #region agent log
+      agentDbgFile({
+        hypothesisId: 'H4',
+        location: 'shops.js:GET/:id/assets',
+        message: 'assets table missing',
+        data: { code: '42P01' },
+      })
+      // #endregion
       res.json({ assets: [] })
     } else {
       console.error('List assets error:', err)
       res.status(500).json({ error: 'Failed to list assets' })
     }
+  } finally {
+    client.release()
+  }
+})
+
+// — DELETE /api/shops/:id/assets/:assetId — xóa asset (chủ shop); xóa file local nếu có
+router.delete('/:id/assets/:assetId', requireAuth, async (req, res) => {
+  const profileId = req.auth.profileId
+  const { id, assetId } = req.params
+  const client = await pool.connect()
+  try {
+    const shop = await client.query('SELECT id FROM shops WHERE id = $1 AND user_id = $2', [id, profileId])
+    if (shop.rows.length === 0) {
+      const any = await client.query('SELECT id FROM shops WHERE id = $1', [id])
+      if (any.rows.length === 0) return res.status(404).json({ error: 'Shop not found' })
+      return res.status(403).json({ error: 'Access denied' })
+    }
+    const row = await client.query(
+      'SELECT id, storage_path_or_url FROM assets WHERE id = $1 AND shop_id = $2',
+      [assetId, id]
+    )
+    if (!row.rows.length) return res.status(404).json({ error: 'Asset not found' })
+    const storagePathOrUrl = row.rows[0].storage_path_or_url
+    await deleteLocalShopAssetFile(storagePathOrUrl, id)
+    await client.query('DELETE FROM assets WHERE id = $1 AND shop_id = $2', [assetId, id])
+    try {
+      await logActivity(pool, {
+        userId: profileId,
+        action: 'delete_shop_asset',
+        entityType: 'asset',
+        entityId: assetId,
+        details: { shop_id: id },
+        severity: 'info',
+        ipAddress: req.ip || req.headers['x-forwarded-for'],
+      })
+    } catch (e) {
+      console.warn('activity log delete_shop_asset:', e.message)
+    }
+    res.json({ ok: true })
+  } catch (err) {
+    if (err.code === '42P01') {
+      return res.status(503).json({ error: 'assets table not available' })
+    }
+    console.error('Delete asset error:', err)
+    res.status(500).json({ error: 'Failed to delete asset' })
   } finally {
     client.release()
   }

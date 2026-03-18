@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react'
 import type { AspectRatio, ImageModel } from './ImageBotInputPanel'
+import ImageBotModelPicker from './ImageBotModelPicker'
 
 export type ResultSlot = {
   id: string
@@ -166,16 +167,14 @@ export default function ImageBotResultCard({
           >
             {t('imageBot.refImagesOptional')}
           </button>
-          <div className="flex gap-3 text-xs">
-            <span className="text-slate-500">{t('imageBot.model')}:</span>
-            <label className="flex items-center gap-1">
-              <input type="radio" checked={rebuildModel === 'gpt'} onChange={() => setRebuildModel('gpt')} />
-              GPT
-            </label>
-            <label className="flex items-center gap-1">
-              <input type="radio" checked={rebuildModel === 'gemini'} onChange={() => setRebuildModel('gemini')} />
-              Gemini
-            </label>
+          <div>
+            <p className="text-xs text-slate-500 mb-1">{t('imageBot.model')}</p>
+            <ImageBotModelPicker
+              name={`image-bot-rebuild-model-${slot.id}`}
+              value={rebuildModel}
+              onChange={setRebuildModel}
+              compact
+            />
           </div>
           <div>
             <label className="text-xs text-slate-500 block mb-1">{t('imageBot.rebuildAspectOptional')}</label>

@@ -1,0 +1,11 @@
+---
+description: Khi sửa backend AIMAP cần biến môi trường mới
+globs: aimap/backend/**/*.js
+alwaysApply: false
+---
+
+Khi thêm hoặc đổi `process.env.*` trong `aimap/backend`, cập nhật:
+1. `aimap/backend/.env.example` (placeholder, không secret)
+2. `READ_CONTEXT/aimap-backend-env.md` (bảng mô tả biến)
+
+Không commit file `.env` thật.

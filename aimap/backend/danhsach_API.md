@@ -251,6 +251,8 @@ Headers: Authorization: Bearer <token>
 ```
 Dùng cho Image bot gallery / Storage. Trả `{ "assets": [ { id, type, name, storage_path_or_url, mime_type, model_source, created_at } ] }`. Nếu bảng `assets` chưa có thì trả `assets: []`.
 
+**DELETE /shops/:id/assets/:assetId** - Xóa asset (chủ shop). Xóa row; nếu file nằm dưới `uploads/shops/:id/` trên server thì xóa file. Response `{ "ok": true }`.
+
 ---
 
 **PATCH /shops/:id** - Cập nhật shop
@@ -261,6 +263,59 @@ Headers:
 Body (chỉ gửi fields cần đổi): name, industry, description, address, city, district, country, postal_code, contact_info, products, website_url, logo_url, cover_url, social_links, opening_hours, status
 ```
 Chỉ chủ sở hữu. Ghi activity_log `update_shop`. Response: 200 + shop đã cập nhật.
+
+---
+
+**PUT /shops/:id/products** - Cập nhật mảng sản phẩm (JSONB `shops.products`)
+```
+Headers: Authorization, Content-Type: application/json
+Body: JSON array, ví dụ:
+[
+  { "id": "1", "name": "Trà sữa", "price": "35k", "description": "Size M", "image_url": "https://..." }
+]
+```
+Response: `{ "products": [...] }`. Ghi log `update_shop_products`.
+
+---
+
+**GET /shops/:id/image-prompts** - Danh sách template ảnh (`prompt_templates`, category=image)
+```
+Query: ?use_case=post (optional, lọc theo type)
+```
+Lọc theo tag từ `industry_tag_mappings` khớp `shops.industry`. Trả `{ "prompts": [ { id, name, type, tags, preview } ] }`.
+
+---
+
+**POST /shops/:id/images/generate** - Tạo ảnh (OpenAI / Gemini)
+```
+Body:
+  prompt_template_id (optional), aspect (1:1|2:3|…), image_style / style,
+  shop_only, selectedProductKeys hoặc product_indices, user_prompt,
+  model: "openai"|"gemini"|"gpt"|"google", variant_count (1–5, default 3)
+```
+Trả: `image_urls[]`, `image_data_urls[]`, `model_source`, `prompt_template_id`, `final_prompt`.
+
+---
+
+**POST /shops/:id/images/save** - Lưu ảnh vào disk + bảng `assets`
+```
+Body: image_url HOẶC image_base64 (data URL), prompt_template_id, user_prompt,
+  model_source: imagen|dall-e-3|flux, type: post|logo|…, name (optional)
+```
+
+---
+
+**POST /shops/:id/images/edit** - Chỉnh theo prompt (regenerate)
+```
+Body: edit_prompt, model, aspect, base_prompt (optional)
+```
+
+---
+
+**POST /shops/:id/images/rebuild** - Tạo lại như generate (override_prompt / user_prompt / template)
+```
+Body tương tự generate + override_prompt (optional)
+```
 
 ---
 

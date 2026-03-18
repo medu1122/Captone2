@@ -10,6 +10,14 @@ export function apiUrl(path: string): string {
   return `${API_BASE.replace(/\/$/, '')}${p}`
 }
 
+/** Ảnh lưu tại /uploads (không nằm dưới /api). */
+export function assetStorageUrl(path: string | null | undefined): string {
+  if (!path) return ''
+  if (/^https?:\/\//i.test(path)) return path
+  const origin = API_BASE.replace(/\/api\/?$/i, '') || 'http://localhost:4111'
+  return `${origin.replace(/\/$/, '')}${path.startsWith('/') ? path : `/${path}`}`
+}
+
 export type ApiFetchOptions = Omit<RequestInit, 'body'> & { body?: object }
 
 export async function apiFetch<T = unknown>(

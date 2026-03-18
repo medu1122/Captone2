@@ -14,6 +14,7 @@ Capstone Project 2 – International School, Duy Tan University
 - **Thu thập thông tin cửa hàng một lần:** Nhập tên, sản phẩm, giá, liên hệ, sở thích thương hiệu → dùng làm nguồn dữ liệu duy nhất cho toàn bộ quy trình automation (branding, nội dung, hình ảnh, website, đăng Facebook).
 - **Multi-Agent orchestration:** Nhiều agent chuyên biệt (Branding, Content, Visual Post, Website Builder, Deploy, Social Posting) phối hợp qua Orchestrator → quy trình end-to-end từ input đến website + Facebook.
 - **All-in-one:** Từ store info → branding (logo, banner) → nội dung marketing (bài viết, mô tả, caption, hashtag) → ảnh bài đăng chuẩn MXH → website → chỉnh website bằng prompt → preview realtime → deploy (`shopname.aimap.app`) → **đăng tự động lên Facebook Page**, trong một dashboard.
+- **Bot ảnh theo ngành:** Chọn mẫu prompt (hoặc tự động), tạo vài phiên bản ảnh marketing, chỉnh/sửa/tạo lại, **lưu vào kho ảnh shop** (`assets` + file trên server).
 - **Đăng Facebook tự động:** OAuth qua Meta Graph API, lưu token an toàn, đăng nội dung đã tạo lên Facebook Page đã ủy quyền.
 - **AI hiểu ngữ cảnh:** Chỉnh website nhiều lần liên tiếp; AI nhớ cấu trúc hiện tại và lịch sử hội thoại, không phá layout.
 - **Zero code:** Không cần HTML/CSS/JS; mọi thay đổi website qua prompt tự nhiên; không cần công cụ thiết kế rời rạc.

@@ -30,6 +30,7 @@ isProject: false
 | 3.2 | Sprint 2 - AI Automation and Facebook | 15-Mar-2026 | 04-Apr-2026 | 180 hrs |
 | 3.2.1 | Sprint 2 Planning and Backlog | 15-Mar-2026 | 15-Mar-2026 | 12 hrs |
 | 3.2.2 | Branding and Asset Management (design, coding, testing) | 16-Mar-2026 | 20-Mar-2026 | 42 hrs |
+| — | **Done:** Image bot backend (`prompt_templates` seed từ `Promp_AI/Prompt_image`, API generate/save/edit/rebuild) + frontend nối API | — | — | — |
 | 3.2.3 | Marketing Content and Visual Post Generation (design, coding, testing) | 21-Mar-2026 | 26-Mar-2026 | 54 hrs |
 | 3.2.4 | Automation Pipeline and Credit Deduction (design, coding, testing) | 27-Mar-2026 | 30-Mar-2026 | 30 hrs |
 | 3.2.5 | Facebook Integration and Publishing (design, coding, testing) | 31-Mar-2026 | 03-Apr-2026 | 34 hrs |

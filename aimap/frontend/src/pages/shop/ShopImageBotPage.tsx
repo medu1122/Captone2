@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { useLocale } from '../../contexts/LocaleContext'
 import { useAuth } from '../../contexts/AuthContext'
-import { shopsApi, type ShopAsset } from '../../api/shops'
+import { shopsApi, type ImagePromptItem, type ShopAsset } from '../../api/shops'
+import { assetStorageUrl } from '../../api/client'
 import ImageBotInputPanel, {
   type AspectRatio,
   type ImageBotFormState,
@@ -19,27 +20,23 @@ function parseProducts(raw: unknown): ProductItem[] {
   return []
 }
 
-function makeMockImageUrl(seed: string, aspect: string): string {
-  const [w, h] =
-    aspect === '1:1'
-      ? [400, 400]
-      : aspect === '2:3'
-        ? [400, 600]
-        : aspect === '3:2'
-          ? [600, 400]
-          : aspect === '4:5'
-            ? [400, 500]
-            : aspect === '16:9'
-              ? [640, 360]
-              : [400, 400]
-  return `https://picsum.photos/seed/${encodeURIComponent(seed)}/${w}/${h}`
-}
-
 const INITIAL_SLOTS: ResultSlot[] = [
   { id: '1', imageUrl: null, placeholder: true },
   { id: '2', imageUrl: null, placeholder: true },
   { id: '3', imageUrl: null, placeholder: true },
 ]
+
+type SlotMeta = {
+  final_prompt: string
+  prompt_template_id: string | null
+  model_source: string
+}
+
+function firstImageUrl(urls: string[] | undefined, dataUrls: string[] | undefined, i: number): string | null {
+  const u = urls?.[i]
+  const d = dataUrls?.[i]
+  return u || d || null
+}
 
 export default function ShopImageBotPage() {
   const { t } = useLocale()
@@ -52,6 +49,10 @@ export default function ShopImageBotPage() {
   const [slots, setSlots] = useState<ResultSlot[]>(INITIAL_SLOTS)
   const [generating, setGenerating] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
+  const [prompts, setPrompts] = useState<ImagePromptItem[]>([])
+  const [promptTemplateId, setPromptTemplateId] = useState<string>('')
+  const slotMetaRef = useRef<Record<string, SlotMeta>>({})
+  const lastAspectRef = useRef<AspectRatio>('1:1')
 
   useEffect(() => {
     if (!token || !shopId) return
@@ -63,14 +64,36 @@ export default function ShopImageBotPage() {
       }
       if (data) setProducts(parseProducts(data.products))
     })
+    shopsApi.listImagePrompts(token, shopId).then(({ data }) => {
+      if (data?.prompts) setPrompts(data.prompts)
+    })
   }, [token, shopId, t])
 
   const loadAssets = useCallback(() => {
     if (!token || !shopId) return
     setAssetsLoading(true)
-    shopsApi.listAssets(token, shopId).then(({ data }) => {
+    shopsApi.listAssets(token, shopId).then(({ data, error, status }) => {
       setAssetsLoading(false)
       if (data?.assets) setAssets(data.assets)
+      // #region agent log
+      fetch('http://127.0.0.1:7761/ingest/05cf90d4-996a-4cce-828d-8d12f370426f', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'bb1f55' },
+        body: JSON.stringify({
+          sessionId: 'bb1f55',
+          runId: 'pre-qa',
+          hypothesisId: 'H4',
+          location: 'ShopImageBotPage.tsx:listAssets',
+          message: 'assets loaded',
+          data: {
+            count: data?.assets?.length ?? 0,
+            status,
+            listError: Boolean(error),
+          },
+          timestamp: Date.now(),
+        }),
+      }).catch(() => {})
+      // #endregion
     })
   }, [token, shopId])
 
@@ -78,52 +101,208 @@ export default function ShopImageBotPage() {
     loadAssets()
   }, [loadAssets])
 
-  const handleGenerate = (state: ImageBotFormState) => {
-    setGenerating(true)
-    const base = `${state.aspect}-${state.style}-${state.model}-${Date.now()}`
-    setTimeout(() => {
-      setSlots([
-        { id: '1', imageUrl: makeMockImageUrl(`${base}-a`, state.aspect), placeholder: false },
-        { id: '2', imageUrl: makeMockImageUrl(`${base}-b`, state.aspect), placeholder: false },
-        { id: '3', imageUrl: makeMockImageUrl(`${base}-c`, state.aspect), placeholder: false },
-      ])
-      setGenerating(false)
-    }, 800)
+  const showToast = (msg: string) => {
+    setToast(msg)
+    setTimeout(() => setToast(null), 4000)
   }
 
-  const handleSave = (_slotId: string) => {
-    setToast(t('imageBot.saveToast'))
-    setTimeout(() => setToast(null), 3000)
+  const handleGenerate = async (state: ImageBotFormState) => {
+    if (!token || !shopId) return
+    lastAspectRef.current = state.aspect
+    setGenerating(true)
+    slotMetaRef.current = {}
+    try {
+      const { data, error, status } = await shopsApi.generateImages(token, shopId, {
+        prompt_template_id: promptTemplateId || undefined,
+        aspect: state.aspect,
+        image_style: state.style,
+        shop_only: state.shopOnly,
+        selectedProductKeys: state.shopOnly ? [] : state.selectedProductKeys,
+        user_prompt: state.userPrompt,
+        model: state.model === 'gpt' ? 'openai' : 'gemini',
+        variant_count: 3,
+      })
+      // #region agent log
+      fetch('http://127.0.0.1:7761/ingest/05cf90d4-996a-4cce-828d-8d12f370426f', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'bb1f55' },
+        body: JSON.stringify({
+          sessionId: 'bb1f55',
+          runId: 'pre-qa',
+          hypothesisId: 'H5',
+          location: 'ShopImageBotPage.tsx:generate response',
+          message: 'generateImages client',
+          data: {
+            status,
+            hasError: Boolean(error),
+            hasData: Boolean(data),
+            urlLen: data?.image_urls?.length ?? -1,
+            dataUrlLen: data?.image_data_urls?.length ?? -1,
+          },
+          timestamp: Date.now(),
+        }),
+      }).catch(() => {})
+      // #endregion
+      if (error || status >= 400 || !data) {
+        showToast(error ?? t('imageBot.generateError'))
+        return
+      }
+      const metaBase: SlotMeta = {
+        final_prompt: data.final_prompt || '',
+        prompt_template_id: data.prompt_template_id ?? null,
+        model_source: data.model_source || 'dall-e-3',
+      }
+      const next: ResultSlot[] = ['1', '2', '3'].map((id, i) => {
+        const url = firstImageUrl(data.image_urls, data.image_data_urls, i)
+        slotMetaRef.current[id] = { ...metaBase }
+        return { id, imageUrl: url, placeholder: !url }
+      })
+      setSlots(next)
+      // #region agent log
+      fetch('http://127.0.0.1:7761/ingest/05cf90d4-996a-4cce-828d-8d12f370426f', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'bb1f55' },
+        body: JSON.stringify({
+          sessionId: 'bb1f55',
+          runId: 'pre-qa',
+          hypothesisId: 'H2',
+          location: 'ShopImageBotPage.tsx:slots after generate',
+          message: 'slots filled',
+          data: {
+            filledSlots: next.filter((s) => s.imageUrl).length,
+            anyDataUrl: next.some((s) => s.imageUrl?.startsWith('data:')),
+            anyHttp: next.some((s) => s.imageUrl?.startsWith('http')),
+          },
+          timestamp: Date.now(),
+        }),
+      }).catch(() => {})
+      // #endregion
+      if (!next.some((s) => s.imageUrl)) showToast(t('imageBot.generateError'))
+    } finally {
+      setGenerating(false)
+    }
+  }
+
+  const handleSave = async (slotId: string) => {
+    if (!token || !shopId) return
+    const slot = slots.find((s) => s.id === slotId)
+    if (!slot?.imageUrl) {
+      showToast(t('imageBot.saveNoImage'))
+      return
+    }
+    const meta = slotMetaRef.current[slotId]
+    const body: Parameters<typeof shopsApi.saveImage>[2] = {
+      model_source: meta?.model_source || 'dall-e-3',
+      prompt_template_id: meta?.prompt_template_id,
+      type: 'post',
+    }
+    if (slot.imageUrl.startsWith('data:')) body.image_base64 = slot.imageUrl
+    else body.image_url = slot.imageUrl
+    const { error, status } = await shopsApi.saveImage(token, shopId, body)
+    // #region agent log
+    fetch('http://127.0.0.1:7761/ingest/05cf90d4-996a-4cce-828d-8d12f370426f', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'bb1f55' },
+      body: JSON.stringify({
+        sessionId: 'bb1f55',
+        runId: 'pre-qa',
+        hypothesisId: 'H3',
+        location: 'ShopImageBotPage.tsx:save',
+        message: 'saveImage client',
+        data: { status, hasError: Boolean(error), base64: Boolean(body.image_base64) },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {})
+    // #endregion
+    if (error || status >= 400) {
+      showToast(error ?? t('imageBot.saveFailed'))
+      return
+    }
+    showToast(t('imageBot.saveToast'))
     loadAssets()
   }
 
-  const handleEditApply = (slotId: string, _p: { prompt: string; model: ImageModel; refFiles: File[] }) => {
-    setSlots((prev) =>
-      prev.map((s) =>
-        s.id === slotId
-          ? { ...s, imageUrl: makeMockImageUrl(`edit-${slotId}-${Date.now()}`, '1:1'), placeholder: false }
-          : s
-      )
-    )
-    setToast(t('imageBot.editAppliedToast'))
-    setTimeout(() => setToast(null), 3000)
+  const handleEditApply = async (
+    slotId: string,
+    p: { prompt: string; model: ImageModel; refFiles: File[] }
+  ) => {
+    if (!token || !shopId || !p.prompt.trim()) return
+    setGenerating(true)
+    try {
+      const meta = slotMetaRef.current[slotId]
+      const { data, error, status } = await shopsApi.editImage(token, shopId, {
+        edit_prompt: p.prompt,
+        model: p.model === 'gpt' ? 'openai' : 'gemini',
+        aspect: lastAspectRef.current,
+        base_prompt: meta?.final_prompt,
+      })
+      if (error || status >= 400 || !data) {
+        showToast(error ?? t('imageBot.generateError'))
+        return
+      }
+      const url = firstImageUrl(data.image_urls, data.image_data_urls, 0)
+      if (url) {
+        setSlots((prev) =>
+          prev.map((s) => (s.id === slotId ? { ...s, imageUrl: url, placeholder: false } : s))
+        )
+        slotMetaRef.current[slotId] = {
+          final_prompt: `${meta?.final_prompt ?? ''}\n[Edit] ${p.prompt}`,
+          prompt_template_id: meta?.prompt_template_id ?? null,
+          model_source: data.model_source || meta?.model_source || 'dall-e-3',
+        }
+        showToast(t('imageBot.editAppliedToast'))
+      }
+    } finally {
+      setGenerating(false)
+    }
   }
 
-  const handleRebuildApply = (
+  const handleRebuildApply = async (
     slotId: string,
     p: { prompt: string; model: ImageModel; refFiles: File[]; aspect: AspectRatio | '' }
   ) => {
-    const asp = p.aspect || '1:1'
-    setSlots((prev) =>
-      prev.map((s) =>
-        s.id === slotId
-          ? { ...s, imageUrl: makeMockImageUrl(`rebuild-${slotId}-${Date.now()}`, asp), placeholder: false }
-          : s
-      )
-    )
-    setToast(t('imageBot.rebuildAppliedToast'))
-    setTimeout(() => setToast(null), 3000)
+    if (!token || !shopId) return
+    const asp = p.aspect || lastAspectRef.current
+    setGenerating(true)
+    try {
+      const meta = slotMetaRef.current[slotId]
+      const { data, error, status } = await shopsApi.rebuildImage(token, shopId, {
+        user_prompt: p.prompt,
+        model: p.model === 'gpt' ? 'openai' : 'gemini',
+        aspect: asp,
+        prompt_template_id: meta?.prompt_template_id || promptTemplateId || undefined,
+        variant_count: 1,
+      })
+      if (error || status >= 400 || !data) {
+        showToast(error ?? t('imageBot.generateError'))
+        return
+      }
+      const url = firstImageUrl(data.image_urls, data.image_data_urls, 0)
+      if (url) {
+        setSlots((prev) =>
+          prev.map((s) => (s.id === slotId ? { ...s, imageUrl: url, placeholder: false } : s))
+        )
+        slotMetaRef.current[slotId] = {
+          final_prompt: data.final_prompt || '',
+          prompt_template_id: data.prompt_template_id ?? null,
+          model_source: data.model_source || 'dall-e-3',
+        }
+        lastAspectRef.current = asp
+        showToast(t('imageBot.rebuildAppliedToast'))
+      }
+    } finally {
+      setGenerating(false)
+    }
   }
+
+  const galleryAssets = useMemo(
+    () =>
+      assets.map((a) => ({
+        ...a,
+        storage_path_or_url: assetStorageUrl(a.storage_path_or_url),
+      })),
+    [assets]
+  )
 
   const storagePath = useMemo(() => (shopId ? `/shops/${shopId}/storage` : '/shops'), [shopId])
 
@@ -139,8 +318,26 @@ export default function ShopImageBotPage() {
     <div className="space-y-6">
       <div>
         <h2 className="text-lg font-semibold text-slate-900">{t('imageBot.pageTitle')}</h2>
-        <p className="text-sm text-slate-600 mt-1">{t('')}</p>
+        <p className="text-sm text-slate-600 mt-1">{t('imageBot.pageSubtitle')}</p>
       </div>
+
+      {prompts.length > 0 && (
+        <div className="bg-white border border-slate-200 rounded-lg p-3">
+          <label className="block text-xs font-medium text-slate-600 mb-1">{t('imageBot.promptTemplate')}</label>
+          <select
+            value={promptTemplateId}
+            onChange={(e) => setPromptTemplateId(e.target.value)}
+            className="w-full max-w-xl text-sm border border-slate-300 rounded-lg px-3 py-2"
+          >
+            <option value="">{t('imageBot.promptAuto')}</option>
+            {prompts.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
 
       {toast && (
         <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-emerald-800 text-sm">
@@ -182,7 +379,7 @@ export default function ShopImageBotPage() {
       <section className="bg-white border border-slate-300 rounded-lg p-4">
         <ImageBotShopGallery
           t={t}
-          assets={assets}
+          assets={galleryAssets}
           loading={assetsLoading}
           storagePath={storagePath}
         />

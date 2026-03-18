@@ -10,6 +10,7 @@ const shopNavItems = [
   { path: 'storage', labelKey: 'shopDetail.nav.storage' },
   { path: 'marketing', labelKey: 'shopDetail.nav.marketing' },
   { path: 'pipeline', labelKey: 'shopDetail.nav.pipeline' },
+  { path: 'website', labelKey: 'shopDetail.nav.website' },
 ]
 
 export default function ShopDetailLayout() {

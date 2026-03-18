@@ -45,3 +45,35 @@ export function parseDataUrl(dataUrl) {
   if (!m) return null
   return { mime: m[1], buffer: Buffer.from(m[2], 'base64'), ext: m[1].includes('jpeg') ? 'jpg' : 'png' }
 }
+
+/**
+ * Xóa file trên disk nếu URL/path trỏ tới uploads/shops/{shopId}/... dưới ASSET_STORAGE_PATH.
+ * @param {string} storagePathOrUrl
+ * @param {string} expectedShopId
+ */
+export async function deleteLocalShopAssetFile(storagePathOrUrl, expectedShopId) {
+  if (!storagePathOrUrl || !expectedShopId) return
+  let pathname = ''
+  try {
+    if (/^https?:\/\//i.test(storagePathOrUrl)) {
+      pathname = new URL(storagePathOrUrl).pathname
+    } else {
+      pathname = String(storagePathOrUrl).split('?')[0]
+    }
+  } catch {
+    return
+  }
+  const m = pathname.match(/^\/uploads\/shops\/([^/]+)\/([^/]+)$/)
+  if (!m || m[1] !== expectedShopId) return
+  const filename = m[2]
+  if (!filename || filename.includes('..') || /[/\\]/.test(filename)) return
+  const root = getUploadRoot()
+  const dir = path.resolve(path.join(root, 'shops', expectedShopId))
+  const filePath = path.resolve(path.join(dir, filename))
+  if (!filePath.startsWith(dir + path.sep) && filePath !== path.join(dir, filename)) return
+  try {
+    await fs.unlink(filePath)
+  } catch {
+    /* ignore */
+  }
+}

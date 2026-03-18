@@ -105,6 +105,23 @@ flowchart LR
 
 ---
 
+## Triển khai hiện tại (backend aimap)
+
+| Biến môi trường | Mục đích |
+|-----------------|----------|
+| `OPENAI_API_KEY` | DALL·E 3 (UI chọn GPT). |
+| `OPENAI_IMAGE_MODEL` | Mặc định `dall-e-3`. |
+| `GEMINI_API_KEY` | Gemini image generation (UI Gemini). |
+| `GEMINI_IMAGE_MODEL` | Ví dụ `gemini-2.0-flash-preview-image-generation`. |
+| `ASSET_STORAGE_PATH` | Thư mục lưu file; serve static `/uploads`. |
+| `API_PUBLIC_URL` | URL công khai (vd. `http://localhost:4111`) để `storage_path_or_url` trong gallery. |
+
+**Luồng Save:** `POST /api/shops/:id/images/save` → ghi file → `INSERT assets` (`model_source`: `dall-e-3` \| `imagen` \| `flux`).
+
+**Map UI:** GPT → OpenAI; Gemini → Google API (fallback OpenAI nếu Gemini không trả ảnh).
+
+---
+
 ## Tóm tắt
 
 | # | Model                             | Nhà cung cấp                               | Ứng dụng thực tế               | Vai trò gợi ý trong AIMAP                                                 |

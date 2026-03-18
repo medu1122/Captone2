@@ -760,7 +760,8 @@ CREATE TABLE prompt_templates (
 CREATE INDEX idx_prompt_tpl_type_active ON prompt_templates (type, category, is_active);
 CREATE INDEX idx_prompt_tpl_tags        ON prompt_templates USING GIN (tags);
 
--- 8. industry_tag_mappings (map ngành hàng shop → tag cho prompt)
+-- 8. industry_tag_mappings (map ngành hàng shop → **chỉ tag** JSONB, ví dụ ["DOUONG"]; **không** chứa full prompt)
+-- Nội dung prompt ảnh nằm trong **prompt_templates** (category = image), seed từ `Promp_AI/Prompt_image/*.md` qua `npm run seed:prompt-images`.
 CREATE TABLE industry_tag_mappings (
     id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     industry    VARCHAR(100) NOT NULL UNIQUE,
