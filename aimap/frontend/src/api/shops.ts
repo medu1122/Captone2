@@ -45,6 +45,32 @@ export interface ImagePromptItem {
   preview?: string
 }
 
+export interface IndustryTagItem {
+  tag: string
+  label: string
+}
+
+export interface IndustryTagsResponse {
+  industry: string
+  tags: string[]
+  allTags: IndustryTagItem[]
+}
+
+export interface SiteDeployment {
+  id: string
+  shop_id: string
+  container_id: string | null
+  container_name: string | null
+  subdomain: string | null
+  status: string
+  port: number | null
+  deployed_at: string | null
+  last_build_at: string | null
+  error_message: string | null
+  created_at: string
+  updated_at: string
+}
+
 export interface GenerateImagesBody {
   prompt_template_id?: string
   aspect?: string
@@ -165,5 +191,35 @@ export const shopsApi = {
       headers: auth(token),
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       body: products as any,
+    }),
+
+  getIndustryTags: (token: string, shopId: string) =>
+    apiFetch<IndustryTagsResponse>(`${SHOPS_PREFIX}/${shopId}/industry-tags`, {
+      method: 'GET',
+      headers: auth(token),
+    }),
+
+  deployShop: (token: string, shopId: string) =>
+    apiFetch<{ deployment: SiteDeployment }>(`${SHOPS_PREFIX}/${shopId}/deploy`, {
+      method: 'POST',
+      headers: auth(token),
+    }),
+
+  getShopContainer: (token: string, shopId: string) =>
+    apiFetch<{ deployment: SiteDeployment | null }>(`${SHOPS_PREFIX}/${shopId}/container`, {
+      method: 'GET',
+      headers: auth(token),
+    }),
+
+  stopShopContainer: (token: string, shopId: string) =>
+    apiFetch<{ ok: boolean }>(`${SHOPS_PREFIX}/${shopId}/container/stop`, {
+      method: 'POST',
+      headers: auth(token),
+    }),
+
+  deleteShopContainer: (token: string, shopId: string) =>
+    apiFetch<{ ok: boolean }>(`${SHOPS_PREFIX}/${shopId}/container`, {
+      method: 'DELETE',
+      headers: auth(token),
     }),
 }

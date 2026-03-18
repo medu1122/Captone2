@@ -7,7 +7,6 @@ import pool from '../db/index.js'
 import { requireAuth } from '../middleware/auth.js'
 import { logActivity } from '../services/activityLog.js'
 import { deleteLocalShopAssetFile } from '../services/assetStorage.js'
-import { agentDbgFile } from '../utils/agentDbgFile.js'
 
 const router = Router()
 
@@ -121,25 +120,9 @@ router.get('/:id/assets', requireAuth, async (req, res) => {
        FROM assets WHERE shop_id = $1 ORDER BY created_at DESC`,
       [id]
     )
-    // #region agent log
-    agentDbgFile({
-      hypothesisId: 'H4',
-      location: 'shops.js:GET/:id/assets',
-      message: 'list assets db',
-      data: { rowCount: r.rows.length, shopIdPrefix: String(id).slice(0, 8) },
-    })
-    // #endregion
     res.json({ assets: r.rows })
   } catch (err) {
     if (err.code === '42P01') {
-      // #region agent log
-      agentDbgFile({
-        hypothesisId: 'H4',
-        location: 'shops.js:GET/:id/assets',
-        message: 'assets table missing',
-        data: { code: '42P01' },
-      })
-      // #endregion
       res.json({ assets: [] })
     } else {
       console.error('List assets error:', err)
@@ -190,6 +173,65 @@ router.delete('/:id/assets/:assetId', requireAuth, async (req, res) => {
     }
     console.error('Delete asset error:', err)
     res.status(500).json({ error: 'Failed to delete asset' })
+  } finally {
+    client.release()
+  }
+})
+
+// — GET /api/shops/:id/industry-tags — tags ngành hàng theo shop (để gắn tag cho sản phẩm)
+router.get('/:id/industry-tags', requireAuth, async (req, res) => {
+  const profileId = req.auth.profileId
+  const { id } = req.params
+  const client = await pool.connect()
+  try {
+    const shopRow = await client.query('SELECT id, industry FROM shops WHERE id = $1 AND user_id = $2', [id, profileId])
+    if (shopRow.rows.length === 0) {
+      const any = await client.query('SELECT id FROM shops WHERE id = $1', [id])
+      if (any.rows.length === 0) return res.status(404).json({ error: 'Shop not found' })
+      return res.status(403).json({ error: 'Access denied' })
+    }
+    const industry = shopRow.rows[0].industry || ''
+    let industryTags = []
+    if (industry) {
+      try {
+        const tagRow = await client.query(
+          'SELECT tags FROM industry_tag_mappings WHERE TRIM(industry) = TRIM($1) LIMIT 1',
+          [industry]
+        )
+        if (tagRow.rows[0]?.tags) {
+          industryTags = Array.isArray(tagRow.rows[0].tags)
+            ? tagRow.rows[0].tags.map(String)
+            : []
+        }
+      } catch (_) {}
+    }
+    if (!industryTags.includes('GENERAL')) industryTags = [...industryTags, 'GENERAL']
+    const ALL_TAGS = [
+      { tag: 'DOUONG', label: 'Đồ uống' }, { tag: 'DOAN', label: 'Đồ ăn' },
+      { tag: 'AOQUAN', label: 'Quần áo' }, { tag: 'GIAYDEP', label: 'Giày dép' },
+      { tag: 'PHUKIEN', label: 'Phụ kiện' }, { tag: 'DULICH', label: 'Du lịch' },
+      { tag: 'BOOKING', label: 'Booking/Khách sạn' }, { tag: 'GIAODUC', label: 'Giáo dục' },
+      { tag: 'SUCKHOE', label: 'Sức khỏe' }, { tag: 'SPA', label: 'Spa' },
+      { tag: 'GYM', label: 'Gym/Yoga' }, { tag: 'MYPHAM', label: 'Mỹ phẩm' },
+      { tag: 'TOCHUC', label: 'Salon tóc' }, { tag: 'CONGNGHE', label: 'Công nghệ' },
+      { tag: 'NOITHAT', label: 'Nội thất' }, { tag: 'XAYDUNG', label: 'Xây dựng' },
+      { tag: 'BATDONGSAN', label: 'Bất động sản' }, { tag: 'OTO', label: 'Ô tô' },
+      { tag: 'XEMAY', label: 'Xe máy' }, { tag: 'THUYCUNG', label: 'Thú cưng' },
+      { tag: 'HOAQUA', label: 'Hoa quả' }, { tag: 'HOA', label: 'Hoa tươi' },
+      { tag: 'SUKIEN', label: 'Sự kiện' }, { tag: 'NHIEPAN', label: 'Nhiếp ảnh' },
+      { tag: 'INANUONG', label: 'In ấn' }, { tag: 'VANTAI', label: 'Vận tải' },
+      { tag: 'TAICHINH', label: 'Tài chính' }, { tag: 'LUATPHAP', label: 'Luật' },
+      { tag: 'NONGSAN', label: 'Nông sản' }, { tag: 'THUISAN', label: 'Thủy hải sản' },
+      { tag: 'TREEM', label: 'Trẻ em' }, { tag: 'THETHAO', label: 'Thể thao' },
+      { tag: 'GAME', label: 'Game' }, { tag: 'SACH', label: 'Sách' },
+      { tag: 'DIENGIA', label: 'Điện gia dụng' }, { tag: 'NHACCU', label: 'Nhạc cụ' },
+      { tag: 'HANDMADE', label: 'Handmade' }, { tag: 'NGOAINGU', label: 'Ngoại ngữ' },
+      { tag: 'GENERAL', label: 'Chung (tất cả ngành)' },
+    ]
+    res.json({ industry, tags: industryTags, allTags: ALL_TAGS })
+  } catch (err) {
+    console.error('industry-tags error:', err)
+    res.status(500).json({ error: 'Failed to get industry tags' })
   } finally {
     client.release()
   }

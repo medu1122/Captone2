@@ -6,6 +6,7 @@ import UserMenu from '../components/UserMenu'
 
 const shopNavItems = [
   { path: '', labelKey: 'shopDetail.nav.dashboard' },
+  { path: 'products', labelKey: 'shopDetail.nav.products' },
   { path: 'image-bot', labelKey: 'shopDetail.nav.imageBot' },
   { path: 'storage', labelKey: 'shopDetail.nav.storage' },
   { path: 'marketing', labelKey: 'shopDetail.nav.marketing' },

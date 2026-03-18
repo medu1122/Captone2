@@ -20,6 +20,8 @@ import ShopMarketingPage from './pages/shop/ShopMarketingPage'
 import ShopPipelinePage from './pages/shop/ShopPipelinePage'
 import ShopWebsitePage from './pages/shop/ShopWebsitePage'
 import ShopEditPage from './pages/shop/ShopEditPage'
+import ShopProductsPage from './pages/shop/ShopProductsPage'
+import AdminContainersPage from './pages/admin/AdminContainersPage'
 
 function App() {
   return (
@@ -86,6 +88,17 @@ function App() {
           <Route path="pipeline" element={<ShopPipelinePage />} />
           <Route path="website" element={<ShopWebsitePage />} />
           <Route path="edit" element={<ShopEditPage />} />
+          <Route path="products" element={<ShopProductsPage />} />
+        </Route>
+        <Route
+          path="/admin"
+          element={
+            <ProtectedRoute>
+              <DashboardLayout />
+            </ProtectedRoute>
+          }
+        >
+          <Route path="containers" element={<AdminContainersPage />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

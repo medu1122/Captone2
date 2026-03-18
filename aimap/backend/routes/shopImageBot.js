@@ -144,36 +144,6 @@ router.post('/:id/images/generate', requireAuth, async (req, res) => {
       userPrompt,
     })
     const out = await generateImageVariants(finalPrompt, aspect, model, variantCount)
-    // #region agent log
-    fetch('http://127.0.0.1:7761/ingest/05cf90d4-996a-4cce-828d-8d12f370426f', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'bb1f55' },
-      body: JSON.stringify({
-        sessionId: 'bb1f55',
-        runId: 'pre-qa',
-        hypothesisId: 'H1',
-        location: 'shopImageBot.js:images/generate',
-        message: 'generate variants ok',
-        data: {
-          urlCount: out.urls?.length ?? 0,
-          dataUrlCount: out.dataUrls?.length ?? 0,
-          model: String(out.modelSource || ''),
-          variantCount,
-        },
-        timestamp: Date.now(),
-      }),
-    }).catch(() => {})
-    // #endregion
-    agentDbgFile({
-      hypothesisId: 'H1',
-      location: 'shopImageBot.js:images/generate:file',
-      message: 'generate variants ok',
-      data: {
-        urlCount: out.urls?.length ?? 0,
-        dataUrlCount: out.dataUrls?.length ?? 0,
-        model: String(out.modelSource || ''),
-      },
-    })
     res.json({
       image_urls: out.urls,
       image_data_urls: out.dataUrls,
@@ -183,27 +153,6 @@ router.post('/:id/images/generate', requireAuth, async (req, res) => {
     })
   } catch (err) {
     console.error('images/generate error:', err)
-    // #region agent log
-    fetch('http://127.0.0.1:7761/ingest/05cf90d4-996a-4cce-828d-8d12f370426f', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'bb1f55' },
-      body: JSON.stringify({
-        sessionId: 'bb1f55',
-        runId: 'pre-qa',
-        hypothesisId: 'H1',
-        location: 'shopImageBot.js:images/generate:catch',
-        message: 'generate failed',
-        data: { err: String(err?.message || err).slice(0, 200) },
-        timestamp: Date.now(),
-      }),
-    }).catch(() => {})
-    // #endregion
-    agentDbgFile({
-      hypothesisId: 'H1',
-      location: 'shopImageBot.js:images/generate:catch',
-      message: 'generate failed',
-      data: { err: String(err?.message || err).slice(0, 200) },
-    })
     res.status(502).json({ error: err.message || 'Image generation failed' })
   } finally {
     client.release()
@@ -272,54 +221,12 @@ router.post('/:id/images/save', requireAuth, async (req, res) => {
     } catch (e) {
       console.warn('activity log save_generated_image:', e.message)
     }
-    // #region agent log
-    fetch('http://127.0.0.1:7761/ingest/05cf90d4-996a-4cce-828d-8d12f370426f', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'bb1f55' },
-      body: JSON.stringify({
-        sessionId: 'bb1f55',
-        runId: 'pre-qa',
-        hypothesisId: 'H3',
-        location: 'shopImageBot.js:images/save',
-        message: 'save ok',
-        data: { assetId: String(ins.rows[0]?.id || ''), hasPublicUrl: Boolean(ins.rows[0]?.storage_path_or_url) },
-        timestamp: Date.now(),
-      }),
-    }).catch(() => {})
-    // #endregion
-    agentDbgFile({
-      hypothesisId: 'H3',
-      location: 'shopImageBot.js:images/save:file',
-      message: 'save ok',
-      data: { assetIdPrefix: String(ins.rows[0]?.id || '').slice(0, 8) },
-    })
     res.status(201).json({ asset: ins.rows[0] })
   } catch (err) {
     if (err.code === '42P01') {
       return res.status(503).json({ error: 'assets table not available' })
     }
     console.error('images/save error:', err)
-    agentDbgFile({
-      hypothesisId: 'H3',
-      location: 'shopImageBot.js:images/save:catch',
-      message: 'save failed',
-      data: { code: err.code, err: String(err?.message || err).slice(0, 200) },
-    })
-    // #region agent log
-    fetch('http://127.0.0.1:7761/ingest/05cf90d4-996a-4cce-828d-8d12f370426f', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'bb1f55' },
-      body: JSON.stringify({
-        sessionId: 'bb1f55',
-        runId: 'pre-qa',
-        hypothesisId: 'H3',
-        location: 'shopImageBot.js:images/save:catch',
-        message: 'save failed',
-        data: { code: err.code, err: String(err?.message || err).slice(0, 200) },
-        timestamp: Date.now(),
-      }),
-    }).catch(() => {})
-    // #endregion
     res.status(500).json({ error: err.message || 'Failed to save image' })
   } finally {
     client.release()
@@ -431,6 +338,7 @@ router.put('/:id/products', requireAuth, async (req, res) => {
     price: p?.price,
     description: p?.description != null ? String(p.description) : undefined,
     image_url: p?.image_url != null ? String(p.image_url) : undefined,
+    tags: Array.isArray(p?.tags) ? p.tags.map(String) : undefined,
   }))
   const client = await pool.connect()
   try {

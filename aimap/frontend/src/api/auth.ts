@@ -26,6 +26,7 @@ export interface AuthUser {
   id: string
   email: string
   name: string
+  role?: string
   locale?: string
   avatarUrl?: string | null
   // Extended profile fields (from /auth/me)

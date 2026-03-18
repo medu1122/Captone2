@@ -10,6 +10,7 @@ import authRoutes from './routes/auth.js'
 import adminRoutes from './routes/admin.js'
 import shopsRoutes from './routes/shops.js'
 import shopImageBotRoutes from './routes/shopImageBot.js'
+import shopDeployRoutes from './routes/shopDeploy.js'
 import { getUploadRoot } from './services/assetStorage.js'
 
 const app = express()
@@ -31,6 +32,7 @@ app.use('/api/auth', authRoutes)
 app.use('/api/admin', adminRoutes)
 app.use('/api/shops', shopsRoutes)
 app.use('/api/shops', shopImageBotRoutes)
+app.use('/api/shops', shopDeployRoutes)
 
 await connectDB()
 

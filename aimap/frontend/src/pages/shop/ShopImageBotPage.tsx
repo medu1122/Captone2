@@ -72,28 +72,9 @@ export default function ShopImageBotPage() {
   const loadAssets = useCallback(() => {
     if (!token || !shopId) return
     setAssetsLoading(true)
-    shopsApi.listAssets(token, shopId).then(({ data, error, status }) => {
+    shopsApi.listAssets(token, shopId).then(({ data }) => {
       setAssetsLoading(false)
       if (data?.assets) setAssets(data.assets)
-      // #region agent log
-      fetch('http://127.0.0.1:7761/ingest/05cf90d4-996a-4cce-828d-8d12f370426f', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'bb1f55' },
-        body: JSON.stringify({
-          sessionId: 'bb1f55',
-          runId: 'pre-qa',
-          hypothesisId: 'H4',
-          location: 'ShopImageBotPage.tsx:listAssets',
-          message: 'assets loaded',
-          data: {
-            count: data?.assets?.length ?? 0,
-            status,
-            listError: Boolean(error),
-          },
-          timestamp: Date.now(),
-        }),
-      }).catch(() => {})
-      // #endregion
     })
   }, [token, shopId])
 
@@ -122,27 +103,6 @@ export default function ShopImageBotPage() {
         model: state.model === 'gpt' ? 'openai' : 'gemini',
         variant_count: 3,
       })
-      // #region agent log
-      fetch('http://127.0.0.1:7761/ingest/05cf90d4-996a-4cce-828d-8d12f370426f', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'bb1f55' },
-        body: JSON.stringify({
-          sessionId: 'bb1f55',
-          runId: 'pre-qa',
-          hypothesisId: 'H5',
-          location: 'ShopImageBotPage.tsx:generate response',
-          message: 'generateImages client',
-          data: {
-            status,
-            hasError: Boolean(error),
-            hasData: Boolean(data),
-            urlLen: data?.image_urls?.length ?? -1,
-            dataUrlLen: data?.image_data_urls?.length ?? -1,
-          },
-          timestamp: Date.now(),
-        }),
-      }).catch(() => {})
-      // #endregion
       if (error || status >= 400 || !data) {
         showToast(error ?? t('imageBot.generateError'))
         return
@@ -158,25 +118,6 @@ export default function ShopImageBotPage() {
         return { id, imageUrl: url, placeholder: !url }
       })
       setSlots(next)
-      // #region agent log
-      fetch('http://127.0.0.1:7761/ingest/05cf90d4-996a-4cce-828d-8d12f370426f', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'bb1f55' },
-        body: JSON.stringify({
-          sessionId: 'bb1f55',
-          runId: 'pre-qa',
-          hypothesisId: 'H2',
-          location: 'ShopImageBotPage.tsx:slots after generate',
-          message: 'slots filled',
-          data: {
-            filledSlots: next.filter((s) => s.imageUrl).length,
-            anyDataUrl: next.some((s) => s.imageUrl?.startsWith('data:')),
-            anyHttp: next.some((s) => s.imageUrl?.startsWith('http')),
-          },
-          timestamp: Date.now(),
-        }),
-      }).catch(() => {})
-      // #endregion
       if (!next.some((s) => s.imageUrl)) showToast(t('imageBot.generateError'))
     } finally {
       setGenerating(false)
@@ -199,21 +140,6 @@ export default function ShopImageBotPage() {
     if (slot.imageUrl.startsWith('data:')) body.image_base64 = slot.imageUrl
     else body.image_url = slot.imageUrl
     const { error, status } = await shopsApi.saveImage(token, shopId, body)
-    // #region agent log
-    fetch('http://127.0.0.1:7761/ingest/05cf90d4-996a-4cce-828d-8d12f370426f', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'bb1f55' },
-      body: JSON.stringify({
-        sessionId: 'bb1f55',
-        runId: 'pre-qa',
-        hypothesisId: 'H3',
-        location: 'ShopImageBotPage.tsx:save',
-        message: 'saveImage client',
-        data: { status, hasError: Boolean(error), base64: Boolean(body.image_base64) },
-        timestamp: Date.now(),
-      }),
-    }).catch(() => {})
-    // #endregion
     if (error || status >= 400) {
       showToast(error ?? t('imageBot.saveFailed'))
       return

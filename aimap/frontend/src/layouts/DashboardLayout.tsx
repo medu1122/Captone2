@@ -5,8 +5,9 @@ import { useLocale } from '../contexts/LocaleContext'
 import UserMenu from '../components/UserMenu'
 
 const navItems = [
-  { path: '/dashboard', labelKey: 'dashboard.title' },
-  { path: '/shops', labelKey: 'nav.shops' },
+  { path: '/dashboard', labelKey: 'dashboard.title', adminOnly: false },
+  { path: '/shops', labelKey: 'nav.shops', adminOnly: false },
+  { path: '/admin/containers', labelKey: 'admin.containers', adminOnly: true },
 ]
 
 export default function DashboardLayout() {
@@ -23,7 +24,8 @@ export default function DashboardLayout() {
         </div>
         <div className="flex-1 flex flex-col justify-between">
           <nav className="p-3 flex flex-col gap-0.5">
-            {navItems.map(({ path, labelKey }) => {
+            {navItems.map(({ path, labelKey, adminOnly }) => {
+              if (adminOnly && user?.role !== 'admin') return null
               const active = location.pathname === path || (path !== '/dashboard' && location.pathname.startsWith(path))
               return (
                 <Link

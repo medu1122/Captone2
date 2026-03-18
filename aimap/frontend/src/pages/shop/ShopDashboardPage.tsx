@@ -21,6 +21,7 @@ export default function ShopDashboardPage() {
 
   const storagePath = id ? `/shops/${id}/storage` : '/shops'
   const imageBotPath = id ? `/shops/${id}/image-bot` : '/shops'
+  const productsPath = id ? `/shops/${id}/products` : '/shops'
 
   const load = useCallback(() => {
     if (!token || !id) return
@@ -44,7 +45,16 @@ export default function ShopDashboardPage() {
     <div className="space-y-6">
       <p className="text-slate-600 text-sm">{t('shopDetail.dashboardIntro')}</p>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+        <div className="bg-white border border-slate-300 rounded-lg p-6">
+          <span className="text-sm font-medium text-slate-600">{t('shopDetail.stats.products')}</span>
+          <p className="text-2xl font-bold text-slate-900 mt-1">
+            {contentCount === null ? '…' : contentCount}
+          </p>
+          <Link to={productsPath} className="text-xs text-primary font-medium mt-2 inline-block hover:underline">
+            {t('shopDetail.nav.products')} →
+          </Link>
+        </div>
         <div className="bg-white border border-slate-300 rounded-lg p-6">
           <span className="text-sm font-medium text-slate-600">{t('shopDetail.stats.images')}</span>
           <p className="text-2xl font-bold text-slate-900 mt-1">

@@ -1,0 +1,18 @@
+---
+description: Quy định về tài liệu API — mọi thay đổi endpoint phải cập nhật danhsach_API.md
+alwaysApply: true
+---
+
+# Tài liệu API
+
+**File duy nhất** chứa note về API, danh sách endpoints, và hướng dẫn sử dụng:
+
+```
+aimap/backend/danhsach_API.md
+```
+
+## Quy tắc bắt buộc
+
+- Khi **thêm**, **sửa**, hoặc **xóa** bất kỳ endpoint nào trong backend → phải cập nhật `aimap/backend/danhsach_API.md` ngay trong cùng lần chỉnh sửa.
+- **Không tạo thêm** file tài liệu API khác (ví dụ `API.md`, `endpoints.md`, `routes.md`…). File `API.md` đã bị xóa.
+- Mọi note, cảnh báo, endpoint tạm thời đều ghi vào `danhsach_API.md`.
