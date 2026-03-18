@@ -341,11 +341,18 @@ Lọc theo tag từ `industry_tag_mappings` khớp `shops.industry`. Trả `{ "p
 **POST /shops/:id/images/generate** - Tạo ảnh (OpenAI / Gemini)
 ```
 Body:
-  prompt_template_id (optional), aspect (1:1|2:3|…), image_style / style,
-  shop_only, selectedProductKeys hoặc product_indices, user_prompt,
-  model: "openai"|"gemini"|"gpt"|"google", variant_count (1–5, default 3)
+  prompt_template_id (optional — nếu bỏ trống tự động chọn template theo ngành shop),
+  aspect (1:1|2:3|3:2|4:5|16:9),
+  image_style / style (ad|product_intro|price_board|banner_shop),
+  shop_only (boolean),
+  selectedProductKeys hoặc product_indices,
+  user_prompt (ý tưởng thêm từ user),
+  ref_images (optional — mảng base64 data URL ảnh tham khảo, dùng cho Gemini multimodal),
+  model: "openai"|"gemini"|"gpt"|"google",
+  variant_count (1–5, default 3)
 ```
 Trả: `image_urls[]`, `image_data_urls[]`, `model_source`, `prompt_template_id`, `final_prompt`.
+Trừ credit sau khi tạo thành công: `IMAGE_GENERATE_CREDIT_COST × variant_count` credit (default 10/variant).
 
 ---
 
@@ -366,8 +373,9 @@ Body: edit_prompt, model, aspect, base_prompt (optional)
 
 **POST /shops/:id/images/rebuild** - Tạo lại như generate (override_prompt / user_prompt / template)
 ```
-Body tương tự generate + override_prompt (optional)
+Body tương tự generate + override_prompt (optional) + ref_images (optional)
 ```
+Trừ credit tương tự generate.
 
 ---
 

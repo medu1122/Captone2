@@ -92,6 +92,8 @@ export interface GenerateImagesBody {
   user_prompt?: string
   model?: string
   variant_count?: number
+  /** Array of base64 data URLs for reference images (Gemini multimodal) */
+  ref_images?: string[]
 }
 
 export interface GenerateImagesResponse {
@@ -180,6 +182,7 @@ export const shopsApi = {
       model?: string
       aspect?: string
       base_prompt?: string
+      ref_images?: string[]
     }
   ) =>
     apiFetch<{ image_urls: string[]; image_data_urls: string[]; model_source: string }>(

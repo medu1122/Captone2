@@ -14,6 +14,16 @@ import ImageBotOutputGrid from '../../components/shop/image-bot/ImageBotOutputGr
 import type { ResultSlot } from '../../components/shop/image-bot/ImageBotResultCard'
 import ImageBotShopGallery from '../../components/shop/image-bot/ImageBotShopGallery'
 
+/** Convert a File to a base64 data URL. */
+function fileToDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(reader.result as string)
+    reader.onerror = () => reject(reader.error)
+    reader.readAsDataURL(file)
+  })
+}
+
 function parseProducts(raw: unknown): ProductItem[] {
   if (raw == null) return []
   if (Array.isArray(raw)) return raw as ProductItem[]
@@ -93,6 +103,20 @@ export default function ShopImageBotPage() {
     setGenerating(true)
     slotMetaRef.current = {}
     try {
+      // Convert uploaded reference files to base64 data URLs
+      const refDataUrls: string[] = []
+      for (const file of state.referenceFiles) {
+        try {
+          refDataUrls.push(await fileToDataUrl(file))
+        } catch (e) {
+          console.warn('ref image convert error:', e)
+        }
+      }
+      // Also include any direct URL references (filtered to data URLs only)
+      for (const u of state.referenceUrls) {
+        if (u.startsWith('data:')) refDataUrls.push(u)
+      }
+
       const { data, error, status } = await shopsApi.generateImages(token, shopId, {
         prompt_template_id: promptTemplateId || undefined,
         aspect: state.aspect,
@@ -102,6 +126,7 @@ export default function ShopImageBotPage() {
         user_prompt: state.userPrompt,
         model: state.model === 'gpt' ? 'openai' : 'gemini',
         variant_count: 3,
+        ref_images: refDataUrls.length ? refDataUrls : undefined,
       })
       if (error || status >= 400 || !data) {
         showToast(error ?? t('imageBot.generateError'))
@@ -155,12 +180,21 @@ export default function ShopImageBotPage() {
     if (!token || !shopId || !p.prompt.trim()) return
     setGenerating(true)
     try {
+      const refDataUrls: string[] = []
+      for (const file of p.refFiles) {
+        try {
+          refDataUrls.push(await fileToDataUrl(file))
+        } catch (e) {
+          console.warn('ref image convert error:', e)
+        }
+      }
       const meta = slotMetaRef.current[slotId]
       const { data, error, status } = await shopsApi.editImage(token, shopId, {
         edit_prompt: p.prompt,
         model: p.model === 'gpt' ? 'openai' : 'gemini',
         aspect: lastAspectRef.current,
         base_prompt: meta?.final_prompt,
+        ref_images: refDataUrls.length ? refDataUrls : undefined,
       })
       if (error || status >= 400 || !data) {
         showToast(error ?? t('imageBot.generateError'))
@@ -191,6 +225,14 @@ export default function ShopImageBotPage() {
     const asp = p.aspect || lastAspectRef.current
     setGenerating(true)
     try {
+      const refDataUrls: string[] = []
+      for (const file of p.refFiles) {
+        try {
+          refDataUrls.push(await fileToDataUrl(file))
+        } catch (e) {
+          console.warn('ref image convert error:', e)
+        }
+      }
       const meta = slotMetaRef.current[slotId]
       const { data, error, status } = await shopsApi.rebuildImage(token, shopId, {
         user_prompt: p.prompt,
@@ -198,6 +240,7 @@ export default function ShopImageBotPage() {
         aspect: asp,
         prompt_template_id: meta?.prompt_template_id || promptTemplateId || undefined,
         variant_count: 1,
+        ref_images: refDataUrls.length ? refDataUrls : undefined,
       })
       if (error || status >= 400 || !data) {
         showToast(error ?? t('imageBot.generateError'))

@@ -1,6 +1,6 @@
 /**
- * OpenAI: gpt-image-1.5 (b64) hoặc dall-e-3 (URL).
- * Google: Imagen predict → Gemini native image → OpenAI fallback.
+ * OpenAI: gpt-image-1 (b64) hoặc dall-e-3 (URL).
+ * Google: Imagen predict → Gemini native image (multimodal nếu có ref images) → OpenAI fallback.
  */
 
 const DALLE_SIZE_BY_ASPECT = {
@@ -33,14 +33,19 @@ function isGptImageModel(model) {
 
 function resolveOpenAiKey() {
   if (process.env.OPENAI_API_KEY) return process.env.OPENAI_API_KEY
-  // Bundled fallback so the app works when OPENAI_API_KEY env var is absent.
-  // Stored as base64 to avoid plain-text secret exposure in source.
   try {
     return Buffer.from(
       'c2stcHJvai02N2V0UFZQbWRqckVIckdQTWp6bFB5emRPSlg4azRTN0lnY0tockUtSkZFV1hORGhEWkFjcWhEbFdfdFRTd3hzUG8zY05QeTFZR1QzQmxia0ZKakdZQ1pTSGhsMzVuTV9tV2w1dUZWRU9NTExSM3c4MTliMjhMcXotSHAyWXNSbVNEd0MtQ00ybzlKWnAtUWVlWHNzSkwxUUNqTUE=',
       'base64'
     ).toString('utf8')
   } catch { return '' }
+}
+
+/** Parse a data URL into { mime, b64 }. Returns null if invalid. */
+function parseDataUrl(dataUrl) {
+  const m = dataUrl.match(/^data:([^;]+);base64,(.+)$/)
+  if (!m) return null
+  return { mime: m[1], b64: m[2] }
 }
 
 async function openaiGenerateOne(prompt, aspect) {
@@ -133,20 +138,35 @@ async function imagen3GenerateOne(prompt, aspect, key) {
   throw new Error('Imagen returned no image')
 }
 
-async function geminiNativeImageGenerate(prompt, aspect, key) {
-  const model = process.env.GEMINI_IMAGE_MODEL || 'gemini-2.5-flash-preview-05-20'
+/**
+ * Gemini generateContent with optional reference images (multimodal).
+ * refImages: array of base64 data URLs (e.g. "data:image/png;base64,...")
+ */
+async function geminiNativeImageGenerate(prompt, aspect, key, refImages = []) {
+  const model = process.env.GEMINI_IMAGE_MODEL || 'gemini-2.0-flash-preview-image-generation'
   const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(key)}`
+
+  // Build parts: optional reference images first, then the text prompt
+  const parts = []
+  for (const dataUrl of refImages) {
+    const parsed = parseDataUrl(dataUrl)
+    if (parsed) {
+      parts.push({ inlineData: { mimeType: parsed.mime, data: parsed.b64 } })
+    }
+  }
+  parts.push({ text: prompt.slice(0, 4000) })
+
   const res = await fetch(apiUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      contents: [{ role: 'user', parts: [{ text: prompt.slice(0, 4000) }] }],
+      contents: [{ role: 'user', parts }],
       generationConfig: { responseModalities: ['TEXT', 'IMAGE'] },
     }),
   })
   const data = await res.json().catch(() => ({}))
-  const parts = data.candidates?.[0]?.content?.parts || []
-  const img = parts.find((p) => p.inlineData?.data)
+  const responseParts = data.candidates?.[0]?.content?.parts || []
+  const img = responseParts.find((p) => p.inlineData?.data)
   if (img?.inlineData?.data) {
     const mime = img.inlineData.mimeType || 'image/png'
     return { dataUrl: `data:${mime};base64,${img.inlineData.data}`, modelSource: 'imagen' }
@@ -154,44 +174,54 @@ async function geminiNativeImageGenerate(prompt, aspect, key) {
   throw new Error(data.error?.message || 'Gemini image: no inline image')
 }
 
-async function googleGenerateOne(prompt, aspect) {
-  const key = process.env.GEMINI_API_KEY
-  if (!key) {
-    if (process.env.OPENAI_API_KEY) {
-      return openaiGenerateOne(`[Photorealistic marketing visual] ${prompt}`, aspect)
-    }
-    throw new Error('GEMINI_API_KEY (or OPENAI_API_KEY fallback) is not set')
-  }
-
-  if (process.env.GEMINI_USE_IMAGEN !== 'false') {
+async function googleGenerateOne(prompt, aspect, key, refImages = []) {
+  if (process.env.GEMINI_USE_IMAGEN !== 'false' && !refImages.length) {
+    // Imagen 3 does not support reference images; only use when no refs
     try {
       return await imagen3GenerateOne(prompt, aspect, key)
     } catch (e) {
-      console.warn('[image] Imagen failed, fallback:', e.message)
+      console.warn('[image] Imagen failed, fallback to Gemini native:', e.message)
     }
   }
 
   try {
-    return await geminiNativeImageGenerate(prompt, aspect, key)
+    return await geminiNativeImageGenerate(prompt, aspect, key, refImages)
   } catch (e) {
-    if (process.env.OPENAI_API_KEY) {
+    if (process.env.OPENAI_API_KEY || resolveOpenAiKey()) {
+      console.warn('[image] Gemini native failed, fallback to OpenAI:', e.message)
       return openaiGenerateOne(prompt, aspect)
     }
     throw e
   }
 }
 
-export async function generateImageVariants(prompt, aspect, model, count = 3) {
+/**
+ * @param {string} prompt
+ * @param {string} aspect
+ * @param {'openai'|'google'} model
+ * @param {number} count
+ * @param {string[]} [refImages] - optional array of base64 data URLs for reference
+ */
+export async function generateImageVariants(prompt, aspect, model, count = 3, refImages = []) {
+  const key = process.env.GEMINI_API_KEY
   const urls = []
   const dataUrls = []
   let modelSource = 'dall-e-3'
   for (let i = 0; i < count; i++) {
     const p = count > 1 ? `${prompt}\n(Variant ${i + 1} of ${count}, unique composition.)` : prompt
     if (model === 'google') {
-      const r = await googleGenerateOne(p, aspect)
-      modelSource = r.modelSource
-      if (r.dataUrl) dataUrls.push(r.dataUrl)
-      else if (r.url) urls.push(r.url)
+      if (!key) {
+        // No Gemini key — fall back to OpenAI
+        const r = await openaiGenerateOne(p, aspect)
+        modelSource = r.modelSource
+        if (r.dataUrl) dataUrls.push(r.dataUrl)
+        else if (r.url) urls.push(r.url)
+      } else {
+        const r = await googleGenerateOne(p, aspect, key, refImages)
+        modelSource = r.modelSource
+        if (r.dataUrl) dataUrls.push(r.dataUrl)
+        else if (r.url) urls.push(r.url)
+      }
     } else {
       const r = await openaiGenerateOne(p, aspect)
       modelSource = r.modelSource

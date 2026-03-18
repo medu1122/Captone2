@@ -8,9 +8,11 @@ import { logActivity } from '../services/activityLog.js'
 import { buildImagePrompt } from '../services/imagePromptBuilder.js'
 import { generateImageVariants } from '../services/imageGeneration.js'
 import { saveShopAssetFile, fetchImageToBuffer, parseDataUrl } from '../services/assetStorage.js'
-import { agentDbgFile } from '../utils/agentDbgFile.js'
 
 const router = Router()
+
+// Credit cost per generate call (can override via env IMAGE_GENERATE_CREDIT_COST)
+const CREDIT_COST_GENERATE = Math.max(1, parseInt(process.env.IMAGE_GENERATE_CREDIT_COST || '10', 10))
 
 async function shopOwnedBy(client, shopId, profileId) {
   const r = await client.query('SELECT * FROM shops WHERE id = $1', [shopId])
@@ -30,6 +32,86 @@ function parseProductsJson(shop) {
   if (Array.isArray(p)) return p
   if (p && typeof p === 'object') return Object.values(p)
   return []
+}
+
+/**
+ * Resolve a prompt template by ID, or auto-pick one filtered by the shop's
+ * industry tags (same logic as GET /:id/image-prompts).
+ * Returns { templateId, content } or throws if none found.
+ */
+async function resolveTemplate(client, templateIdInput, shop) {
+  if (templateIdInput) {
+    const t = await client.query(
+      "SELECT id, content FROM prompt_templates WHERE id = $1 AND category = 'image' AND is_active = true",
+      [templateIdInput]
+    )
+    if (!t.rows.length) throw Object.assign(new Error('Invalid prompt_template_id'), { status: 400 })
+    return { templateId: t.rows[0].id, content: t.rows[0].content }
+  }
+
+  // Auto-pick: try to filter by industry tags first
+  let tagList = []
+  try {
+    const map = await client.query(
+      'SELECT tags FROM industry_tag_mappings WHERE TRIM(industry) = TRIM($1) LIMIT 1',
+      [String(shop.industry || '')]
+    )
+    const tags = map.rows[0]?.tags
+    if (Array.isArray(tags)) tagList = tags.map(String)
+  } catch (_) {}
+
+  let picked = null
+
+  if (tagList.length) {
+    // GIN overlap filter: pick a random template that matches the industry tags
+    try {
+      const taggedResult = await client.query(
+        `SELECT id, content FROM prompt_templates
+         WHERE category = 'image' AND is_active = true
+           AND tags::jsonb ?| $1
+         ORDER BY sort_order NULLS LAST, RANDOM()
+         LIMIT 1`,
+        [tagList]
+      )
+      if (taggedResult.rows.length) picked = taggedResult.rows[0]
+    } catch (_) {}
+  }
+
+  if (!picked) {
+    // Fallback: any active image template
+    const fallback = await client.query(
+      `SELECT id, content FROM prompt_templates
+       WHERE category = 'image' AND is_active = true
+       ORDER BY sort_order NULLS LAST, RANDOM()
+       LIMIT 1`
+    )
+    if (!fallback.rows.length) {
+      throw Object.assign(
+        new Error('No image prompt templates; run npm run seed:prompt-images'),
+        { status: 503 }
+      )
+    }
+    picked = fallback.rows[0]
+  }
+
+  return { templateId: picked.id, content: picked.content }
+}
+
+/**
+ * Deduct credits for image generation. Non-fatal: logs a warning on failure
+ * so a credit DB issue never blocks image delivery.
+ */
+async function deductImageCredit(profileId, shopId, variantCount) {
+  const amount = -(CREDIT_COST_GENERATE * variantCount)
+  try {
+    await pool.query(
+      `INSERT INTO credit_transactions (user_id, amount, type, reference_type, reference_id, description)
+       VALUES ($1, $2, 'deduct', 'image_generate', $3, $4)`,
+      [profileId, amount, shopId, `Image generation (${variantCount} variant${variantCount > 1 ? 's' : ''})`]
+    )
+  } catch (e) {
+    console.warn('[credit] deductImageCredit failed (non-fatal):', e.message)
+  }
 }
 
 router.get('/:id/image-prompts', requireAuth, async (req, res) => {
@@ -91,9 +173,6 @@ router.get('/:id/image-prompts', requireAuth, async (req, res) => {
 })
 
 router.post('/:id/images/generate', requireAuth, async (req, res) => {
-  // #region agent log
-  console.error('[bb1f55][H:api-key] generate called. OPENAI_KEY_SET=' + !!process.env.OPENAI_API_KEY + ' GEMINI_KEY_SET=' + !!process.env.GEMINI_API_KEY + ' API_PUBLIC_URL=' + process.env.API_PUBLIC_URL)
-  // #endregion
   const profileId = req.auth.profileId
   const { id } = req.params
   const b = req.body || {}
@@ -103,31 +182,23 @@ router.post('/:id/images/generate', requireAuth, async (req, res) => {
   const userPrompt = String(b.user_prompt || '')
   const model = apiModel(b.model)
   const variantCount = Math.min(5, Math.max(1, Number(b.variant_count) || 3))
+  // ref_images: array of base64 data URLs from the frontend upload
+  const refImages = Array.isArray(b.ref_images)
+    ? b.ref_images.filter((x) => typeof x === 'string' && x.startsWith('data:'))
+    : []
   const client = await pool.connect()
   try {
     const o = await shopOwnedBy(client, id, profileId)
     if (o.err) return res.status(o.err).json({ error: o.msg })
     const { shop } = o
-    let content = ''
-    let templateId = b.prompt_template_id || null
-    if (templateId) {
-      const t = await client.query(
-        "SELECT id, content FROM prompt_templates WHERE id = $1 AND category = 'image' AND is_active = true",
-        [templateId]
-      )
-      if (!t.rows.length) return res.status(400).json({ error: 'Invalid prompt_template_id' })
-      content = t.rows[0].content
-    } else {
-      const ip = await client.query(
-        `SELECT id, content FROM prompt_templates WHERE category = 'image' AND is_active = true
-         ORDER BY sort_order NULLS LAST, RANDOM() LIMIT 1`
-      )
-      if (!ip.rows.length) {
-        return res.status(503).json({ error: 'No image prompt templates; run npm run seed:prompt-images' })
-      }
-      templateId = ip.rows[0].id
-      content = ip.rows[0].content
+
+    let templateId, content
+    try {
+      ;({ templateId, content } = await resolveTemplate(client, b.prompt_template_id || null, shop))
+    } catch (e) {
+      return res.status(e.status || 503).json({ error: e.message })
     }
+
     const products = parseProductsJson(shop)
     let selected = products
     if (!shopOnly && Array.isArray(b.product_indices)) {
@@ -137,6 +208,9 @@ router.post('/:id/images/generate', requireAuth, async (req, res) => {
         b.selectedProductKeys.includes(String(p?.id ?? `${i}-${p?.name}`))
       )
     }
+
+    // gpt-image-1 supports longer prompts; use 28000 to leave headroom
+    const maxLength = model === 'openai' ? 28000 : 3900
     const finalPrompt = buildImagePrompt({
       templateContent: content,
       shop,
@@ -145,8 +219,14 @@ router.post('/:id/images/generate', requireAuth, async (req, res) => {
       shopOnly,
       selectedProducts: selected,
       userPrompt,
+      maxLength,
     })
-    const out = await generateImageVariants(finalPrompt, aspect, model, variantCount)
+
+    const out = await generateImageVariants(finalPrompt, aspect, model, variantCount, refImages)
+
+    // Deduct credits after successful generation (non-fatal)
+    await deductImageCredit(profileId, id, variantCount)
+
     res.json({
       image_urls: out.urls,
       image_data_urls: out.dataUrls,
@@ -244,13 +324,16 @@ router.post('/:id/images/edit', requireAuth, async (req, res) => {
   if (!editPrompt) return res.status(400).json({ error: 'edit_prompt required' })
   const aspect = b.aspect || '1:1'
   const model = apiModel(b.model)
+  const refImages = Array.isArray(b.ref_images)
+    ? b.ref_images.filter((x) => typeof x === 'string' && x.startsWith('data:'))
+    : []
   const client = await pool.connect()
   try {
     const o = await shopOwnedBy(client, id, profileId)
     if (o.err) return res.status(o.err).json({ error: o.msg })
     const base = String(b.base_prompt || '').slice(0, 2000)
     const augmented = `${base ? `${base}\n\n` : ''}[Image edit request] ${editPrompt}\nProduce a revised marketing image matching the request.`
-    const out = await generateImageVariants(augmented, aspect, model, 1)
+    const out = await generateImageVariants(augmented, aspect, model, 1, refImages)
     res.json({
       image_urls: out.urls,
       image_data_urls: out.dataUrls,
@@ -274,35 +357,34 @@ router.post('/:id/images/rebuild', requireAuth, async (req, res) => {
   const userPrompt = String(b.user_prompt || '')
   const model = apiModel(b.model)
   const variantCount = Math.min(5, Math.max(1, Number(b.variant_count) || 1))
+  const refImages = Array.isArray(b.ref_images)
+    ? b.ref_images.filter((x) => typeof x === 'string' && x.startsWith('data:'))
+    : []
   const client = await pool.connect()
   try {
     const o = await shopOwnedBy(client, id, profileId)
     if (o.err) return res.status(o.err).json({ error: o.msg })
     const { shop } = o
+
+    // If an override_prompt is given, use it directly without a DB template
     let content = String(b.override_prompt || '').trim()
     let templateId = b.prompt_template_id || null
-    if (!content && templateId) {
-      const t = await client.query(
-        "SELECT id, content FROM prompt_templates WHERE id = $1 AND category = 'image'",
-        [templateId]
-      )
-      if (t.rows.length) content = t.rows[0].content
-    }
+
     if (!content) {
-      const ip = await client.query(
-        `SELECT id, content FROM prompt_templates WHERE category = 'image' AND is_active = true ORDER BY RANDOM() LIMIT 1`
-      )
-      if (!ip.rows.length) {
-        return res.status(503).json({ error: 'No image templates' })
+      try {
+        ;({ templateId, content } = await resolveTemplate(client, templateId, shop))
+      } catch (e) {
+        return res.status(e.status || 503).json({ error: e.message })
       }
-      templateId = ip.rows[0].id
-      content = ip.rows[0].content
     }
+
     const products = parseProductsJson(shop)
     let selected = products
     if (!shopOnly && Array.isArray(b.product_indices)) {
       selected = b.product_indices.map((i) => products[Number(i)]).filter(Boolean)
     }
+
+    const maxLength = model === 'openai' ? 28000 : 3900
     const finalPrompt = buildImagePrompt({
       templateContent: content,
       shop,
@@ -311,8 +393,14 @@ router.post('/:id/images/rebuild', requireAuth, async (req, res) => {
       shopOnly,
       selectedProducts: selected,
       userPrompt,
+      maxLength,
     })
-    const out = await generateImageVariants(finalPrompt, aspect, model, variantCount)
+
+    const out = await generateImageVariants(finalPrompt, aspect, model, variantCount, refImages)
+
+    // Deduct credits after successful rebuild (non-fatal)
+    await deductImageCredit(profileId, id, variantCount)
+
     res.json({
       image_urls: out.urls,
       image_data_urls: out.dataUrls,
