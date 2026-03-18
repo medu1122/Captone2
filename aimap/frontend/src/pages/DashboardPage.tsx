@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from 'react'
 import { useLocale } from '../contexts/LocaleContext'
 import { useAuth } from '../contexts/AuthContext'
 import { authApi, type AccessLogItem, type ActivityLogItem } from '../api/auth'
@@ -6,6 +6,9 @@ import { shopsApi } from '../api/shops'
 import type { Locale } from '../i18n/translations'
 
 const liveWebsitesCount: number | null = null
+/** Hiển thị tối đa 5 dòng mỗi trang; phần còn lại qua phân trang. */
+const LOG_PAGE_SIZE = 5
+const LOG_FETCH_LIMIT = 100
 
 function formatCount(t: (key: string) => string, key: string, count: number | null): string {
   if (count === null) return '—'
@@ -118,6 +121,8 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
   const [activityError, setActivityError] = useState<string | null>(null)
   const [accessError, setAccessError] = useState<string | null>(null)
+  const [activityPage, setActivityPage] = useState(1)
+  const [accessPage, setAccessPage] = useState(1)
 
   useEffect(() => {
     if (!token) {
@@ -134,8 +139,8 @@ export default function DashboardPage() {
 
     Promise.all([
       shopsApi.list(token),
-      authApi.getActivity(token, { limit: 30 }),
-      authApi.getAccessLog(token, { limit: 30 }),
+      authApi.getActivity(token, { limit: LOG_FETCH_LIMIT }),
+      authApi.getAccessLog(token, { limit: LOG_FETCH_LIMIT }),
     ]).then(([shopsRes, actRes, accessRes]) => {
       if (cancelled) return
       setLoading(false)
@@ -145,18 +150,39 @@ export default function DashboardPage() {
         setActiveShopsCount(null)
       }
       if (actRes.error) setActivityError(actRes.error)
-      else if (actRes.data?.activity) setActivityItems(actRes.data.activity)
-      else setActivityItems([])
+      else if (actRes.data?.activity) {
+        setActivityItems(actRes.data.activity)
+        setActivityPage(1)
+      } else {
+        setActivityItems([])
+        setActivityPage(1)
+      }
 
       if (accessRes.error) setAccessError(accessRes.error)
-      else if (accessRes.data?.access) setAccessItems(accessRes.data.access)
-      else setAccessItems([])
+      else if (accessRes.data?.access) {
+        setAccessItems(accessRes.data.access)
+        setAccessPage(1)
+      } else {
+        setAccessItems([])
+        setAccessPage(1)
+      }
     })
 
     return () => {
       cancelled = true
     }
   }, [token])
+
+  const activityTotalPages = Math.max(1, Math.ceil(activityItems.length / LOG_PAGE_SIZE))
+  const accessTotalPages = Math.max(1, Math.ceil(accessItems.length / LOG_PAGE_SIZE))
+
+  useEffect(() => {
+    setActivityPage((p) => Math.min(p, activityTotalPages))
+  }, [activityTotalPages])
+
+  useEffect(() => {
+    setAccessPage((p) => Math.min(p, accessTotalPages))
+  }, [accessTotalPages])
 
   const activityRows = useMemo(
     () =>
@@ -178,6 +204,53 @@ export default function DashboardPage() {
       })),
     [accessItems, locale, t]
   )
+
+  const safeActPage = Math.min(activityPage, activityTotalPages)
+  const safeAccPage = Math.min(accessPage, accessTotalPages)
+  const activityPageRows = activityRows.slice(
+    (safeActPage - 1) * LOG_PAGE_SIZE,
+    safeActPage * LOG_PAGE_SIZE
+  )
+  const accessPageRows = accessRows.slice(
+    (safeAccPage - 1) * LOG_PAGE_SIZE,
+    safeAccPage * LOG_PAGE_SIZE
+  )
+
+  function logPager(
+    current: number,
+    total: number,
+    setPage: Dispatch<SetStateAction<number>>,
+    idPrefix: string
+  ) {
+    if (total <= 1) return null
+    return (
+      <div className="flex flex-wrap items-center justify-between gap-2 px-6 py-3 border-t border-slate-200 bg-slate-50 text-sm">
+        <span className="text-slate-600">
+          {t('dashboard.logPageOf').replace('{current}', String(current)).replace('{total}', String(total))}
+        </span>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            id={`${idPrefix}-prev`}
+            disabled={current <= 1}
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            className="px-3 py-1.5 rounded border border-slate-300 bg-white text-slate-800 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50"
+          >
+            {t('dashboard.logPrev')}
+          </button>
+          <button
+            type="button"
+            id={`${idPrefix}-next`}
+            disabled={current >= total}
+            onClick={() => setPage((p) => Math.min(total, p + 1))}
+            className="px-3 py-1.5 rounded border border-slate-300 bg-white text-slate-800 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50"
+          >
+            {t('dashboard.logNext')}
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">
@@ -239,7 +312,7 @@ export default function DashboardPage() {
                   </td>
                 </tr>
               ) : (
-                activityRows.map((row) => (
+                activityPageRows.map((row) => (
                   <tr key={row.key} className="border-b border-slate-100 hover:bg-slate-50">
                     <td className="px-6 py-3 text-slate-900">{row.action}</td>
                     <td className="px-6 py-3 text-slate-600">{row.time}</td>
@@ -250,6 +323,7 @@ export default function DashboardPage() {
             </tbody>
           </table>
         </div>
+        {logPager(safeActPage, activityTotalPages, setActivityPage, 'act')}
       </div>
 
       <div className="bg-white border border-slate-300 rounded-lg overflow-hidden">
@@ -281,7 +355,7 @@ export default function DashboardPage() {
                   </td>
                 </tr>
               ) : (
-                accessRows.map((row) => (
+                accessPageRows.map((row) => (
                   <tr key={row.key} className="border-b border-slate-100 hover:bg-slate-50">
                     <td className="px-6 py-3 text-slate-900">
                       <div
@@ -301,6 +375,7 @@ export default function DashboardPage() {
             </tbody>
           </table>
         </div>
+        {logPager(safeAccPage, accessTotalPages, setAccessPage, 'acc')}
       </div>
     </div>
   )

@@ -280,6 +280,7 @@ export default function ShopImageBotPage() {
             <ImageBotInputPanel
               t={t}
               products={products}
+              assets={assets}
               onGenerate={handleGenerate}
               generating={generating}
             />

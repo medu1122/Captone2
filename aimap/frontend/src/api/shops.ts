@@ -23,6 +23,16 @@ export interface ShopDetail {
   name: string
   slug: string
   industry: string | null
+  description: string | null
+  address: string | null
+  city: string | null
+  district: string | null
+  country: string | null
+  postal_code: string | null
+  contact_info: { phone?: string; email?: string; owner_name?: string } | null
+  logo_url: string | null
+  cover_url: string | null
+  status: string
   products: unknown
   [key: string]: unknown
 }
@@ -107,6 +117,13 @@ export const shopsApi = {
     apiFetch<ShopDetail>(`${SHOPS_PREFIX}/${shopId}`, {
       method: 'GET',
       headers: auth(token),
+    }),
+
+  patch: (token: string, shopId: string, body: Record<string, unknown>) =>
+    apiFetch<ShopDetail>(`${SHOPS_PREFIX}/${shopId}`, {
+      method: 'PATCH',
+      headers: auth(token),
+      body,
     }),
 
   listAssets: (token: string, shopId: string) =>

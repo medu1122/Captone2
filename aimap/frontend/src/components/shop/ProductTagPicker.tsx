@@ -195,7 +195,7 @@ export default function ProductTypePicker({ value, onChange, allTags, suggestedT
           {/* List */}
           <div className="max-h-56 overflow-y-auto py-1">
             {filtered.length === 0 ? (
-              <p className="text-xs text-slate-400 text-center py-4">Không tìm thấy loại phù hợp</p>
+              <p className="text-xs text-slate-400 text-center py-4">{t('products.typeNoResults')}</p>
             ) : (
               filtered.map((item) => {
                 const isSuggested = suggestedTags.includes(item.tag)

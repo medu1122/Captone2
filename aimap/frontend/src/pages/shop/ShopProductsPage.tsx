@@ -22,6 +22,8 @@ type ProductRow = {
   confirmDelete: boolean
   uploading: boolean
   uploadError: string | null
+  pendingFile: File | null
+  pendingObjectUrl: string | null
 }
 
 function rowsFromProducts(raw: unknown): ProductRow[] {
@@ -37,6 +39,8 @@ function rowsFromProducts(raw: unknown): ProductRow[] {
     confirmDelete: false,
     uploading: false,
     uploadError: null,
+    pendingFile: null,
+    pendingObjectUrl: null,
   })
 
   if (!Array.isArray(raw) || raw.length === 0) {
@@ -138,12 +142,16 @@ export default function ShopProductsPage() {
         confirmDelete: false,
         uploading: false,
         uploadError: null,
+        pendingFile: null,
+        pendingObjectUrl: null,
       },
     ])
   }
 
   const removeRow = async (index: number) => {
     if (!token || !id) return
+    const removed = rows[index]
+    if (removed?.pendingObjectUrl) URL.revokeObjectURL(removed.pendingObjectUrl)
     const newRows = rows.filter((_, i) => i !== index)
     setRows(newRows)
     setSaving(true)
@@ -186,38 +194,57 @@ export default function ShopProductsPage() {
     if (url) updateRow(index, { image_url: url })
   }
 
-  const handleFileUpload = async (index: number, file: File) => {
-    if (!token || !id) return
-    updateRow(index, { uploading: true, uploadError: null })
-
-    const reader = new FileReader()
-    reader.onload = async () => {
-      const base64 = reader.result as string
-      const { data, error: err } = await shopsApi.saveImage(token, id, {
-        image_base64: base64,
-        type: 'product',
-        name: file.name,
-      })
-      if (err || !data?.asset) {
-        updateRow(index, { uploading: false, uploadError: t('products.uploadError') })
-        return
-      }
-      const url = assetStorageUrl(data.asset.storage_path_or_url) ?? ''
-      updateRow(index, { uploading: false, uploadError: null, image_url: url })
-      setGalleryLoaded(false)
-    }
-    reader.onerror = () => {
-      updateRow(index, { uploading: false, uploadError: t('products.uploadError') })
-    }
-    reader.readAsDataURL(file)
+  const handleFileUpload = (index: number, file: File) => {
+    const row = rows[index]
+    // Revoke old object URL if any
+    if (row?.pendingObjectUrl) URL.revokeObjectURL(row.pendingObjectUrl)
+    const objectUrl = URL.createObjectURL(file)
+    updateRow(index, {
+      image_url: objectUrl,
+      pendingFile: file,
+      pendingObjectUrl: objectUrl,
+      uploadError: null,
+    })
   }
+
+  const fileToBase64 = (file: File): Promise<string> =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => resolve(reader.result as string)
+      reader.onerror = reject
+      reader.readAsDataURL(file)
+    })
 
   const save = async () => {
     if (!token || !id) return
     setSaving(true)
     setError(null)
     setOkMsg(null)
-    const payload = rows.map((r, i) => ({
+
+    // Upload any pending files first
+    const resolvedRows = await Promise.all(
+      rows.map(async (r) => {
+        if (!r.pendingFile) return r
+        try {
+          const base64 = await fileToBase64(r.pendingFile)
+          const { data, error: err } = await shopsApi.saveImage(token, id, {
+            image_base64: base64,
+            type: 'product',
+            name: r.pendingFile.name,
+          })
+          if (err || !data?.asset) return r
+          const persistedUrl = assetStorageUrl(data.asset.storage_path_or_url) ?? r.image_url
+          if (r.pendingObjectUrl) URL.revokeObjectURL(r.pendingObjectUrl)
+          return { ...r, image_url: persistedUrl, pendingFile: null, pendingObjectUrl: null }
+        } catch {
+          return r
+        }
+      })
+    )
+    setRows(resolvedRows)
+    setGalleryLoaded(false)
+
+    const payload = resolvedRows.map((r, i) => ({
       id: r.id.startsWith('new-') ? `item-${i}` : r.id,
       name: r.name.trim(),
       price: r.price.trim() || undefined,
@@ -287,11 +314,11 @@ export default function ShopProductsPage() {
           {rows.map((row, index) => (
             <div
               key={`${row.id}-${index}`}
-              className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden"
+              className="rounded-2xl border border-slate-200 bg-white shadow-sm"
             >
               {/* Card header — always visible */}
               <div
-                className="flex items-center gap-3 px-4 py-3 cursor-pointer select-none hover:bg-slate-50 transition-colors"
+                className="flex items-center gap-3 px-4 py-3 cursor-pointer select-none hover:bg-slate-50 transition-colors rounded-t-2xl"
                 onClick={() => updateRow(index, { expanded: !row.expanded, confirmDelete: false })}
               >
                 {/* Thumbnail */}
@@ -317,7 +344,7 @@ export default function ShopProductsPage() {
                 {/* Name + type badge */}
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-slate-800 truncate">
-                    {row.name || <span className="text-slate-400 font-normal italic">Chưa có tên</span>}
+                    {row.name || <span className="text-slate-400 font-normal italic">{t('products.unnamedProduct')}</span>}
                   </p>
                   <div className="flex items-center gap-2 mt-0.5">
                     {row.price && (
@@ -507,7 +534,8 @@ export default function ShopProductsPage() {
                         )}
                         {row.image_url && (
                           <p className="mt-2 text-xs text-slate-500 truncate">
-                            <span className="font-medium">Đã chọn:</span> {row.image_url}
+                            <span className="font-medium">{t('products.selectedImage')}:</span>{' '}
+                            {row.image_url.split('/').pop() ?? row.image_url}
                           </p>
                         )}
                       </div>
@@ -527,12 +555,7 @@ export default function ShopProductsPage() {
                             e.target.value = ''
                           }}
                         />
-                        {row.uploading ? (
-                          <div className="flex items-center justify-center gap-2 py-8 rounded-xl border-2 border-dashed border-blue-200 bg-blue-50">
-                            <div className="w-5 h-5 border-2 border-blue-200 border-t-blue-500 rounded-full animate-spin" />
-                            <span className="text-sm text-blue-600">{t('products.uploading')}</span>
-                          </div>
-                        ) : (
+                        {!row.image_url && (
                           <button
                             type="button"
                             onClick={() => fileRefs.current[index]?.click()}
@@ -544,17 +567,32 @@ export default function ShopProductsPage() {
                                 <path d="M4 22h20" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
                               </svg>
                               <span className="text-sm text-slate-500 group-hover:text-blue-600 font-medium">
-                                Nhấn để chọn ảnh từ thiết bị
+                                {t('products.uploadCta')}
                               </span>
-                              <span className="text-xs text-slate-400">JPG, PNG, WEBP</span>
+                              <span className="text-xs text-slate-400">{t('products.uploadFormats')}</span>
                             </div>
                           </button>
                         )}
                         {row.uploadError && (
                           <p className="mt-2 text-xs text-red-600">{row.uploadError}</p>
                         )}
-                        {!row.uploading && row.image_url && (
-                          <ImagePreview src={row.image_url} />
+                        {row.image_url && (
+                          <div className="relative">
+                            <ImagePreview src={row.image_url} />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (row.pendingObjectUrl) URL.revokeObjectURL(row.pendingObjectUrl)
+                                updateRow(index, { image_url: '', uploadError: null, pendingFile: null, pendingObjectUrl: null })
+                              }}
+                              className="absolute top-3 right-3 p-1.5 rounded-lg bg-white/90 border border-slate-200 text-slate-500 hover:text-red-600 hover:border-red-200 hover:bg-red-50 shadow-sm transition-colors"
+                              title={t('products.removeImage')}
+                            >
+                              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                                <path d="M10.5 3.5l-7 7M3.5 3.5l7 7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                              </svg>
+                            </button>
+                          </div>
                         )}
                       </div>
                     )}
