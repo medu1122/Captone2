@@ -34,6 +34,8 @@ app.use('/api/shops', shopImageBotRoutes)
 
 await connectDB()
 
-app.listen(PORT, () => {
+// Listen on 0.0.0.0 (IPv4 only) so all clients connect via IPv4
+// and the access log records readable IPv4 addresses instead of IPv6.
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`AIMAP backend http://localhost:${PORT}`)
 })
