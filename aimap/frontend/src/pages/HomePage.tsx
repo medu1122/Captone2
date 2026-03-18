@@ -20,7 +20,6 @@ export default function HomePage() {
         </div>
         <nav className="hidden md:flex absolute left-1/2 -translate-x-1/2 items-center gap-8">
           <a className="text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors" href="#features">{t('nav.features')}</a>
-          <a className="text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors" href="#how-it-works">{t('nav.howItWorks')}</a>
           <a className="text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors" href="#pricing">{t('nav.pricing')}</a>
         </nav>
         <div className="flex items-center gap-4 flex-shrink-0 ml-auto">
@@ -48,12 +47,9 @@ export default function HomePage() {
             <p className="text-base md:text-lg text-slate-600 mb-8 max-w-xl mx-auto lg:mx-0">
               {t('hero.subheadline')}
             </p>
-            <div className="flex flex-col sm:flex-row gap-3 justify-center lg:justify-start">
+            <div className="flex justify-center lg:justify-start">
               <a href="/register" className="bg-primary hover:bg-primary/90 text-white font-semibold py-2.5 px-6 rounded-lg border border-slate-400 transition-colors inline-flex items-center justify-center gap-2">
                 {t('hero.startAutomating')} →
-              </a>
-              <a href="#how-it-works" className="bg-white border border-slate-400 text-slate-700 font-semibold py-2.5 px-6 rounded-lg transition-colors">
-                {t('hero.watchDemo')}
               </a>
             </div>
           </div>
@@ -139,76 +135,26 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* How it works: 3 steps, simple list */}
-        <section className="py-20 bg-white border-y border-slate-300" id="how-it-works">
-          <div className="max-w-4xl mx-auto px-6">
-            <div className="text-center mb-12">
-              <h2 className="text-2xl md:text-3xl font-bold text-slate-900 mb-2">{t('how.title')}</h2>
-              <p className="text-slate-600 text-sm">{t('how.subtitle')}</p>
-            </div>
-            <div className="space-y-8">
-              <div className="flex gap-4">
-                <div className="flex-shrink-0 w-10 h-10 rounded-full bg-primary text-white flex items-center justify-center text-sm font-bold">1</div>
-                <div>
-                  <h3 className="text-lg font-semibold text-slate-900 mb-1">{t('how.step1')}</h3>
-                  <p className="text-slate-600 text-sm mb-2">{t('how.step1Desc')}</p>
-                  <div className="bg-slate-50 rounded-lg p-3 text-sm text-slate-600 border border-slate-300">
-                    &quot;{t('how.exampleChat')}&quot;
-                  </div>
-                </div>
-              </div>
-              <div className="flex gap-4">
-                <div className="flex-shrink-0 w-10 h-10 rounded-full bg-primary text-white flex items-center justify-center text-sm font-bold">2</div>
-                <div>
-                  <h3 className="text-lg font-semibold text-slate-900 mb-1">{t('how.step2')}</h3>
-                  <p className="text-slate-600 text-sm">{t('how.step2Desc')}</p>
-                </div>
-              </div>
-              <div className="flex gap-4">
-                <div className="flex-shrink-0 w-10 h-10 rounded-full bg-primary text-white flex items-center justify-center text-sm font-bold">3</div>
-                <div>
-                  <h3 className="text-lg font-semibold text-slate-900 mb-1">{t('how.step3')}</h3>
-                  <p className="text-slate-600 text-sm mb-3">{t('how.step3Desc')}</p>
-                  <a href="/register" className="inline-flex items-center gap-2 bg-primary hover:bg-primary/90 text-white font-semibold py-2 px-4 rounded-lg border border-slate-400 text-sm transition-colors">
-                    {t('how.goLive')} →
-                  </a>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
         {/* CTA / Pricing */}
         <section className="py-20 px-6 max-w-4xl mx-auto" id="pricing">
           <div className="bg-white border border-slate-300 rounded-lg p-10 text-center">
             <h2 className="text-2xl md:text-3xl font-bold text-slate-900 mb-3">{t('cta.title')}</h2>
             <p className="text-slate-600 mb-6 text-sm max-w-xl mx-auto">{t('cta.subtitle')}</p>
-            <ul className="text-sm text-slate-600 mb-6 space-y-1">
-              <li>{t('cta.bullet1')}</li>
-              <li>{t('cta.bullet2')}</li>
-            </ul>
             <a href="/register" className="inline-flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-white font-semibold py-2.5 px-8 rounded-lg border border-slate-400 transition-colors">
               {t('cta.createAccount')} →
             </a>
-            <p className="mt-4 text-xs text-slate-500">{t('cta.noCard')}</p>
           </div>
         </section>
       </main>
 
       {/* Footer: flat */}
       <footer className="bg-white border-t border-slate-300 py-8 px-6">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
+        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-center sm:justify-start gap-3 sm:gap-6">
           <div className="flex items-center gap-2">
             <img src="/icons/logo-aimap.png" alt="AIMAP logo" className="h-6 w-auto" />
             <span className="font-bold text-slate-900">AIMAP</span>
           </div>
-          <p className="text-sm text-slate-500 text-center md:text-left">
-            {t('footer.copyright')}
-          </p>
-          <div className="flex items-center gap-4 text-sm text-slate-600">
-            <a className="hover:text-slate-900 transition-colors" href="#">Contact</a>
-            <a className="hover:text-slate-900 transition-colors" href="#">Support</a>
-          </div>
+          <p className="text-sm text-slate-500 text-center sm:text-left">{t('footer.copyright')}</p>
         </div>
       </footer>
     </div>

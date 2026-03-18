@@ -153,13 +153,10 @@ export const translations: Record<Locale, Record<string, string>> = {
     'how.goLive': 'Deploy',
     // CTA
     'cta.title': 'Get started with AIMAP',
-    'cta.subtitle': 'Create an account to set up your first shop and run the full workflow: store info, branding, website, and Facebook.',
-    'cta.bullet1': 'Free for demo and capstone use.',
-    'cta.bullet2': 'Credit-based usage when connected to payment.',
+    'cta.subtitle': 'Create an account to set up your first shop and run the full workflow: store information, brand, website, and Facebook.',
     'cta.createAccount': 'Create account',
-    'cta.noCard': 'No credit card required for sign-up.',
     // Footer
-    'footer.copyright': 'Capstone Project - AIMAP © 2024. All rights reserved.',
+    'footer.copyright': 'Capstone Project - AIMAP - CS2SE10',
     // Auth – Login
     'auth.login.title': 'Log in to AIMAP',
     'auth.login.subtitle': 'Sign in with your AIMAP account.',
@@ -385,12 +382,9 @@ export const translations: Record<Locale, Record<string, string>> = {
     'how.exampleChat': 'Tôi mở quán cà phê đặc sản ở Brooklyn, tập trung cà phê hữu cơ, thương mại công bằng.',
     'how.goLive': 'Triển khai',
     'cta.title': 'Bắt đầu với AIMAP',
-    'cta.subtitle': 'Tạo tài khoản để thiết lập cửa hàng đầu tiên và chạy luồng: thông tin cửa hàng, branding, website và Facebook.',
-    'cta.bullet1': 'Miễn phí cho demo và capstone.',
-    'cta.bullet2': 'Dùng theo credit khi kết nối thanh toán.',
+    'cta.subtitle': 'Tạo tài khoản để thiết lập cửa hàng đầu tiên và chạy toàn bộ quy trình làm việc: thông tin cửa hàng, thương hiệu, trang web và Facebook.',
     'cta.createAccount': 'Tạo tài khoản',
-    'cta.noCard': 'Không bắt buộc thẻ tín dụng khi đăng ký.',
-    'footer.copyright': 'Capstone Project - AIMAP © 2024. Bảo lưu mọi quyền.',
+    'footer.copyright': 'Capstone Project - AIMAP - CS2SE10',
     // Auth – Login
     'auth.login.title': 'Đăng nhập AIMAP',
     'auth.login.subtitle': 'Đăng nhập tài khoản AIMAP.',
