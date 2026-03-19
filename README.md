@@ -170,14 +170,5 @@ The system uses an **Orchestrator** to coordinate specialized agents:
 
 ---
 
-## Why the System Stands Out (for reviewers)
-
-1. **Multi-Agent orchestration:** Specialized agents (Branding, Content, Visual Post, Website Builder, Deploy, Social Posting) coordinated by an Orchestrator → end-to-end from store info to website + Facebook; maintainable and extensible.
-2. **Clear, production-oriented architecture:** Frontend, Backend, AI Layer, Storage, Hosting; config-driven (JSON + template) for the website; Meta Graph API (OAuth, tokens, posting) and Payment Gateway (credits) integrated.
-3. **Proper AI context:** Current website config + conversation history; stable multi-turn editing; no “forgetting” or breaking layout.
-4. **Isolation & scale:** One Docker container per shop; reverse proxy for subdomains; Admin dashboard (users, logs, revenue, performance).
-5. **Experience & business model:** Single flow: Store info → Branding → Content → Post images → Website (edit by prompt) → Deploy → Facebook posting; pay by credit. Extensible: custom domain, WebSocket preview, more section types, other AI models.
-
----
 
 root@dncloud:~/Captone2/aimap# docker compose up -d --build 
