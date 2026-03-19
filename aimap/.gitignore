@@ -1,6 +1,8 @@
 node_modules/
 dist/
 .env
+docker-compose.yml
+docker-compose.*.yml
 *.log
 .DS_Store
 storage/

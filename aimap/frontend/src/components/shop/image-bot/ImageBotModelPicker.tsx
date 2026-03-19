@@ -11,9 +11,10 @@ type Props = {
   onChange: (m: ImageModel) => void
   /** true = horizontal compact (cards); false = stacked with larger touch targets */
   compact?: boolean
+  geminiDisabled?: boolean
 }
 
-export default function ImageBotModelPicker({ name, value, onChange, compact }: Props) {
+export default function ImageBotModelPicker({ name, value, onChange, compact, geminiDisabled }: Props) {
   const itemClass = compact
     ? 'flex items-center gap-2 rounded-lg border border-slate-200 px-2 py-1.5 has-[:checked]:border-primary has-[:checked]:bg-primary/5 cursor-pointer'
     : 'flex items-center gap-3 rounded-xl border border-slate-200 px-3 py-2.5 has-[:checked]:border-primary has-[:checked]:bg-primary/5 cursor-pointer hover:bg-slate-50'
@@ -34,16 +35,23 @@ export default function ImageBotModelPicker({ name, value, onChange, compact }: 
         <img src={openaiIcon} alt="" className={imgClass} width={36} height={36} />
         <span className={textClass}>{IMAGE_MODEL_GPT_ID}</span>
       </label>
-      <label className={itemClass}>
+      <label
+        className={`${itemClass} ${geminiDisabled ? 'cursor-not-allowed opacity-60' : ''}`}
+        title={geminiDisabled ? 'Gemini not configured' : undefined}
+      >
         <input
           type="radio"
           name={name}
           checked={value === 'gemini'}
-          onChange={() => onChange('gemini')}
-          className="border-slate-300 shrink-0"
+          onChange={() => !geminiDisabled && onChange('gemini')}
+          disabled={geminiDisabled}
+          className="shrink-0 border-slate-300"
         />
         <img src={geminiIcon} alt="" className={imgClass} width={36} height={36} />
-        <span className={textClass}>{IMAGE_MODEL_GEMINI_ID}</span>
+        <span className={textClass}>
+          {IMAGE_MODEL_GEMINI_ID}
+          {geminiDisabled ? ' (n/a)' : ''}
+        </span>
       </label>
     </div>
   )

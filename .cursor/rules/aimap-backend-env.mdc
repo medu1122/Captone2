@@ -5,7 +5,8 @@ alwaysApply: false
 ---
 
 Khi thêm hoặc đổi `process.env.*` trong `aimap/backend`, cập nhật:
-1. `aimap/backend/.env.example` (placeholder, không secret)
-2. `READ_CONTEXT/aimap-backend-env.md` (bảng mô tả biến)
+1. `READ_CONTEXT/aimap-backend-env.md` (bảng mô tả biến)
+
+Không tự ý tạo mới file `*.env.example` (ví dụ `aimap/backend/.env.example`) trừ khi USER yêu cầu rõ ràng.
 
 Không commit file `.env` thật.

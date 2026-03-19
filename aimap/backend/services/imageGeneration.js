@@ -201,18 +201,15 @@ async function googleGenerateOne(prompt, aspect, key, refImages = []) {
  */
 export async function generateSingleImageVariant(prompt, aspect, model, refImages, variantIndex, totalCount) {
   const key = process.env.GEMINI_API_KEY
-  const count = Math.max(1, totalCount || 1)
-  const i = variantIndex
-  const p = count > 1 ? `${prompt}\n(Variant ${i + 1} of ${count}, unique composition.)` : prompt
   if (model === 'google') {
     if (!key) {
-      const r = await openaiGenerateOne(p, aspect)
+      const r = await openaiGenerateOne(prompt, aspect)
       return { url: r.url, dataUrl: r.dataUrl, modelSource: r.modelSource }
     }
-    const r = await googleGenerateOne(p, aspect, key, refImages || [])
+    const r = await googleGenerateOne(prompt, aspect, key, refImages || [])
     return { url: r.url, dataUrl: r.dataUrl, modelSource: r.modelSource }
   }
-  const r = await openaiGenerateOne(p, aspect)
+  const r = await openaiGenerateOne(prompt, aspect)
   return { url: r.url, dataUrl: r.dataUrl, modelSource: r.modelSource }
 }
 

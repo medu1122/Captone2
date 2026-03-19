@@ -354,11 +354,11 @@ Body:
 Trả: `image_urls[]`, `image_data_urls[]`, `model_source`, `prompt_template_id`, `final_prompt`.
 Trừ credit sau khi tạo thành công: `IMAGE_GENERATE_CREDIT_COST × variant_count` credit (default 10/variant).
 
-**POST /shops/:id/images/generate-stream** — Cùng body như `generate`, response **NDJSON** (mỗi dòng một JSON):
-- `{ type: "prompt", final_prompt, prompt_template_id, variant_count, model }` — gửi ngay sau khi build prompt (giữ kết nối, tránh 504).
+**POST /shops/:id/images/generate-stream** — Cùng body như `generate` (backend tự chọn template; mỗi ảnh một prompt khác nhau, reuse nếu ít template), response **NDJSON**:
+- `{ type: "prompt", prompt_template_id, variant_count, model }` — không gửi full prompt (bảo mật).
 - `{ type: "variant", index, image_url?, image_data_url? }` — mỗi ảnh xong một dòng.
 - `{ type: "error", index, message }` — lỗi tại variant (stream có thể dừng).
-- `{ type: "done", model_source, prompt_template_id, final_prompt, generated }` — kết thúc.
+- `{ type: "done", model_source, prompt_template_id, generated }` — kết thúc.
 Trừ credit theo số variant tạo thành công.
 
 ---
@@ -444,6 +444,16 @@ Response: `{ "ok": true }`
 Headers: Authorization: Bearer <token>
 ```
 Response: `{ "ok": true }`
+
+---
+
+## Config
+
+**GET /config/image-models** — Model tạo ảnh đã cấu hình key chưa (cho UI disable Gemini)
+```
+Không cần auth
+```
+Response: `{ "openai": true, "gemini": false }`
 
 ---
 

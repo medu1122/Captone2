@@ -98,6 +98,54 @@ async function resolveTemplate(client, templateIdInput, shop) {
 }
 
 /**
+ * N template cho N ảnh (mỗi ảnh một prompt). Ít template hơn count thì lặp (A,B,A).
+ */
+async function resolveTemplatesForVariants(client, shop, count) {
+  let tagList = []
+  try {
+    const map = await client.query(
+      'SELECT tags FROM industry_tag_mappings WHERE TRIM(industry) = TRIM($1) LIMIT 1',
+      [String(shop.industry || '')]
+    )
+    const tags = map.rows[0]?.tags
+    if (Array.isArray(tags)) tagList = tags.map(String)
+  } catch (_) {}
+
+  let rows = []
+  if (tagList.length) {
+    try {
+      const r = await client.query(
+        `SELECT id, content FROM prompt_templates
+         WHERE category = 'image' AND is_active = true
+           AND tags::jsonb ?| $1
+         ORDER BY sort_order NULLS LAST, RANDOM()`,
+        [tagList]
+      )
+      rows = r.rows || []
+    } catch (_) {}
+  }
+  if (!rows.length) {
+    const fallback = await client.query(
+      `SELECT id, content FROM prompt_templates
+       WHERE category = 'image' AND is_active = true
+       ORDER BY sort_order NULLS LAST, RANDOM()`
+    )
+    rows = fallback.rows || []
+  }
+  if (!rows.length) {
+    throw Object.assign(
+      new Error('No image prompt templates; run npm run seed:prompt-images'),
+      { status: 503 }
+    )
+  }
+  const result = []
+  for (let i = 0; i < count; i++) {
+    result.push(rows[i % rows.length])
+  }
+  return result
+}
+
+/**
  * Deduct credits for image generation. Non-fatal: logs a warning on failure
  * so a credit DB issue never blocks image delivery.
  */
@@ -203,9 +251,9 @@ router.post('/:id/images/generate-stream', requireAuth, async (req, res) => {
     }
     const { shop } = o
 
-    let templateId, content
+    let templates
     try {
-      ;({ templateId, content } = await resolveTemplate(client, b.prompt_template_id || null, shop))
+      templates = await resolveTemplatesForVariants(client, shop, variantCount)
     } catch (e) {
       res.status(e.status || 503).json({ error: e.message })
       return
@@ -222,19 +270,22 @@ router.post('/:id/images/generate-stream', requireAuth, async (req, res) => {
     }
 
     const maxLength = model === 'openai' ? 28000 : 3900
-    const finalPrompt = buildImagePrompt({
-      templateContent: content,
-      shop,
-      aspect,
-      imageStyle,
-      shopOnly,
-      selectedProducts: selected,
-      userPrompt,
-      maxLength,
-    })
+    const finalPrompts = templates.map((t) =>
+      buildImagePrompt({
+        templateContent: t.content,
+        shop,
+        aspect,
+        imageStyle,
+        shopOnly,
+        selectedProducts: selected,
+        userPrompt,
+        maxLength,
+      })
+    )
 
+    const firstTemplateId = templates[0]?.id ?? null
     console.log(
-      `[image-bot stream] shop=${id} variants=${variantCount} model=${model} prompt_chars=${finalPrompt.length} template=${templateId}`
+      `[image-bot stream] shop=${id} variants=${variantCount} model=${model} one-template-per-image`
     )
 
     res.setHeader('Content-Type', 'application/x-ndjson; charset=utf-8')
@@ -245,8 +296,7 @@ router.post('/:id/images/generate-stream', requireAuth, async (req, res) => {
 
     writeLine({
       type: 'prompt',
-      final_prompt: finalPrompt,
-      prompt_template_id: templateId,
+      prompt_template_id: firstTemplateId,
       variant_count: variantCount,
       model,
     })
@@ -254,6 +304,7 @@ router.post('/:id/images/generate-stream', requireAuth, async (req, res) => {
     let modelSource = 'dall-e-3'
     let successCount = 0
     for (let i = 0; i < variantCount; i++) {
+      const finalPrompt = finalPrompts[i]
       try {
         const r = await generateSingleImageVariant(finalPrompt, aspect, model, refImages, i, variantCount)
         modelSource = r.modelSource || modelSource
@@ -278,8 +329,7 @@ router.post('/:id/images/generate-stream', requireAuth, async (req, res) => {
     writeLine({
       type: 'done',
       model_source: modelSource,
-      prompt_template_id: templateId,
-      final_prompt: finalPrompt,
+      prompt_template_id: firstTemplateId,
       generated: successCount,
     })
     res.end()

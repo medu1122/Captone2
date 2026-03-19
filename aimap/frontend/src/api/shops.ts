@@ -107,8 +107,8 @@ export interface GenerateImagesResponse {
 export type GenerateImagesStreamEvent =
   | {
       type: 'prompt'
-      final_prompt: string
-      prompt_template_id: string
+      final_prompt?: string
+      prompt_template_id: string | null
       variant_count: number
       model: string
     }
@@ -117,8 +117,8 @@ export type GenerateImagesStreamEvent =
   | {
       type: 'done'
       model_source: string
-      prompt_template_id: string
-      final_prompt: string
+      prompt_template_id: string | null
+      final_prompt?: string
       generated: number
     }
   | { type: 'fatal'; message: string }

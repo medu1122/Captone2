@@ -27,6 +27,7 @@ type Props = {
     }
   ) => void
   aspects: AspectRatio[]
+  onSlotClick?: (slotId: string) => void
 }
 
 export default function ImageBotResultCard({
@@ -36,6 +37,7 @@ export default function ImageBotResultCard({
   onEditApply,
   onRebuildApply,
   aspects,
+  onSlotClick,
 }: Props) {
   const [panel, setPanel] = useState<PanelMode>('none')
   const [editPrompt, setEditPrompt] = useState('')
@@ -55,9 +57,28 @@ export default function ImageBotResultCard({
     setPanel(panel === 'rebuild' ? 'none' : 'rebuild')
   }
 
+  const handleImageAreaClick = () => {
+    if (onSlotClick) onSlotClick(slot.id)
+  }
+
   return (
-    <div className="border border-slate-300 rounded-lg bg-white overflow-hidden flex flex-col">
-      <div className="h-48 bg-slate-100 flex items-center justify-center shrink-0">
+    <div className="flex flex-col overflow-hidden rounded-lg border border-slate-300 bg-white">
+      <div
+        role={onSlotClick ? 'button' : undefined}
+        tabIndex={onSlotClick ? 0 : undefined}
+        onClick={onSlotClick ? handleImageAreaClick : undefined}
+        onKeyDown={
+          onSlotClick
+            ? (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault()
+                  handleImageAreaClick()
+                }
+              }
+            : undefined
+        }
+        className={`flex min-h-[220px] shrink-0 items-center justify-center bg-slate-100 ${onSlotClick ? 'cursor-pointer transition-colors hover:bg-slate-200' : ''}`}
+      >
         {slot.loading ? (
           <div className="flex flex-col items-center gap-2 text-slate-500">
             <div className="w-8 h-8 border-2 border-slate-300 border-t-primary rounded-full animate-spin" />

@@ -105,6 +105,28 @@ flowchart TB
 
 ---
 
+## 0. Chạy Production bằng Docker (không cần `npm run`)
+
+**Mục tiêu:** chỉ cần `docker compose up -d --build` là chạy được.
+
+**Services chính:**
+- **frontend**: Nginx serve static (Vite build) + proxy `/api/` và `/uploads/` qua backend.
+- **backend**: Node/Express (API `/api/*`) + serve `/uploads`.
+- **database**: PostgreSQL (hiện đang dùng **DB ngoài**, connect qua `DATABASE_URL`).
+
+**Biến môi trường:**
+- **Docker/Production:** đặt ở `aimap/.env` (mẫu: `aimap/.env.example`) → docker compose inject vào container.
+- **Chạy dev trực tiếp backend:** dùng `aimap/backend/.env` (mẫu: `aimap/backend/.env.example`).
+
+**Ports mặc định:**
+- Frontend: `:80` → `http://localhost`
+- Backend: `:4111` → `http://localhost:4111/health`
+
+**Lưu ý DB:**
+- Nếu thiếu schema/tables, apply SQL theo `READ_CONTEXT/database_design.md`.
+
+---
+
 ## II. Phạm vi chi tiết & Data Flow
 
 ### 1. Branding & Image Generation

@@ -17,12 +17,20 @@ type Props = {
       aspect: AspectRatio | ''
     }
   ) => void
+  onSlotClick?: (slotId: string) => void
 }
 
-export default function ImageBotOutputGrid({ t, slots, onSave, onEditApply, onRebuildApply }: Props) {
+export default function ImageBotOutputGrid({
+  t,
+  slots,
+  onSave,
+  onEditApply,
+  onRebuildApply,
+  onSlotClick,
+}: Props) {
   return (
-    <div className="h-full min-h-[14rem] max-h-[28rem] overflow-y-auto">
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+    <div className="min-h-[14rem]">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {slots.map((slot) => (
           <ImageBotResultCard
             key={slot.id}
@@ -32,6 +40,7 @@ export default function ImageBotOutputGrid({ t, slots, onSave, onEditApply, onRe
             onEditApply={onEditApply}
             onRebuildApply={onRebuildApply}
             aspects={ASPECTS}
+            onSlotClick={onSlotClick}
           />
         ))}
       </div>

@@ -2,7 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { useLocale } from '../../contexts/LocaleContext'
 import { useAuth } from '../../contexts/AuthContext'
-import { shopsApi, type ImagePromptItem, type ShopAsset } from '../../api/shops'
+import { getImageModelsConfig } from '../../api/config'
+import { shopsApi, type ShopAsset } from '../../api/shops'
 import { assetStorageUrl } from '../../api/client'
 import ImageBotInputPanel, {
   type AspectRatio,
@@ -12,9 +13,9 @@ import ImageBotInputPanel, {
 } from '../../components/shop/image-bot/ImageBotInputPanel'
 import ImageBotOutputGrid from '../../components/shop/image-bot/ImageBotOutputGrid'
 import type { ResultSlot } from '../../components/shop/image-bot/ImageBotResultCard'
+import ImageBotResultModal from '../../components/shop/image-bot/ImageBotResultModal'
 import ImageBotShopGallery from '../../components/shop/image-bot/ImageBotShopGallery'
 
-/** Convert a File to a base64 data URL. */
 function fileToDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
@@ -36,10 +37,47 @@ const INITIAL_SLOTS: ResultSlot[] = [
   { id: '3', imageUrl: null, placeholder: true },
 ]
 
+const SESSION_TTL_MS = 60 * 60 * 1000
+const SESSION_KEY = (shopId: string) => `aimap_image_bot_${shopId}`
+const MAX_SESSION_SIZE = 4 * 1024 * 1024
+
 type SlotMeta = {
   final_prompt: string
   prompt_template_id: string | null
   model_source: string
+}
+
+type SessionData = {
+  savedAt: number
+  slots: ResultSlot[]
+  slotMeta: Record<string, SlotMeta>
+}
+
+function loadSessionResults(shopId: string): SessionData | null {
+  try {
+    const raw = sessionStorage.getItem(SESSION_KEY(shopId))
+    if (!raw) return null
+    const data = JSON.parse(raw) as SessionData
+    if (!data.savedAt || !Array.isArray(data.slots)) return null
+    if (Date.now() - data.savedAt > SESSION_TTL_MS) {
+      sessionStorage.removeItem(SESSION_KEY(shopId))
+      return null
+    }
+    return { ...data, slotMeta: data.slotMeta || {} }
+  } catch {
+    return null
+  }
+}
+
+function saveSessionResults(shopId: string, slots: ResultSlot[], slotMeta: Record<string, SlotMeta>): void {
+  try {
+    const payload: SessionData = { savedAt: Date.now(), slots, slotMeta }
+    const json = JSON.stringify(payload)
+    if (json.length > MAX_SESSION_SIZE) return
+    sessionStorage.setItem(SESSION_KEY(shopId), json)
+  } catch (e) {
+    console.warn('[ImageBot] session save failed:', e)
+  }
 }
 
 function firstImageUrl(urls: string[] | undefined, dataUrls: string[] | undefined, i: number): string | null {
@@ -47,6 +85,8 @@ function firstImageUrl(urls: string[] | undefined, dataUrls: string[] | undefine
   const d = dataUrls?.[i]
   return u || d || null
 }
+
+const ASPECTS: AspectRatio[] = ['1:1', '2:3', '3:2', '4:5', '16:9']
 
 export default function ShopImageBotPage() {
   const { t } = useLocale()
@@ -57,12 +97,27 @@ export default function ShopImageBotPage() {
   const [assetsLoading, setAssetsLoading] = useState(true)
   const [shopError, setShopError] = useState<string | null>(null)
   const [slots, setSlots] = useState<ResultSlot[]>(INITIAL_SLOTS)
+  const [selectedSlotId, setSelectedSlotId] = useState<string | null>(null)
   const [generating, setGenerating] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
-  const [prompts, setPrompts] = useState<ImagePromptItem[]>([])
-  const [promptTemplateId, setPromptTemplateId] = useState<string>('')
+  const [imageModelsConfig, setImageModelsConfig] = useState<{ openai: boolean; gemini: boolean } | null>(null)
   const slotMetaRef = useRef<Record<string, SlotMeta>>({})
+  const slotsRef = useRef<ResultSlot[]>(INITIAL_SLOTS)
   const lastAspectRef = useRef<AspectRatio>('1:1')
+
+  useEffect(() => {
+    if (!shopId) return
+    const data = loadSessionResults(shopId)
+    if (data) {
+      setSlots(data.slots)
+      slotsRef.current = data.slots
+      slotMetaRef.current = data.slotMeta
+    }
+  }, [shopId])
+
+  useEffect(() => {
+    getImageModelsConfig().then(setImageModelsConfig)
+  }, [])
 
   useEffect(() => {
     if (!token || !shopId) return
@@ -73,9 +128,6 @@ export default function ShopImageBotPage() {
         return
       }
       if (data) setProducts(parseProducts(data.products))
-    })
-    shopsApi.listImagePrompts(token, shopId).then(({ data }) => {
-      if (data?.prompts) setPrompts(data.prompts)
     })
   }, [token, shopId, t])
 
@@ -104,14 +156,14 @@ export default function ShopImageBotPage() {
     lastAspectRef.current = state.aspect
     setGenerating(true)
     slotMetaRef.current = {}
-    setSlots(
-      SLOT_IDS.map((id, i) => ({
-        id,
-        imageUrl: null,
-        placeholder: true,
-        loading: i < VARIANTS,
-      }))
-    )
+    const initialSlots = SLOT_IDS.map((id, i) => ({
+      id,
+      imageUrl: null,
+      placeholder: true,
+      loading: i < VARIANTS,
+    }))
+    setSlots(initialSlots)
+    slotsRef.current = initialSlots
 
     let anyImage = false
     try {
@@ -128,7 +180,6 @@ export default function ShopImageBotPage() {
       }
 
       const body = {
-        prompt_template_id: promptTemplateId || undefined,
         aspect: state.aspect,
         image_style: state.style,
         shop_only: state.shopOnly,
@@ -139,19 +190,9 @@ export default function ShopImageBotPage() {
         ref_images: refDataUrls.length ? refDataUrls : undefined,
       }
 
-      console.log('[ImageBot] Gọi API generate-stream', {
-        shopId,
-        aspect: state.aspect,
-        model: body.model,
-        refImages: refDataUrls.length,
-        userPromptPreview: (state.userPrompt || '').slice(0, 120),
-      })
-
-      const { ok, status, streamError } = await shopsApi.generateImagesStream(token, shopId, body, (ev) => {
+      const { ok, streamError } = await shopsApi.generateImagesStream(token, shopId, body, (ev) => {
         if (ev.type === 'prompt') {
-          console.log('[ImageBot] API hoạt động — prompt gửi tới model (full text):\n', ev.final_prompt)
           console.log('[ImageBot] Meta:', {
-            promptChars: ev.final_prompt.length,
             prompt_template_id: ev.prompt_template_id,
             variant_count: ev.variant_count,
             model: ev.model,
@@ -162,23 +203,23 @@ export default function ShopImageBotPage() {
           if (!slotId) return
           const url = ev.image_data_url || ev.image_url || null
           if (url) anyImage = true
-          setSlots((prev) =>
-            prev.map((s) =>
-              s.id === slotId
-                ? { ...s, imageUrl: url, placeholder: !url, loading: false }
-                : s
+          setSlots((prev) => {
+            const next = prev.map((s) =>
+              s.id === slotId ? { ...s, imageUrl: url, placeholder: !url, loading: false } : s
             )
-          )
-          console.log('[ImageBot] Ô', ev.index + 1, url ? 'đã có ảnh' : 'trống')
+            slotsRef.current = next
+            return next
+          })
         }
         if (ev.type === 'error') {
-          console.error('[ImageBot] Lỗi variant', ev.index + 1, ':', ev.message)
           showToast(ev.message)
           const slotId = SLOT_IDS[ev.index]
           if (slotId) {
-            setSlots((prev) =>
-              prev.map((s) => (s.id === slotId ? { ...s, loading: false } : s))
-            )
+            setSlots((prev) => {
+              const next = prev.map((s) => (s.id === slotId ? { ...s, loading: false } : s))
+              slotsRef.current = next
+              return next
+            })
           }
         }
         if (ev.type === 'done') {
@@ -190,7 +231,7 @@ export default function ShopImageBotPage() {
           SLOT_IDS.forEach((id) => {
             slotMetaRef.current[id] = m
           })
-          console.log('[ImageBot] Hoàn tất stream — ảnh tạo được:', ev.generated, 'model:', ev.model_source)
+          if (shopId) saveSessionResults(shopId, slotsRef.current, slotMetaRef.current)
         }
         if (ev.type === 'fatal') {
           showToast(ev.message)
@@ -198,9 +239,10 @@ export default function ShopImageBotPage() {
       })
 
       if (!ok) {
-        console.error('[ImageBot] Stream thất bại:', status, streamError)
         showToast(streamError || t('imageBot.generateError'))
         setSlots(INITIAL_SLOTS)
+        slotsRef.current = INITIAL_SLOTS
+        if (shopId) sessionStorage.removeItem(SESSION_KEY(shopId))
         return
       }
       if (!anyImage) showToast(t('imageBot.generateError'))
@@ -208,9 +250,15 @@ export default function ShopImageBotPage() {
       console.error('[ImageBot] Exception:', e)
       showToast(t('imageBot.generateError'))
       setSlots(INITIAL_SLOTS)
+      slotsRef.current = INITIAL_SLOTS
+      if (shopId) sessionStorage.removeItem(SESSION_KEY(shopId))
     } finally {
       setGenerating(false)
-      setSlots((prev) => prev.map((s) => ({ ...s, loading: false })))
+      setSlots((prev) => {
+        const next = prev.map((s) => ({ ...s, loading: false }))
+        slotsRef.current = next
+        return next
+      })
     }
   }
 
@@ -235,6 +283,7 @@ export default function ShopImageBotPage() {
       return
     }
     showToast(t('imageBot.saveToast'))
+    if (shopId) saveSessionResults(shopId, slotsRef.current, slotMetaRef.current)
     loadAssets()
   }
 
@@ -267,14 +316,17 @@ export default function ShopImageBotPage() {
       }
       const url = firstImageUrl(data.image_urls, data.image_data_urls, 0)
       if (url) {
-        setSlots((prev) =>
-          prev.map((s) => (s.id === slotId ? { ...s, imageUrl: url, placeholder: false } : s))
-        )
+        setSlots((prev) => {
+          const next = prev.map((s) => (s.id === slotId ? { ...s, imageUrl: url, placeholder: false } : s))
+          slotsRef.current = next
+          return next
+        })
         slotMetaRef.current[slotId] = {
           final_prompt: `${meta?.final_prompt ?? ''}\n[Edit] ${p.prompt}`,
           prompt_template_id: meta?.prompt_template_id ?? null,
           model_source: data.model_source || meta?.model_source || 'dall-e-3',
         }
+        if (shopId) saveSessionResults(shopId, slotsRef.current, slotMetaRef.current)
         showToast(t('imageBot.editAppliedToast'))
       }
     } finally {
@@ -303,7 +355,7 @@ export default function ShopImageBotPage() {
         user_prompt: p.prompt,
         model: p.model === 'gpt' ? 'openai' : 'gemini',
         aspect: asp,
-        prompt_template_id: meta?.prompt_template_id || promptTemplateId || undefined,
+        prompt_template_id: meta?.prompt_template_id ?? undefined,
         variant_count: 1,
         ref_images: refDataUrls.length ? refDataUrls : undefined,
       })
@@ -313,15 +365,18 @@ export default function ShopImageBotPage() {
       }
       const url = firstImageUrl(data.image_urls, data.image_data_urls, 0)
       if (url) {
-        setSlots((prev) =>
-          prev.map((s) => (s.id === slotId ? { ...s, imageUrl: url, placeholder: false } : s))
-        )
+        setSlots((prev) => {
+          const next = prev.map((s) => (s.id === slotId ? { ...s, imageUrl: url, placeholder: false } : s))
+          slotsRef.current = next
+          return next
+        })
         slotMetaRef.current[slotId] = {
           final_prompt: data.final_prompt || '',
           prompt_template_id: data.prompt_template_id ?? null,
           model_source: data.model_source || 'dall-e-3',
         }
         lastAspectRef.current = asp
+        if (shopId) saveSessionResults(shopId, slotsRef.current, slotMetaRef.current)
         showToast(t('imageBot.rebuildAppliedToast'))
       }
     } finally {
@@ -340,11 +395,14 @@ export default function ShopImageBotPage() {
 
   const storagePath = useMemo(() => (shopId ? `/shops/${shopId}/storage` : '/shops'), [shopId])
 
+  const selectedSlot = selectedSlotId ? slots.find((s) => s.id === selectedSlotId) : null
+  const selectedMeta = selectedSlotId ? slotMetaRef.current[selectedSlotId] ?? null : null
+
   if (!shopId) return null
 
   if (shopError) {
     return (
-      <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-red-800 text-sm">{shopError}</div>
+      <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{shopError}</div>
     )
   }
 
@@ -352,66 +410,46 @@ export default function ShopImageBotPage() {
     <div className="space-y-6">
       <div>
         <h2 className="text-lg font-semibold text-slate-900">{t('imageBot.pageTitle')}</h2>
-        <p className="text-sm text-slate-600 mt-1">{t('imageBot.pageSubtitle')}</p>
+        <p className="mt-1 text-sm text-slate-600">{t('imageBot.pageSubtitle')}</p>
       </div>
 
-      {prompts.length > 0 && (
-        <div className="bg-white border border-slate-200 rounded-lg p-3">
-          <label className="block text-xs font-medium text-slate-600 mb-1">{t('imageBot.promptTemplate')}</label>
-          <select
-            value={promptTemplateId}
-            onChange={(e) => setPromptTemplateId(e.target.value)}
-            className="w-full max-w-xl text-sm border border-slate-300 rounded-lg px-3 py-2"
-          >
-            <option value="">{t('imageBot.promptAuto')}</option>
-            {prompts.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-          </select>
-        </div>
-      )}
-
       {toast && (
-        <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-emerald-800 text-sm">
+        <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm text-emerald-800">
           {toast}
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-        <section className="bg-white border border-slate-300 rounded-lg p-4 flex flex-col h-[min(420px,55vh)] min-h-[320px] max-h-[480px]">
-          <h3 className="text-sm font-semibold text-slate-800 shrink-0 mb-3 border-b border-slate-100 pb-2">
-            {t('imageBot.zoneInputTitle')}
-          </h3>
-          <div className="flex-1 min-h-0">
-            <ImageBotInputPanel
-              t={t}
-              products={products}
-              assets={assets}
-              onGenerate={handleGenerate}
-              generating={generating}
-            />
-          </div>
-        </section>
+      <section className="flex min-h-[560px] flex-col rounded-lg border border-slate-300 bg-white p-4">
+        <h3 className="mb-3 shrink-0 border-b border-slate-100 pb-2 text-sm font-semibold text-slate-800">
+          {t('imageBot.zoneInputTitle')}
+        </h3>
+        <div className="min-h-0 flex-1">
+          <ImageBotInputPanel
+            t={t}
+            products={products}
+            assets={assets}
+            onGenerate={handleGenerate}
+            generating={generating}
+            geminiDisabled={imageModelsConfig ? !imageModelsConfig.gemini : false}
+          />
+        </div>
+      </section>
 
-        <section className="bg-white border border-slate-300 rounded-lg p-4 flex flex-col h-[min(420px,55vh)] min-h-[320px] max-h-[480px]">
-          <h3 className="text-sm font-semibold text-slate-800 shrink-0 mb-3 border-b border-slate-100 pb-2">
-            {t('imageBot.zoneOutputTitle')}
-          </h3>
-          <div className="flex-1 min-h-0">
-            <ImageBotOutputGrid
-              t={t}
-              slots={slots}
-              onSave={handleSave}
-              onEditApply={handleEditApply}
-              onRebuildApply={handleRebuildApply}
-            />
-          </div>
-        </section>
-      </div>
+      <section className="rounded-lg border border-slate-300 bg-white p-4">
+        <h3 className="mb-3 shrink-0 border-b border-slate-100 pb-2 text-sm font-semibold text-slate-800">
+          {t('imageBot.zoneOutputTitle')}
+        </h3>
+        <ImageBotOutputGrid
+          t={t}
+          slots={slots}
+          onSave={handleSave}
+          onEditApply={handleEditApply}
+          onRebuildApply={handleRebuildApply}
+          onSlotClick={(id) => setSelectedSlotId(id)}
+        />
+      </section>
 
-      <section className="bg-white border border-slate-300 rounded-lg p-4">
+      <section className="rounded-lg border border-slate-300 bg-white p-4">
         <ImageBotShopGallery
           t={t}
           assets={galleryAssets}
@@ -419,6 +457,19 @@ export default function ShopImageBotPage() {
           storagePath={storagePath}
         />
       </section>
+
+      {selectedSlot && (
+        <ImageBotResultModal
+          t={t}
+          slot={selectedSlot}
+          slotMeta={selectedMeta}
+          onSave={handleSave}
+          onEditApply={handleEditApply}
+          onRebuildApply={handleRebuildApply}
+          onClose={() => setSelectedSlotId(null)}
+          aspects={ASPECTS}
+        />
+      )}
     </div>
   )
 }

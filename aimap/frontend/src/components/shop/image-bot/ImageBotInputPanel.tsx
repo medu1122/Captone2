@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import ImageBotModelPicker from './ImageBotModelPicker'
 import { assetStorageUrl } from '../../../api/client'
 import type { ShopAsset } from '../../../api/shops'
@@ -37,6 +37,7 @@ type Props = {
   assets: ShopAsset[]
   onGenerate: (state: ImageBotFormState) => void
   generating: boolean
+  geminiDisabled?: boolean
 }
 
 function productKey(p: ProductItem, i: number): string {
@@ -45,7 +46,14 @@ function productKey(p: ProductItem, i: number): string {
   return String(i)
 }
 
-export default function ImageBotInputPanel({ t, products, assets, onGenerate, generating }: Props) {
+export default function ImageBotInputPanel({
+  t,
+  products,
+  assets,
+  onGenerate,
+  generating,
+  geminiDisabled = false,
+}: Props) {
   const [aspect, setAspect] = useState<AspectRatio>('1:1')
   const [style, setStyle] = useState<ImageStyle>('ad')
   const [shopOnly, setShopOnly] = useState(false)
@@ -57,6 +65,10 @@ export default function ImageBotInputPanel({ t, products, assets, onGenerate, ge
   const [refTab, setRefTab] = useState<RefTab>('upload')
   const [refUrlInput, setRefUrlInput] = useState('')
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (geminiDisabled && model === 'gemini') setModel('gpt')
+  }, [geminiDisabled, model])
 
   const toggleProduct = (key: string) => {
     setSelectedProductKeys((prev) =>
@@ -108,8 +120,8 @@ export default function ImageBotInputPanel({ t, products, assets, onGenerate, ge
   const showProducts = !shopOnly && products.length > 0
 
   return (
-    <div className="flex flex-col h-full min-h-0">
-      <div className="overflow-y-auto flex-1 min-h-0 space-y-4 pr-1">
+    <div className="flex flex-col">
+      <div className="space-y-4 pr-1">
         <div>
           <p className="text-xs font-medium text-slate-500 mb-2">{t('imageBot.aspectRatio')}</p>
           <div className="flex flex-wrap gap-2">
@@ -335,7 +347,12 @@ export default function ImageBotInputPanel({ t, products, assets, onGenerate, ge
 
         <div>
           <p className="text-xs font-medium text-slate-500 mb-2">{t('imageBot.model')}</p>
-          <ImageBotModelPicker name="image-bot-model" value={model} onChange={setModel} />
+          <ImageBotModelPicker
+            name="image-bot-model"
+            value={model}
+            onChange={setModel}
+            geminiDisabled={geminiDisabled}
+          />
         </div>
       </div>
 
