@@ -10,6 +10,8 @@ function collectCassoTxns(body) {
   if (!body || typeof body !== 'object') return []
   if (Array.isArray(body.data)) return body.data
   if (body.data && Array.isArray(body.data.transactions)) return body.data.transactions
+  if (body.data && Array.isArray(body.data.records)) return body.data.records
+  if (body.data && typeof body.data === 'object') return [body.data]
   if (Array.isArray(body.transactions)) return body.transactions
   if (Array.isArray(body)) return body
   return []
@@ -19,7 +21,13 @@ function txnAmountDesc(item) {
   const amount = Number(item?.amount ?? item?.transferAmount ?? item?.transfer_amount ?? 0)
   const desc = String(item?.description ?? item?.content ?? item?.remark ?? '')
   const extId = String(
-    item?.id ?? item?.reference ?? item?.tid ?? item?.transactionID ?? item?.virtualAccount ?? ''
+    item?.id ??
+      item?.reference ??
+      item?.tid ??
+      item?.transactionID ??
+      item?.transaction_id ??
+      item?.virtualAccount ??
+      ''
   ).slice(0, 255)
   return { amount, desc, extId }
 }
@@ -44,11 +52,10 @@ router.post('/casso', async (req, res) => {
       const transferContent = m[0]
       const paymentId = await findPendingPaymentByContentAndAmount(transferContent, amount)
       if (!paymentId) continue
-      if (!extId) continue
-      const result = await applyTopupSuccess(paymentId, extId)
+      const result = await applyTopupSuccess(paymentId, extId || null)
       if (result.ok) matched += 1
     }
-    res.json({ ok: true, processed: matched })
+    res.json({ ok: true, processed: matched, received: txns.length })
   } catch (e) {
     console.error('[webhook casso]', e.message)
     res.status(500).json({ error: 'webhook failed' })

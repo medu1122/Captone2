@@ -483,7 +483,7 @@ Response: `{ "transactions": [ { "id", "amount", "type", "reference_type", "refe
 Headers: tùy chọn Authorization: Bearer <CASSO_WEBHOOK_BEARER> nếu cấu hình
 Content-Type: application/json
 ```
-Response: `{ "ok": true, "processed": <số đơn đã khớp> }`
+Response: `{ "ok": true, "processed": <số đơn đã khớp>, "received": <số giao dịch nhận vào> }`
 
 ---
 
