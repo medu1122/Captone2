@@ -168,9 +168,13 @@ export default function ShopDashboardPage() {
           <p className="text-3xl font-bold text-slate-900 mt-1">
             {contentCount === null ? '…' : contentCount}
           </p>
-          <Link to={`/shops/${id}/edit`} className="text-xs text-primary font-medium mt-2 inline-block hover:underline">
+          <button
+            type="button"
+            onClick={startEdit}
+            className="text-xs text-primary font-medium mt-2 inline-block hover:underline text-left"
+          >
             {t('shops.edit')} →
-          </Link>
+          </button>
         </div>
         <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
           <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">{t('shopDetail.stats.siteStatus')}</span>

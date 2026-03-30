@@ -9,7 +9,7 @@ alwaysApply: true
 
 1. **Đơn giản hóa logic** - Tránh pattern phức tạp, ưu tiên code dễ đọc
 2. **Đặt tên rõ ràng** - Biến, hàm đặt tên tiếng Anh đơn giản, dễ hiểu
-3. **Comment khi cần** - Thêm comment giải thích logic phức tạp bằng tiếng Việt
+3. **Comment khi cần** - Tiếng Việt, **VIẾT HOA** cho câu mô tả chính (đầu file, block giải thích). Tránh JSDoc dài (`@param` lặp lại); code đơn giản thì không cần comment.
 4. **Tránh over-engineering** - Không tạo abstraction không cần thiết
 5. **Một file một mục đích** - Mỗi route file xử lý một entity
 6. **Error handling đơn giản** - try/catch cơ bản, log lỗi ra console
@@ -23,4 +23,4 @@ alwaysApply: true
 code trông như mày là 1 human
 
 ## Khi code form giao diện fromend ():
-1. **Không cần tạo các subtitle bừa bãi** - chỉ cần 1 tên form là đử
+1. **Không cần tạo các subtitle bừa bãi** - chỉ cần 1 tên form là đủ

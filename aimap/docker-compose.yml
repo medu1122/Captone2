@@ -1,4 +1,22 @@
 services:
+  # POSTGRES CỤC BỘ CHO DEV; VPS: GHI DATABASE_URL TRONG aimap/.env
+  db:
+    image: postgres:16-alpine
+    container_name: aimap-db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: aimap_local
+      POSTGRES_DB: aimap
+    volumes:
+      - aimap-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d aimap"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
+    restart: unless-stopped
+
   backend:
     build:
       context: ./backend
@@ -9,20 +27,20 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=4111
-      - DATABASE_URL=postgresql://postgres:Thinh%401234@host.docker.internal:5432/aimap
-      - DATABASE_SSL=false
-      - JWT_SECRET=aimap-jwt-secret-production-2026
-      - FRONTEND_URL=https://captone2.site
-      - API_PUBLIC_URL=https://captone2.site
+      # MẶC ĐỊNH KẾT NỐI @db; CÓ .env THÌ DÙNG DATABASE_URL TRONG .ENV
+      - DATABASE_URL=${DATABASE_URL:-postgresql://postgres:aimap_local@db:5432/aimap}
+      - DATABASE_SSL=${DATABASE_SSL:-false}
+      - JWT_SECRET=${JWT_SECRET:-aimap-jwt-secret-change-me}
+      - FRONTEND_URL=${FRONTEND_URL:-http://localhost}
+      - API_PUBLIC_URL=${API_PUBLIC_URL:-http://localhost}
       - ASSET_STORAGE_PATH=/app/storage
       - DOCKER_SOCKET_PATH=/var/run/docker.sock
-      - SMTP_HOST=smtp.gmail.com
-      - SMTP_PORT=587
-      - SMTP_SECURE=false
-      - SMTP_USER=chuanbiradi@gmail.com
-      - SMTP_PASS=ssem avrq dgvm uips
-      - MAIL_FROM=AIMAP <AIMAP@gmail.com>
-      # API keys — docker-compose reads these from aimap/.env on the VPS (gitignored)
+      - SMTP_HOST=${SMTP_HOST:-smtp.gmail.com}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_SECURE=${SMTP_SECURE:-false}
+      - SMTP_USER=${SMTP_USER:-}
+      - SMTP_PASS=${SMTP_PASS:-}
+      - MAIL_FROM=${MAIL_FROM:-AIMAP <noreply@localhost>}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - OPENAI_IMAGE_MODEL=${OPENAI_IMAGE_MODEL:-gpt-image-1}
       - GEMINI_API_KEY=${GEMINI_API_KEY:-}
@@ -39,12 +57,10 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-      # Dùng /api để gọi same-origin; Nginx trong container proxy /api → backend
       args:
         VITE_API_URL: /api
     container_name: aimap-frontend
     ports:
-      # Port 80 trên host thường bị Nginx chiếm → bind 8080; Nginx host proxy domain:80 → 8080
       - "80:80"
     depends_on:
       - backend
@@ -52,3 +68,4 @@ services:
 
 volumes:
   backend-storage:
+  aimap-pgdata:

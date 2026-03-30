@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from 'react'
+import { Link } from 'react-router-dom'
 import { useLocale } from '../contexts/LocaleContext'
 import { useAuth } from '../contexts/AuthContext'
 import { authApi, type AccessLogItem, type ActivityLogItem } from '../api/auth'
 import { shopsApi } from '../api/shops'
 import type { Locale } from '../i18n/translations'
 
-const liveWebsitesCount: number | null = null
 /** Hiển thị tối đa 5 dòng mỗi trang; phần còn lại qua phân trang. */
 const LOG_PAGE_SIZE = 5
 const LOG_FETCH_LIMIT = 100
@@ -114,7 +114,7 @@ function formatAccessIpDisplay(
 
 export default function DashboardPage() {
   const { t, locale } = useLocale()
-  const { token } = useAuth()
+  const { token, user } = useAuth()
   const [activeShopsCount, setActiveShopsCount] = useState<number | null>(null)
   const [activityItems, setActivityItems] = useState<ActivityLogItem[]>([])
   const [accessItems, setAccessItems] = useState<AccessLogItem[]>([])
@@ -271,13 +271,18 @@ export default function DashboardPage() {
         <div className="bg-white border border-slate-300 rounded-lg p-6">
           <div className="flex items-center gap-3 mb-3">
             <div className="w-12 h-12 rounded-lg border border-slate-300 flex items-center justify-center bg-slate-50">
-              <img src="/icons/website.png" alt="" className="w-8 h-8" />
+              <span className="material-symbols-outlined text-3xl text-slate-600" aria-hidden>
+                payments
+              </span>
             </div>
-            <span className="text-sm font-medium text-slate-600">{t('dashboard.liveWebsites')}</span>
+            <span className="text-sm font-medium text-slate-600">{t('dashboard.creditBalance')}</span>
           </div>
-          <p className="text-3xl font-bold text-slate-900">
-            {formatCount(t, 'dashboard.liveWebsitesCount', liveWebsitesCount)}
+          <p className="text-3xl font-bold text-slate-900 tabular-nums">
+            {loading && token ? '…' : (user?.creditBalance ?? 0)}
           </p>
+          <Link to="/credits" className="text-sm text-primary font-medium hover:underline mt-2 inline-block">
+            {t('credits.paymentShort')}
+          </Link>
         </div>
       </div>
 

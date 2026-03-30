@@ -1,6 +1,6 @@
 /**
- * AIMAP Backend – entry + auth routes.
- * Chạy: node index.js hoặc npm run dev
+ * BACKEND AIMAP — KHỞI ĐỘNG EXPRESS, KẾT NỐI DB, POLL THANH TOÁN (MOCK).
+ * CHẠY: NODE INDEX.JS HOẶC NPM RUN DEV
  */
 import 'dotenv/config'
 import express from 'express'
@@ -12,7 +12,10 @@ import shopsRoutes from './routes/shops.js'
 import shopImageBotRoutes from './routes/shopImageBot.js'
 import shopDeployRoutes from './routes/shopDeploy.js'
 import configRoutes from './routes/config.js'
+import creditsRoutes from './routes/credits.js'
+import webhooksRoutes from './routes/webhooks.js'
 import { getUploadRoot } from './services/assetStorage.js'
+import { startPaymentPollLoop } from './services/paymentPoll.js'
 
 const app = express()
 const PORT = process.env.PORT ?? 4111
@@ -35,11 +38,13 @@ app.use('/api/shops', shopsRoutes)
 app.use('/api/shops', shopImageBotRoutes)
 app.use('/api/shops', shopDeployRoutes)
 app.use('/api/config', configRoutes)
+app.use('/api/credits', creditsRoutes)
+app.use('/api/webhooks', webhooksRoutes)
 
 await connectDB()
+startPaymentPollLoop()
 
-// Listen on 0.0.0.0 (IPv4 only) so all clients connect via IPv4
-// and the access log records readable IPv4 addresses instead of IPv6.
+// NGHE 0.0.0.0 ĐỂ TRUY CẬP TỪ MẠNG / DOCKER
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`AIMAP backend http://localhost:${PORT}`)
 })

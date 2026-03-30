@@ -137,7 +137,7 @@ export default function ShopListPage() {
                     {t('shops.enterShop')}
                   </Link>
                   <Link
-                    to={`/shops/${shop.id}/edit`}
+                    to={`/shops/${shop.id}`}
                     className="flex-1 text-center py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-medium hover:bg-slate-50"
                   >
                     {t('shops.edit')}

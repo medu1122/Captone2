@@ -19,9 +19,10 @@ import ShopStoragePage from './pages/shop/ShopStoragePage'
 import ShopMarketingPage from './pages/shop/ShopMarketingPage'
 import ShopPipelinePage from './pages/shop/ShopPipelinePage'
 import ShopWebsitePage from './pages/shop/ShopWebsitePage'
-import ShopEditPage from './pages/shop/ShopEditPage'
 import ShopProductsPage from './pages/shop/ShopProductsPage'
 import AdminContainersPage from './pages/admin/AdminContainersPage'
+import CreditsTopUpPage from './pages/CreditsTopUpPage'
+import CreditsHistoryPage from './pages/CreditsHistoryPage'
 
 function App() {
   return (
@@ -63,6 +64,17 @@ function App() {
           <Route index element={<ProfilePage />} />
         </Route>
         <Route
+          path="/credits"
+          element={
+            <ProtectedRoute>
+              <DashboardLayout />
+            </ProtectedRoute>
+          }
+        >
+          <Route index element={<CreditsTopUpPage />} />
+          <Route path="history" element={<CreditsHistoryPage />} />
+        </Route>
+        <Route
           path="/shops"
           element={
             <ProtectedRoute>
@@ -87,7 +99,8 @@ function App() {
           <Route path="marketing" element={<ShopMarketingPage />} />
           <Route path="pipeline" element={<ShopPipelinePage />} />
           <Route path="website" element={<ShopWebsitePage />} />
-          <Route path="edit" element={<ShopEditPage />} />
+          {/* Chỉnh sửa shop nằm trên dashboard (index); giữ redirect cho bookmark /shops/:id/edit */}
+          <Route path="edit" element={<Navigate to=".." replace />} />
           <Route path="products" element={<ShopProductsPage />} />
         </Route>
         <Route
@@ -100,6 +113,7 @@ function App() {
         >
           <Route path="containers" element={<AdminContainersPage />} />
         </Route>
+        <Route path="/credit/history" element={<Navigate to="/credits/history" replace />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>

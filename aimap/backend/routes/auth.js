@@ -18,7 +18,8 @@ const router = Router()
 const RESET_TOKEN_EXPIRES = '1h'
 const BCRYPT_ROUNDS = 10
 const VERIFY_CODE_EXPIRES_MINUTES = 15
-const SIGNUP_CREDIT_BONUS = 100
+// TẶNG CREDIT KHI ĐĂNG KÝ (MỘT LẦN)
+const SIGNUP_CREDIT_BONUS = 1000
 
 /** SINH MÃ 6 SỐ NGẪU NHIÊN CHO XÁC THỰC EMAIL */
 function generateSixDigitCode() {

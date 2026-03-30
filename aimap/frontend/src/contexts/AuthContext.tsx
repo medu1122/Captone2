@@ -65,9 +65,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let cancelled = false
     authApi
       .me(token)
-      .then(({ data }) => {
-        if (!cancelled && data?.success && data.user) setUserState(data.user)
-        else if (!cancelled) setUserState(null)
+      .then(({ data, status }) => {
+        if (cancelled) return
+        if (status === 401) {
+          try {
+            localStorage.removeItem(AUTH_TOKEN_KEY)
+          } catch {
+            /* ignore */
+          }
+          setTokenState(null)
+          setUserState(null)
+          return
+        }
+        if (data?.success && data.user) setUserState(data.user)
+        else setUserState(null)
       })
       .catch(() => {
         if (!cancelled) setUserState(null)

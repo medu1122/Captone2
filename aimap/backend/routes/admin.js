@@ -6,6 +6,7 @@ import { Router } from 'express'
 import pool from '../db/index.js'
 import { requireAuth } from '../middleware/auth.js'
 import { getContainerStats, stopContainer, listShopContainers } from '../services/shopDockerService.js'
+import { applyTopupSuccess } from '../services/creditPaymentService.js'
 
 const router = Router()
 
@@ -301,7 +302,7 @@ router.put('/users/:id/status', requireAuth, requireAdmin, async (req, res) => {
   }
 })
 
-// — CẤP CREDIT CHO USER (admin)
+// ADMIN — CẤP CREDIT
 router.post('/users/:id/credits', requireAuth, requireAdmin, async (req, res) => {
   const { id: targetProfileId } = req.params
   const { amount, description } = req.body || {}
@@ -547,6 +548,130 @@ router.post('/containers/:shopId/stop', requireAuth, requireAdmin, async (req, r
     res.status(500).json({ error: err.message })
   } finally {
     client.release()
+  }
+})
+
+// ADMIN — DANH SÁCH GIAO DỊCH CREDIT / CHI TIẾT / TRỪ / XÁC NHẬN THANH TOÁN
+
+router.get('/credits/transactions', requireAuth, requireAdmin, async (req, res) => {
+  const page = Math.max(1, parseInt(req.query.page, 10) || 1)
+  const limit = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 50))
+  const offset = (page - 1) * limit
+  const userId = req.query.userId || ''
+  const type = req.query.type || ''
+  const client = await pool.connect()
+  try {
+    let where = 'WHERE 1=1'
+    const params = []
+    if (userId) {
+      params.push(userId)
+      where += ` AND ct.user_id = $${params.length}`
+    }
+    if (type) {
+      params.push(type)
+      where += ` AND ct.type = $${params.length}`
+    }
+    const countQ = await client.query(
+      `SELECT COUNT(*)::int AS n FROM credit_transactions ct ${where}`,
+      params
+    )
+    const total = countQ.rows[0].n
+    const data = await client.query(
+      `SELECT ct.id, ct.user_id, ct.amount, ct.type, ct.reference_type, ct.reference_id, ct.description, ct.created_at,
+              up.name AS user_name, l.email AS user_email
+       FROM credit_transactions ct
+       JOIN user_profiles up ON up.id = ct.user_id
+       JOIN logins l ON l.id = up.login_id
+       ${where}
+       ORDER BY ct.created_at DESC
+       LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+      [...params, limit, offset]
+    )
+    res.json({
+      transactions: data.rows,
+      pagination: { page, limit, total, totalPages: Math.ceil(total / limit) || 1 },
+    })
+  } catch (err) {
+    console.error('admin credits transactions error:', err)
+    res.status(500).json({ error: 'Failed to list transactions' })
+  } finally {
+    client.release()
+  }
+})
+
+router.get('/users/:id/credits/detail', requireAuth, requireAdmin, async (req, res) => {
+  const { id } = req.params
+  const client = await pool.connect()
+  try {
+    const u = await client.query(
+      `SELECT up.id, up.name, l.email
+       FROM user_profiles up JOIN logins l ON l.id = up.login_id WHERE up.id = $1`,
+      [id]
+    )
+    if (!u.rows.length) return res.status(404).json({ error: 'User not found' })
+    const bal = await client.query(
+      `SELECT COALESCE(SUM(amount), 0)::int AS balance FROM credit_transactions WHERE user_id = $1`,
+      [id]
+    )
+    res.json({
+      user: { id: u.rows[0].id, name: u.rows[0].name, email: u.rows[0].email },
+      creditBalance: bal.rows[0].balance,
+    })
+  } catch (err) {
+    console.error('admin credits detail error:', err)
+    res.status(500).json({ error: 'Failed to load credit detail' })
+  } finally {
+    client.release()
+  }
+})
+
+router.post('/users/:id/credits/deduct', requireAuth, requireAdmin, async (req, res) => {
+  const { id: targetProfileId } = req.params
+  const { amount, description } = req.body || {}
+  const n = parseInt(amount, 10)
+  if (!Number.isFinite(n) || n < 1 || n > 1_000_000) {
+    return res.status(400).json({ error: 'amount must be a positive integer (1–1000000) credits to deduct' })
+  }
+  const { profileId: adminProfileId } = req.auth
+  const desc =
+    typeof description === 'string' && description.trim()
+      ? description.trim().slice(0, 500)
+      : 'Admin credit deduction'
+
+  const client = await pool.connect()
+  try {
+    const check = await client.query('SELECT id FROM user_profiles WHERE id = $1', [targetProfileId])
+    if (check.rows.length === 0) return res.status(404).json({ error: 'User not found' })
+    await client.query(
+      `INSERT INTO credit_transactions (user_id, amount, type, reference_type, reference_id, description)
+       VALUES ($1, $2, 'deduct', 'admin_deduct', $3, $4)`,
+      [targetProfileId, -n, String(adminProfileId), desc]
+    )
+    const bal = await client.query(
+      `SELECT COALESCE(SUM(amount), 0)::int AS balance FROM credit_transactions WHERE user_id = $1`,
+      [targetProfileId]
+    )
+    res.json({ success: true, creditBalance: bal.rows[0].balance })
+  } catch (err) {
+    console.error('admin deduct credit error:', err)
+    res.status(500).json({ error: 'Failed to deduct credits' })
+  } finally {
+    client.release()
+  }
+})
+
+router.post('/payments/:id/confirm', requireAuth, requireAdmin, async (req, res) => {
+  const { id } = req.params
+  const gatewayTxnId = typeof req.body?.gatewayTxnId === 'string' ? req.body.gatewayTxnId : `admin_${Date.now()}`
+  try {
+    const result = await applyTopupSuccess(id, gatewayTxnId.slice(0, 255))
+    if (!result.ok) {
+      return res.status(result.reason === 'not_found' ? 404 : 409).json({ error: result.reason || 'Cannot confirm' })
+    }
+    res.json({ success: true })
+  } catch (err) {
+    console.error('admin confirm payment error:', err)
+    res.status(500).json({ error: err.message || 'Confirm failed' })
   }
 })
 

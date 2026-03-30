@@ -11,7 +11,7 @@ Base URL: `http://localhost:4111/api`
 ## Credit (số dư)
 
 - Số dư = tổng `amount` trong bảng `credit_transactions` theo `user_id` (profile id).
-- Sau **POST /auth/verify** thành công, user mới nhận **100 credit** (bonus đăng ký, `reference_type`: `signup_bonus`).
+- Sau **POST /auth/verify** thành công, user mới nhận **1000 credit** (bonus đăng ký, `reference_type`: `signup_bonus`; có thể đổi trong code `SIGNUP_CREDIT_BONUS`).
 - User cũ (tạo trước khi có tính năng) có thể có số dư **0** cho đến khi admin cấp thêm.
 
 ---
@@ -352,7 +352,7 @@ Body:
   variant_count (1–5, default 3)
 ```
 Trả: `image_urls[]`, `image_data_urls[]`, `model_source`, `prompt_template_id`, `final_prompt`.
-Trừ credit sau khi tạo thành công: `IMAGE_GENERATE_CREDIT_COST × variant_count` credit (default 10/variant).
+Trừ credit sau khi tạo thành công: `IMAGE_GENERATE_CREDIT_COST × variant_count` credit (default **1**/variant, env `IMAGE_GENERATE_CREDIT_COST`).
 
 **POST /shops/:id/images/generate-stream** — Cùng body như `generate` (backend tự chọn template; mỗi ảnh một prompt khác nhau, reuse nếu ít template), response **NDJSON**:
 - `{ type: "prompt", prompt_template_id, variant_count, model }` — không gửi full prompt (bảo mật).
@@ -447,6 +447,46 @@ Response: `{ "ok": true }`
 
 ---
 
+## Credits / Payment (VietQR/mock)
+
+**Quy ước:** User nhập **số tiền VND**; `credits` = floor(amountVnd / `CREDIT_VND_RATE`). Tạo intent → CK đúng **amount_money** và **transfer_content** → mock poll (gateway `mock`) hoặc webhook Casso khớp nội dung `AIMAP-*` → cộng `credit_transactions`.
+
+**GET /credits/methods** — Danh sách phương thức + tỷ quy đổi + tối thiểu VND
+```
+Headers: Authorization: Bearer <token>
+```
+Response: `{ "methods": [ { "id": "mock"|"vietqr_bank", "label": "..." } ], "creditVndRate": 1000, "minAmountVnd": 10000 }`
+
+**POST /credits/topup/intent** — Tạo đơn pending + (tuỳ chọn) URL ảnh QR VietQR
+```
+Headers: Authorization: Bearer <token>, Content-Type: application/json
+Body: { "amountVnd": 100000, "methodId": "mock" }
+```
+Response 201: `{ "payment": { "id", "amountMoney", "credits", "status", "transferContent", "qrImageUrl", "expiresAt", "createdAt" }, "creditVndRate": 1000 }`
+
+**GET /credits/payments/:id** — Trạng thái đơn (poll từ FE)
+```
+Headers: Authorization: Bearer <token>
+```
+
+**GET /credits/history** — Lịch sử `credit_transactions` của user
+```
+Headers: Authorization: Bearer <token>
+Query: limit=20, offset=0
+```
+Response: `{ "transactions": [ { "id", "amount", "type", "reference_type", "reference_id", "description", "created_at" } ] }`
+
+**Migration DB:** chạy `aimap/backend/db/migrations/005_payments_vietqr.sql` nếu chưa có bảng `payments`.
+
+**POST /webhooks/casso** — Webhook Casso (không cần JWT user). Body JSON chứa mảng giao dịch; hệ thống tìm `description` có `AIMAP-...` khớp `transfer_content` và `amount` khớp `amount_money` của đơn pending → xác nhận thanh toán.
+```
+Headers: tùy chọn Authorization: Bearer <CASSO_WEBHOOK_BEARER> nếu cấu hình
+Content-Type: application/json
+```
+Response: `{ "ok": true, "processed": <số đơn đã khớp> }`
+
+---
+
 ## Config
 
 **GET /config/image-models** — Model tạo ảnh đã cấu hình key chưa (cho UI disable Gemini)
@@ -523,6 +563,34 @@ Body (gửi fields muốn update):
 }
 ```
 Lưu ý: Không update được email, password, role
+
+---
+
+**GET /admin/credits/transactions** - Danh sách giao dịch credit (toàn hệ thống)
+```
+Query: userId=uuid (optional), type=topup|deduct|bonus (optional), page=1, limit=50
+```
+
+---
+
+**GET /admin/users/:id/credits/detail** - Số dư + email user
+```
+VD: GET /api/admin/users/<profileId>/credits/detail
+```
+
+---
+
+**POST /admin/users/:id/credits/deduct** - Trừ credit (ghi `credit_transactions` amount âm, type `deduct`)
+```
+Body: { "amount": 10, "description": "..." }
+```
+
+---
+
+**POST /admin/payments/:id/confirm** - Xác nhận thủ công một đơn `payments` pending (khi polling lỗi)
+```
+Body: { "gatewayTxnId": "optional" }
+```
 
 ---
 

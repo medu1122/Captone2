@@ -145,8 +145,8 @@ flowchart LR
   - **Create shop (form `/shops/create`):** Chỉ thu thập thông tin cơ bản. **Bắt buộc:** name, slug, industry, description, address, city, district, country, postal_code, contact_info.phone, contact_info.email, contact_info.owner_name. **Không** nhập products hay website_url lúc tạo — người dùng bổ sung sau tại `/shops/[id]/edit`. Xem [AIMAP-Data-Hierarchy.md](AIMAP-Data-Hierarchy.md) và [UI STRUCT.md](UI%20STRUCT.md).
 - **sites:** id (PK), shop_id (FK), user_id (FK → user_profiles), name, slug (UNIQUE), config_json (JSONB), status (draft/deployed), created_at, updated_at. Khớp Architecture VII và “1 shop = 1 site”.
 - **credit_transactions:** id (PK), user_id (FK → user_profiles), amount (integer), type, reference_type, reference_id, description, created_at. Index (user_id, created_at).
-  - **Đã triển khai trong backend:** sau **verify** tạo tài khoản → một dòng **+100**, `type` = `bonus`, `reference_type` = **`signup_bonus`**; admin cấp thêm → `reference_type` = **`admin_grant`**, `reference_id` = profile id admin. API trả số dư qua **`creditBalance`** (login + `/me`).
-- **payments:** id (PK), user_id (FK → user_profiles), amount_money, credits, gateway, gateway_txn_id (UNIQUE), status, callback_data (JSONB), created_at, updated_at.
+  - **Đã triển khai trong backend:** sau **verify** tạo tài khoản → một dòng bonus (ví dụ **+1000** credit, có thể cấu hình), `type` = `bonus`, `reference_type` = **`signup_bonus`**; admin cấp thêm → `reference_type` = **`admin_grant`**, `reference_id` = profile id admin; nạp tiền thành công → `type` = **`topup`**, `reference_type` = **`payment`**, `reference_id` = `payments.id`. API trả số dư qua **`creditBalance`** (login + `/me`). **Quy ước sản phẩm:** 1 credit ≈ 1.000 VND khi mua qua cổng; `amount` trong ledger là đơn vị credit (topup dương, trừ AI âm hoặc deduct tùy quy ước code).
+- **payments** (nạp credit — VietQR / polling / gateway): id (PK), user_id (FK → user_profiles), amount_money (VND), credits (số credit sẽ cộng, thường = amount_money / 1000), gateway (vd. `vietqr_polling`, `mock`), gateway_txn_id (nullable, unique khi có — mã giao dịch phía provider sau khi khớp), status (`pending` | `success` | `failed` | `cancelled` | **`expired`**), **transfer_content** (TEXT, **UNIQUE** — nội dung chuyển khoản để đối soát), **qr_image_url** (TEXT nullable — URL ảnh QR nếu có), callback_data (JSONB — log callback/polling), **paid_at**, **expires_at** (giữ chỗ đơn), created_at, updated_at. Index: (user_id, created_at), (status), unique(transfer_content). **Migration tham chiếu:** `aimap/backend/db/migrations/005_payments_vietqr.sql` (idempotent nếu đã có bảng `payments` phiên bản cũ). Khi `status` chuyển sang `success`: trong **một transaction** DB — cập nhật `payments` + insert **một** dòng `credit_transactions` (`type` = `topup`, `reference_type` = `payment`, `reference_id` = id payment) để tránh double-credit.
 
 ### Bước 5: Schema chi tiết Sprint 2 (đủ để viết migration)
 
@@ -402,9 +402,13 @@ erDiagram
     int amount_money
     int credits
     string gateway
-    string gateway_txn_id UK
+    string gateway_txn_id
     string status
+    string transfer_content UK
+    string qr_image_url
     jsonb callback_data
+    timestamp paid_at
+    timestamp expires_at
     timestamp created_at
     timestamp updated_at
   }
@@ -706,23 +710,30 @@ CREATE TABLE credit_transactions (
 CREATE INDEX idx_credit_tx_user_id ON credit_transactions (user_id, created_at);
 CREATE INDEX idx_credit_tx_ref     ON credit_transactions (reference_type, reference_id);
 
--- 6. payments (thanh toán nạp credit qua payment gateway)
+-- 6. payments (thanh toán nạp credit — VietQR / polling provider / mock)
+-- Bản đầy đủ; nếu DB đã có bảng cũ ít cột, dùng migration idempotent: aimap/backend/db/migrations/005_payments_vietqr.sql
 CREATE TABLE payments (
-    id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id         UUID NOT NULL
-                        REFERENCES user_profiles(id) ON DELETE CASCADE,
-    amount_money    INTEGER NOT NULL,
-    credits         INTEGER NOT NULL,
-    gateway         VARCHAR(50) NOT NULL,
-    gateway_txn_id  VARCHAR(255) UNIQUE,
-    status          VARCHAR(30) NOT NULL DEFAULT 'pending'
-                        CHECK (status IN ('pending', 'success', 'failed', 'cancelled')),
-    callback_data   JSONB,
-    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id          UUID NOT NULL
+                         REFERENCES user_profiles(id) ON DELETE CASCADE,
+    amount_money     INTEGER NOT NULL,
+    credits          INTEGER NOT NULL,
+    gateway          VARCHAR(80) NOT NULL DEFAULT 'vietqr_polling',
+    gateway_txn_id   VARCHAR(255),
+    status           VARCHAR(30) NOT NULL DEFAULT 'pending'
+                         CHECK (status IN ('pending', 'success', 'failed', 'cancelled', 'expired')),
+    transfer_content TEXT NOT NULL,
+    qr_image_url     TEXT,
+    callback_data    JSONB DEFAULT '{}'::jsonb,
+    created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    paid_at          TIMESTAMPTZ,
+    expires_at       TIMESTAMPTZ
 );
 
-CREATE INDEX idx_payments_user_id ON payments (user_id, created_at);
+CREATE UNIQUE INDEX idx_payments_transfer_content ON payments (transfer_content);
+CREATE UNIQUE INDEX idx_payments_gateway_txn_id ON payments (gateway_txn_id) WHERE gateway_txn_id IS NOT NULL;
+CREATE INDEX idx_payments_user_id ON payments (user_id, created_at DESC);
 CREATE INDEX idx_payments_status  ON payments (status);
 ```
 

@@ -11,8 +11,8 @@ import { saveShopAssetFile, fetchImageToBuffer, parseDataUrl } from '../services
 
 const router = Router()
 
-// Credit cost per generate call (can override via env IMAGE_GENERATE_CREDIT_COST)
-const CREDIT_COST_GENERATE = Math.max(1, parseInt(process.env.IMAGE_GENERATE_CREDIT_COST || '10', 10))
+// TRỪ CREDIT MỖI LẦN GỌI TẠO ẢNH (ĐỔI BẰNG IMAGE_GENERATE_CREDIT_COST)
+const CREDIT_COST_GENERATE = Math.max(1, parseInt(process.env.IMAGE_GENERATE_CREDIT_COST || '1', 10))
 
 async function shopOwnedBy(client, shopId, profileId) {
   const r = await client.query('SELECT * FROM shops WHERE id = $1', [shopId])

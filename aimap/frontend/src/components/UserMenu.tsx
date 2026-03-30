@@ -56,6 +56,13 @@ export default function UserMenu({ user, onLogout }: UserMenuProps) {
             >
               {t('userMenu.profile')}
             </Link>
+            <Link
+              to="/credits"
+              className="block px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-100"
+              onClick={() => setOpen(false)}
+            >
+              {t('userMenu.payment')}
+            </Link>
             <button
               type="button"
               onClick={() => {

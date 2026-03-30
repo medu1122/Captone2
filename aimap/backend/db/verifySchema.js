@@ -1,6 +1,5 @@
 /**
- * KIỂM TRA DATABASE CÓ ĐỦ 15 BẢNG THEO READ_CONTEXT/DATABASE_DESIGN.MD HAY KHÔNG.
- * GỌI SAU connectDB(); NẾU THIẾU BẢNG CHỈ LOG WARNING, KHÔNG EXIT.
+ * SAU connectDB(): ĐỐI CHIẾU CÁC BẢNG BẮT BUỘC; THIẾU THÌ CHỈ CẢNH BÁO.
  */
 
 const REQUIRED_TABLES = [
@@ -21,11 +20,6 @@ const REQUIRED_TABLES = [
   'activity_logs',
 ]
 
-/**
- * @param {import('pg').Pool} pool
- * @returns {Promise<{ ok: boolean, existing: string[], missing: string[] }>}
- * OK = TRUE KHI ĐỦ TẤT CẢ BẢNG TRONG REQUIRED_TABLES.
- */
 export async function verifySchema(pool) {
   const client = await pool.connect()
   try {

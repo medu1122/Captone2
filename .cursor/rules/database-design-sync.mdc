@@ -1,0 +1,25 @@
+---
+description: Đồng bộ tài liệu database_design.md khi đổi schema DB
+alwaysApply: true
+---
+
+# Đồng bộ tài liệu Database Design
+
+## Quy tắc bắt buộc
+
+- Khi **thêm / sửa / xóa** schema database trong backend (migrations, bảng, cột, index, constraint, enum, view, trigger) phải cập nhật ngay:
+  - `READ_CONTEXT/database_design.md`
+- Không được để code DB thay đổi nhưng tài liệu schema không cập nhật.
+
+## Phạm vi áp dụng
+
+- Mọi file trong:
+  - `aimap/backend/db/migrations/`
+  - `aimap/backend/db/verifySchema.js`
+  - Các route/service có SQL thay đổi cấu trúc schema.
+
+## Checklist nhanh khi có thay đổi DB
+
+- Cập nhật phần mô tả bảng liên quan trong `READ_CONTEXT/database_design.md`.
+- Nếu có SQL mẫu/tổng hợp schema trong tài liệu thì cập nhật luôn để khớp migration mới.
+- Nếu thêm endpoint liên quan DB thì cập nhật thêm `aimap/backend/danhsach_API.md` theo rule API docs.

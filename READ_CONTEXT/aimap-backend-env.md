@@ -26,6 +26,19 @@ Compose sẽ inject biến vào container backend (không dùng `aimap/backend/.
 | `GEMINI_IMAGE_MODEL` | Fallback generateContent + IMAGE |
 | `ASSET_STORAGE_PATH` | Thư mục lưu file ảnh shop |
 | `API_PUBLIC_URL` | URL **gốc** backend **không** có `/api` — dùng cho link ảnh `/uploads/...` trong DB |
+| `CREDIT_VND_RATE` | Số VND cho 1 credit khi tạo đơn nạp (mặc định `1000`) |
+| `IMAGE_GENERATE_CREDIT_COST` | Trừ credit mỗi variant ảnh image bot (mặc định `1`) |
+| `PAYMENT_PROVIDER` | `mock` = tự xác nhận đơn sau vài giây; khác = `vietqr_polling` (chưa gắn API thật) |
+| `PAYMENT_POLL_ENABLED` | `0` = tắt vòng poll nền |
+| `PAYMENT_POLL_INTERVAL_MS` | Chu kỳ poll (mặc định `15000`) |
+| `PAYMENT_MOCK_DELAY_SEC` | Đơn mock chỉ hoàn tất sau khi đã tạo ít nhất N giây (mặc định `5`) |
+| `PAYMENT_EXPIRY_MINUTES` | Hết hạn đơn pending (mặc định `30`) |
+| `PAYMENT_MIN_AMOUNT_VND` | Tối thiểu số tiền mỗi lần tạo intent (mặc định `10000`) |
+| `PAYMENT_METHOD_MOCK` | `0` = ẩn phương thức mock trong `GET /credits/methods` |
+| `PAYMENT_METHOD_VIETQR` | `0` = ẩn VietQR dù đã cấu hình BIN/tài khoản |
+| `VIETQR_BANK_BIN` | Mã BIN ngân hàng (6 số) — sinh URL ảnh QR `img.vietqr.io` |
+| `VIETQR_ACCOUNT_NO` | Số tài khoản nhận (không khoảng trắng) |
+| `CASSO_WEBHOOK_BEARER` | (Tuỳ chọn) Nếu set, `POST /api/webhooks/casso` yêu cầu `Authorization: Bearer <giá trị>` |
 
 **Frontend:** `VITE_API_URL` trong `aimap/frontend/.env` phải trỏ tới API có suffix `/api`, vd. `http://localhost:4111/api`. Không nhầm với `API_PUBLIC_URL`.
 
