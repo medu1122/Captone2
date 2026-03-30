@@ -447,9 +447,9 @@ Response: `{ "ok": true }`
 
 ---
 
-## Credits / Payment (VietQR + Casso webhook)
+## Credits / Payment (VietQR API Service)
 
-**Quy ước:** User nhập **số tiền VND**; `credits` = floor(amountVnd / `CREDIT_VND_RATE`). Tạo intent → CK đúng **amount_money** và **transfer_content** → webhook Casso khớp nội dung `AIMAP-*` và số tiền → cộng `credit_transactions`.
+**Quy ước:** User nhập **số tiền VND**; `credits` = floor(amountVnd / `CREDIT_VND_RATE`). Tạo intent → CK đúng **amount_money** và **transfer_content** → webhook VietQR khớp nội dung `AIMAP-*` và số tiền → cộng `credit_transactions`.
 
 **GET /credits/methods** — Danh sách phương thức + tỷ quy đổi + tối thiểu VND
 ```
@@ -478,12 +478,19 @@ Response: `{ "transactions": [ { "id", "amount", "type", "reference_type", "refe
 
 **Migration DB:** chạy `aimap/backend/db/migrations/005_payments_vietqr.sql` nếu chưa có bảng `payments`.
 
-**POST /webhooks/casso** — Webhook Casso (không cần JWT user). Body JSON chứa mảng giao dịch; hệ thống tìm `description` có `AIMAP-...` khớp `transfer_content` và `amount` khớp `amount_money` của đơn pending → xác nhận thanh toán.
+**POST /webhooks/vietqr** — Webhook VietQR API Service (không cần JWT user). Body JSON chứa mảng giao dịch; hệ thống tìm `content/description` có `AIMAP-...` khớp `transfer_content` và `amount` khớp `amount_money` của đơn pending → xác nhận thanh toán.
 ```
-Headers: tùy chọn Authorization: Bearer <CASSO_WEBHOOK_BEARER> nếu cấu hình
+Headers:
+  - Authorization: Bearer <VIETQR_WEBHOOK_BEARER> (nếu bật bearer), hoặc
+  - Authorization: Basic <base64(username:password)> (nếu bật basic auth)
 Content-Type: application/json
 ```
-Response: `{ "ok": true, "processed": <số đơn đã khớp>, "received": <số giao dịch nhận vào> }`
+Response:
+`{ "error": false, "errorReason": null, "toastMessage": "ok", "object": { "processed": 1, "received": 1, "invalidSign": 0 } }`
+
+Verify `sign` (nếu có cấu hình `VIETQR_CALLBACK_SECRET`):
+- Chuỗi ký: `transactionId + amount(10 số, padStart) + transactionTime + orderId`
+- Thuật toán: HMAC-SHA256
 
 ---
 

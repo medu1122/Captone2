@@ -28,7 +28,7 @@ Compose sẽ inject biến vào container backend (không dùng `aimap/backend/.
 | `API_PUBLIC_URL` | URL **gốc** backend **không** có `/api` — dùng cho link ảnh `/uploads/...` trong DB |
 | `CREDIT_VND_RATE` | Số VND cho 1 credit khi tạo đơn nạp (mặc định `1000`) |
 | `IMAGE_GENERATE_CREDIT_COST` | Trừ credit mỗi variant ảnh image bot (mặc định `1`) |
-| `PAYMENT_PROVIDER` | Không dùng để auto-success; luồng production xác nhận qua webhook Casso |
+| `PAYMENT_PROVIDER` | Không dùng để auto-success; luồng production xác nhận qua webhook VietQR API Service |
 | `PAYMENT_POLL_ENABLED` | `0` = tắt vòng poll nền |
 | `PAYMENT_POLL_INTERVAL_MS` | Chu kỳ poll (mặc định `15000`) |
 | `PAYMENT_EXPIRY_MINUTES` | Hết hạn đơn pending (mặc định `30`) |
@@ -36,7 +36,10 @@ Compose sẽ inject biến vào container backend (không dùng `aimap/backend/.
 | `PAYMENT_METHOD_VIETQR` | `0` = ẩn VietQR dù đã cấu hình BIN/tài khoản |
 | `VIETQR_BANK_BIN` | Mã BIN ngân hàng (6 số) — sinh URL ảnh QR `img.vietqr.io` |
 | `VIETQR_ACCOUNT_NO` | Số tài khoản nhận (không khoảng trắng) |
-| `CASSO_WEBHOOK_BEARER` | (Tuỳ chọn) Nếu set, `POST /api/webhooks/casso` yêu cầu `Authorization: Bearer <giá trị>` |
+| `VIETQR_WEBHOOK_BEARER` | (Tuỳ chọn) Nếu set, `POST /api/webhooks/vietqr` yêu cầu `Authorization: Bearer <giá trị>` |
+| `VIETQR_CLIENT_USERNAME` | (Tuỳ chọn) Username Basic Auth phía khách hàng cấu hình trong VietQR API Service |
+| `VIETQR_CLIENT_PASSWORD` | (Tuỳ chọn) Password Basic Auth phía khách hàng cấu hình trong VietQR API Service |
+| `VIETQR_CALLBACK_SECRET` | (Tuỳ chọn) Secret để verify trường `sign` callback VietQR (nếu tài khoản có bật) |
 
 **Frontend:** `VITE_API_URL` trong `aimap/frontend/.env` phải trỏ tới API có suffix `/api`, vd. `http://localhost:4111/api`. Không nhầm với `API_PUBLIC_URL`.
 

@@ -1,52 +1,100 @@
 /**
- * WEBHOOK NGÂN HÀNG (CASSO) — KHỚP NỘI DUNG AIMAP-* + SỐ TIỀN VỚI ĐƠN PENDING.
+ * WEBHOOK VIETQR API SERVICE — KHỚP NỘI DUNG AIMAP-* + SỐ TIỀN VỚI ĐƠN PENDING.
  */
 import { Router } from 'express'
+import crypto from 'crypto'
 import { applyTopupSuccess, findPendingPaymentByContentAndAmount } from '../services/creditPaymentService.js'
 
 const router = Router()
 
-function collectCassoTxns(body) {
+function collectVietQrTxns(body) {
   if (!body || typeof body !== 'object') return []
+  if (Array.isArray(body.transactions)) return body.transactions
   if (Array.isArray(body.data)) return body.data
   if (body.data && Array.isArray(body.data.transactions)) return body.data.transactions
   if (body.data && Array.isArray(body.data.records)) return body.data.records
   if (body.data && typeof body.data === 'object') return [body.data]
-  if (Array.isArray(body.transactions)) return body.transactions
   if (Array.isArray(body)) return body
+  if (typeof body.amount !== 'undefined' && (body.content || body.description || body.remark)) return [body]
   return []
 }
 
-function txnAmountDesc(item) {
+function parseTxn(item) {
   const amount = Number(item?.amount ?? item?.transferAmount ?? item?.transfer_amount ?? 0)
-  const desc = String(item?.description ?? item?.content ?? item?.remark ?? '')
+  const desc = String(item?.content ?? item?.description ?? item?.remark ?? item?.note ?? '')
   const extId = String(
+    item?.transactionid ??
+    item?.transactionID ??
+    item?.transaction_id ??
     item?.id ??
-      item?.reference ??
-      item?.tid ??
-      item?.transactionID ??
-      item?.transaction_id ??
-      item?.virtualAccount ??
-      ''
+    item?.reference ??
+    item?.tid ??
+    item?.referencenumber ??
+    item?.virtualAccount ??
+    ''
   ).slice(0, 255)
-  return { amount, desc, extId }
+  const sign = String(item?.sign ?? item?.signature ?? '').trim().toLowerCase()
+  const transactionTime = String(item?.transactiontime ?? item?.transactionTime ?? '').trim()
+  const orderId = String(item?.orderId ?? item?.orderid ?? '').trim()
+  const transType = String(item?.transType ?? item?.transactionType ?? '').trim().toUpperCase()
+  return { amount, desc, extId, sign, transactionTime, orderId, transType }
 }
 
-router.post('/casso', async (req, res) => {
-  const token = process.env.CASSO_WEBHOOK_BEARER
+function verifyBasicAuth(authHeader, username, password) {
+  const raw = String(authHeader || '')
+  if (!raw.startsWith('Basic ')) return false
+  try {
+    const decoded = Buffer.from(raw.slice(6), 'base64').toString('utf8')
+    const i = decoded.indexOf(':')
+    if (i < 0) return false
+    const u = decoded.slice(0, i)
+    const p = decoded.slice(i + 1)
+    return u === username && p === password
+  } catch {
+    return false
+  }
+}
+
+function verifySign(txn, secret) {
+  if (!secret) return true
+  if (!txn.sign || !txn.extId || !txn.transactionTime || !txn.orderId) return false
+  const amount10 = String(Math.round(txn.amount)).padStart(10, '0')
+  const raw = `${txn.extId}${amount10}${txn.transactionTime}${txn.orderId}`
+  const expected = crypto.createHmac('sha256', secret).update(raw).digest('hex').toLowerCase()
+  return expected === txn.sign
+}
+
+router.post('/vietqr', async (req, res) => {
+  const token = String(process.env.VIETQR_WEBHOOK_BEARER || '').trim()
+  const username = String(process.env.VIETQR_CLIENT_USERNAME || '').trim()
+  const password = String(process.env.VIETQR_CLIENT_PASSWORD || '').trim()
+  const authHeader = req.headers.authorization || ''
+
+  // CHO PHÉP 1 TRONG 2 CÁCH: BEARER HOẶC BASIC (THEO CẤU HÌNH TÍCH HỢP VIETQR).
   if (token) {
-    const auth = req.headers.authorization || ''
-    if (auth !== `Bearer ${token}`) {
+    if (authHeader !== `Bearer ${token}`) {
+      return res.status(401).json({ error: 'unauthorized' })
+    }
+  } else if (username && password) {
+    if (!verifyBasicAuth(authHeader, username, password)) {
       return res.status(401).json({ error: 'unauthorized' })
     }
   }
 
   try {
-    const txns = collectCassoTxns(req.body)
+    const txns = collectVietQrTxns(req.body)
+    const signSecret = String(process.env.VIETQR_CALLBACK_SECRET || '').trim()
     let matched = 0
+    let invalidSign = 0
     for (const item of txns) {
-      const { amount, desc, extId } = txnAmountDesc(item)
+      const txn = parseTxn(item)
+      const { amount, desc, extId, transType } = txn
       if (!Number.isFinite(amount) || amount <= 0 || !desc) continue
+      if (transType && transType !== 'C') continue
+      if (!verifySign(txn, signSecret)) {
+        invalidSign += 1
+        continue
+      }
       const m = desc.match(/AIMAP-[A-Z0-9]+/i)
       if (!m) continue
       const transferContent = m[0]
@@ -55,9 +103,14 @@ router.post('/casso', async (req, res) => {
       const result = await applyTopupSuccess(paymentId, extId || null)
       if (result.ok) matched += 1
     }
-    res.json({ ok: true, processed: matched, received: txns.length })
+    res.json({
+      error: false,
+      errorReason: null,
+      toastMessage: 'ok',
+      object: { processed: matched, received: txns.length, invalidSign },
+    })
   } catch (e) {
-    console.error('[webhook casso]', e.message)
+    console.error('[webhook vietqr]', e.message)
     res.status(500).json({ error: 'webhook failed' })
   }
 })
