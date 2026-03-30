@@ -22,7 +22,6 @@ import ShopWebsitePage from './pages/shop/ShopWebsitePage'
 import ShopProductsPage from './pages/shop/ShopProductsPage'
 import AdminContainersPage from './pages/admin/AdminContainersPage'
 import CreditsTopUpPage from './pages/CreditsTopUpPage'
-import CreditsHistoryPage from './pages/CreditsHistoryPage'
 
 function App() {
   return (
@@ -72,7 +71,6 @@ function App() {
           }
         >
           <Route index element={<CreditsTopUpPage />} />
-          <Route path="history" element={<CreditsHistoryPage />} />
         </Route>
         <Route
           path="/shops"
@@ -113,7 +111,6 @@ function App() {
         >
           <Route path="containers" element={<AdminContainersPage />} />
         </Route>
-        <Route path="/credit/history" element={<Navigate to="/credits/history" replace />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>

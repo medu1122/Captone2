@@ -58,9 +58,7 @@ export default function DashboardLayout() {
             {location.pathname === '/profile'
               ? t('nav.profile')
               : location.pathname.startsWith('/credits')
-                ? location.pathname.includes('/history')
-                  ? t('credits.historyTitle')
-                  : t('credits.paymentTitle')
+                ? t('credits.paymentTitle')
               : location.pathname === '/shops/create'
                 ? t('shops.createShop')
                 : t(

@@ -3,7 +3,13 @@ import { apiFetch } from './client'
 
 const PREFIX = '/credits'
 
-export type PaymentMethod = { id: string; label: string }
+export type PaymentMethod = {
+  id: string
+  label: string
+  bankBin?: string
+  bankName?: string
+  accountNo?: string
+}
 
 export type PaymentIntentResponse = {
   payment: {

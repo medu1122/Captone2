@@ -7,12 +7,28 @@ import { buildVietQrImageUrl } from './vietqrUrl.js'
 export const CREDIT_VND_RATE = Math.max(1, parseInt(process.env.CREDIT_VND_RATE || '1000', 10))
 export const PAYMENT_EXPIRY_MINUTES = Math.max(5, parseInt(process.env.PAYMENT_EXPIRY_MINUTES || '30', 10))
 export const PAYMENT_MIN_AMOUNT_VND = Math.max(1000, parseInt(process.env.PAYMENT_MIN_AMOUNT_VND || '10000', 10))
+const BANK_BIN_NAMES = {
+  '970423': 'TPBank',
+  '970415': 'VietinBank',
+  '970436': 'Vietcombank',
+  '970422': 'MBBank',
+  '970407': 'Techcombank',
+  '970416': 'ACB',
+}
+
+function getBankMetaFromEnv() {
+  const bankBin = String(process.env.VIETQR_BANK_BIN || '').trim()
+  const accountNo = String(process.env.VIETQR_ACCOUNT_NO || '').replace(/\s+/g, '')
+  if (!bankBin || !accountNo) return null
+  const bankName = BANK_BIN_NAMES[bankBin] || `BIN ${bankBin}`
+  return { bankBin, bankName, accountNo }
+}
 
 export function getPaymentMethods() {
   const methods = []
-  const hasVietqr = (process.env.VIETQR_BANK_BIN || '').trim() && (process.env.VIETQR_ACCOUNT_NO || '').trim()
-  if (hasVietqr && process.env.PAYMENT_METHOD_VIETQR !== '0') {
-    methods.push({ id: 'vietqr_bank', label: 'VietQR chuyển khoản' })
+  const bankMeta = getBankMetaFromEnv()
+  if (bankMeta && process.env.PAYMENT_METHOD_VIETQR !== '0') {
+    methods.push({ id: 'vietqr_bank', label: 'VietQR chuyển khoản', ...bankMeta })
   }
   return methods
 }

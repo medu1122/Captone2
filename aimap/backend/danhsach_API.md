@@ -455,7 +455,7 @@ Response: `{ "ok": true }`
 ```
 Headers: Authorization: Bearer <token>
 ```
-Response: `{ "methods": [ { "id": "vietqr_bank", "label": "VietQR chuyển khoản" } ], "creditVndRate": 1000, "minAmountVnd": 10000 }`
+Response: `{ "methods": [ { "id": "vietqr_bank", "label": "VietQR chuyển khoản", "bankBin": "970423", "bankName": "TPBank", "accountNo": "0809..." } ], "creditVndRate": 1000, "minAmountVnd": 10000 }`
 
 **POST /credits/topup/intent** — Tạo đơn pending + (tuỳ chọn) URL ảnh QR VietQR
 ```
