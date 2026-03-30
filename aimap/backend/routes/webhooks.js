@@ -146,6 +146,7 @@ async function handleVietQrCallback(req, res) {
 router.post('/vietqr', handleVietQrCallback)
 router.post('/bank/api/test/transaction-callback', handleVietQrCallback)
 router.post('/bank/api/transaction-callback', handleVietQrCallback)
+router.post('/bank/api/transaction-sync', handleVietQrCallback)
 
 router.post('/api/token_generate', (req, res) => {
   const username = String(process.env.VIETQR_CLIENT_USERNAME || '').trim()
@@ -160,10 +161,9 @@ router.post('/api/token_generate', (req, res) => {
   const ttl = Math.max(60, parseInt(process.env.VIETQR_CLIENT_TOKEN_TTL_SEC || '900', 10))
   const out = issueClientToken(ttl)
   res.json({
-    error: false,
-    errorReason: null,
-    toastMessage: 'ok',
-    object: { token: out.token, tokenType: 'Bearer', expiresIn: out.expiresIn },
+    access_token: out.token,
+    token_type: 'Bearer',
+    expires_in: out.expiresIn,
   })
 })
 

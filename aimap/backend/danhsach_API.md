@@ -494,8 +494,10 @@ Verify `sign` (nếu có cấu hình `VIETQR_CALLBACK_SECRET`):
 
 **Các endpoint tương thích format VietQR API Service (path `vqr`):**
 - `POST /vqr/api/token_generate` — cấp token theo Basic Auth (`VIETQR_CLIENT_USERNAME` / `VIETQR_CLIENT_PASSWORD`).
+- Response chuẩn theo VietQR tutorial: `{ "access_token": "...", "token_type": "Bearer", "expires_in": 300 }`
 - `POST /vqr/bank/api/test/transaction-callback` — callback test từ VietQR.
 - `POST /vqr/bank/api/transaction-callback` — callback production từ VietQR.
+- `POST /vqr/bank/api/transaction-sync` — callback production theo endpoint trong API Transaction Sync.
 - Cả callback test/prod dùng chung logic match `AIMAP-*` + amount và cùng cấu hình auth/sign.
 
 ---
