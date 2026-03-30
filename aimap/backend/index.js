@@ -40,6 +40,7 @@ app.use('/api/shops', shopDeployRoutes)
 app.use('/api/config', configRoutes)
 app.use('/api/credits', creditsRoutes)
 app.use('/api/webhooks', webhooksRoutes)
+app.use('/vqr', webhooksRoutes)
 
 await connectDB()
 startPaymentPollLoop()

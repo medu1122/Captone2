@@ -6,6 +6,7 @@ import crypto from 'crypto'
 import { applyTopupSuccess, findPendingPaymentByContentAndAmount } from '../services/creditPaymentService.js'
 
 const router = Router()
+const issuedTokens = new Map()
 
 function collectVietQrTxns(body) {
   if (!body || typeof body !== 'object') return []
@@ -55,6 +56,29 @@ function verifyBasicAuth(authHeader, username, password) {
   }
 }
 
+function issueClientToken(ttlSec = 900) {
+  const token = crypto.randomBytes(24).toString('hex')
+  const exp = Date.now() + ttlSec * 1000
+  issuedTokens.set(token, exp)
+  return { token, expiresIn: ttlSec }
+}
+
+function isIssuedTokenValid(token) {
+  const exp = issuedTokens.get(token)
+  if (!exp) return false
+  if (Date.now() > exp) {
+    issuedTokens.delete(token)
+    return false
+  }
+  return true
+}
+
+function normalizeAuthToken(authHeader) {
+  const raw = String(authHeader || '')
+  if (!raw.startsWith('Bearer ')) return ''
+  return raw.slice(7).trim()
+}
+
 function verifySign(txn, secret) {
   if (!secret) return true
   if (!txn.sign || !txn.extId || !txn.transactionTime || !txn.orderId) return false
@@ -64,21 +88,25 @@ function verifySign(txn, secret) {
   return expected === txn.sign
 }
 
-router.post('/vietqr', async (req, res) => {
+function isAuthorizedForVietQr(req) {
   const token = String(process.env.VIETQR_WEBHOOK_BEARER || '').trim()
   const username = String(process.env.VIETQR_CLIENT_USERNAME || '').trim()
   const password = String(process.env.VIETQR_CLIENT_PASSWORD || '').trim()
   const authHeader = req.headers.authorization || ''
-
-  // CHO PHÉP 1 TRONG 2 CÁCH: BEARER HOẶC BASIC (THEO CẤU HÌNH TÍCH HỢP VIETQR).
   if (token) {
-    if (authHeader !== `Bearer ${token}`) {
-      return res.status(401).json({ error: 'unauthorized' })
-    }
-  } else if (username && password) {
-    if (!verifyBasicAuth(authHeader, username, password)) {
-      return res.status(401).json({ error: 'unauthorized' })
-    }
+    return authHeader === `Bearer ${token}`
+  }
+  if (username && password) {
+    if (verifyBasicAuth(authHeader, username, password)) return true
+    const bearer = normalizeAuthToken(authHeader)
+    if (bearer && isIssuedTokenValid(bearer)) return true
+  }
+  return false
+}
+
+async function handleVietQrCallback(req, res) {
+  if (!isAuthorizedForVietQr(req)) {
+    return res.status(401).json({ error: true, errorReason: 'unauthorized', toastMessage: 'unauthorized' })
   }
 
   try {
@@ -111,8 +139,32 @@ router.post('/vietqr', async (req, res) => {
     })
   } catch (e) {
     console.error('[webhook vietqr]', e.message)
-    res.status(500).json({ error: 'webhook failed' })
+    res.status(500).json({ error: true, errorReason: 'webhook_failed', toastMessage: 'webhook failed' })
   }
+}
+
+router.post('/vietqr', handleVietQrCallback)
+router.post('/bank/api/test/transaction-callback', handleVietQrCallback)
+router.post('/bank/api/transaction-callback', handleVietQrCallback)
+
+router.post('/api/token_generate', (req, res) => {
+  const username = String(process.env.VIETQR_CLIENT_USERNAME || '').trim()
+  const password = String(process.env.VIETQR_CLIENT_PASSWORD || '').trim()
+  const authHeader = req.headers.authorization || ''
+  if (!username || !password) {
+    return res.status(503).json({ error: true, errorReason: 'vietqr_client_auth_missing', toastMessage: 'client auth missing' })
+  }
+  if (!verifyBasicAuth(authHeader, username, password)) {
+    return res.status(401).json({ error: true, errorReason: 'unauthorized', toastMessage: 'unauthorized' })
+  }
+  const ttl = Math.max(60, parseInt(process.env.VIETQR_CLIENT_TOKEN_TTL_SEC || '900', 10))
+  const out = issueClientToken(ttl)
+  res.json({
+    error: false,
+    errorReason: null,
+    toastMessage: 'ok',
+    object: { token: out.token, tokenType: 'Bearer', expiresIn: out.expiresIn },
+  })
 })
 
 export default router

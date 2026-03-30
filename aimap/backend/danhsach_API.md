@@ -492,6 +492,12 @@ Verify `sign` (nếu có cấu hình `VIETQR_CALLBACK_SECRET`):
 - Chuỗi ký: `transactionId + amount(10 số, padStart) + transactionTime + orderId`
 - Thuật toán: HMAC-SHA256
 
+**Các endpoint tương thích format VietQR API Service (path `vqr`):**
+- `POST /vqr/api/token_generate` — cấp token theo Basic Auth (`VIETQR_CLIENT_USERNAME` / `VIETQR_CLIENT_PASSWORD`).
+- `POST /vqr/bank/api/test/transaction-callback` — callback test từ VietQR.
+- `POST /vqr/bank/api/transaction-callback` — callback production từ VietQR.
+- Cả callback test/prod dùng chung logic match `AIMAP-*` + amount và cùng cấu hình auth/sign.
+
 ---
 
 ## Config

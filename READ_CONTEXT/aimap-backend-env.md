@@ -40,9 +40,11 @@ Compose sẽ inject biến vào container backend (không dùng `aimap/backend/.
 | `VIETQR_CLIENT_USERNAME` | (Tuỳ chọn) Username Basic Auth phía khách hàng cấu hình trong VietQR API Service |
 | `VIETQR_CLIENT_PASSWORD` | (Tuỳ chọn) Password Basic Auth phía khách hàng cấu hình trong VietQR API Service |
 | `VIETQR_CALLBACK_SECRET` | (Tuỳ chọn) Secret để verify trường `sign` callback VietQR (nếu tài khoản có bật) |
+| `VIETQR_CLIENT_TOKEN_TTL_SEC` | TTL token cấp bởi endpoint `POST /vqr/api/token_generate` (mặc định `900` giây) |
 
 **Frontend:** `VITE_API_URL` trong `aimap/frontend/.env` phải trỏ tới API có suffix `/api`, vd. `http://localhost:4111/api`. Không nhầm với `API_PUBLIC_URL`.
 
 **Ghi chú Docker/Production:**
 - Backend thường gọi DB theo `DATABASE_URL` trong `aimap/.env`.
 - Nếu chạy sau reverse proxy (Nginx/Caddy) nên set `TRUST_PROXY=1` để log IP đúng.
+- Để VietQR API Service test pass E05: frontend nginx phải proxy thêm đường dẫn `/vqr` về backend.
