@@ -447,20 +447,20 @@ Response: `{ "ok": true }`
 
 ---
 
-## Credits / Payment (VietQR/mock)
+## Credits / Payment (VietQR + Casso webhook)
 
-**Quy ước:** User nhập **số tiền VND**; `credits` = floor(amountVnd / `CREDIT_VND_RATE`). Tạo intent → CK đúng **amount_money** và **transfer_content** → mock poll (gateway `mock`) hoặc webhook Casso khớp nội dung `AIMAP-*` → cộng `credit_transactions`.
+**Quy ước:** User nhập **số tiền VND**; `credits` = floor(amountVnd / `CREDIT_VND_RATE`). Tạo intent → CK đúng **amount_money** và **transfer_content** → webhook Casso khớp nội dung `AIMAP-*` và số tiền → cộng `credit_transactions`.
 
 **GET /credits/methods** — Danh sách phương thức + tỷ quy đổi + tối thiểu VND
 ```
 Headers: Authorization: Bearer <token>
 ```
-Response: `{ "methods": [ { "id": "mock"|"vietqr_bank", "label": "..." } ], "creditVndRate": 1000, "minAmountVnd": 10000 }`
+Response: `{ "methods": [ { "id": "vietqr_bank", "label": "VietQR chuyển khoản" } ], "creditVndRate": 1000, "minAmountVnd": 10000 }`
 
 **POST /credits/topup/intent** — Tạo đơn pending + (tuỳ chọn) URL ảnh QR VietQR
 ```
 Headers: Authorization: Bearer <token>, Content-Type: application/json
-Body: { "amountVnd": 100000, "methodId": "mock" }
+Body: { "amountVnd": 100000, "methodId": "vietqr_bank" }
 ```
 Response 201: `{ "payment": { "id", "amountMoney", "credits", "status", "transferContent", "qrImageUrl", "expiresAt", "createdAt" }, "creditVndRate": 1000 }`
 

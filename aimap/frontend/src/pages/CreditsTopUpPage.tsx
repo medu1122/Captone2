@@ -12,7 +12,7 @@ export default function CreditsTopUpPage() {
   const [minVnd, setMinVnd] = useState(10_000)
   const [rate, setRate] = useState(1000)
   const [amountVnd, setAmountVnd] = useState(50_000)
-  const [methodId, setMethodId] = useState('mock')
+  const [methodId, setMethodId] = useState('')
   const [loading, setLoading] = useState(false)
   const [loadingMethods, setLoadingMethods] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -20,13 +20,11 @@ export default function CreditsTopUpPage() {
   const [transferContent, setTransferContent] = useState<string | null>(null)
   const [qrUrl, setQrUrl] = useState<string | null>(null)
   const [amountMoney, setAmountMoney] = useState<number | null>(null)
-  const [creditsEst, setCreditsEst] = useState<number | null>(null)
-  const [expiresAt, setExpiresAt] = useState<string | null>(null)
   const [status, setStatus] = useState<string | null>(null)
   const activeMethodId = useMemo(() => {
     if (methodId) return methodId
     if (methods[0]?.id) return methods[0].id
-    return 'mock'
+    return ''
   }, [methodId, methods])
 
   useEffect(() => {
@@ -36,7 +34,10 @@ export default function CreditsTopUpPage() {
     }
     creditsApi.methods(token).then(({ data, error: err }) => {
       setLoadingMethods(false)
-      if (err || !data) return
+      if (err || !data) {
+        setError(err ?? 'Payment method unavailable')
+        return
+      }
       setMethods(data.methods ?? [])
       setRate(data.creditVndRate ?? 1000)
       if (data.minAmountVnd) setMinVnd(data.minAmountVnd)
@@ -69,6 +70,10 @@ export default function CreditsTopUpPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!token) return
+    if (!activeMethodId) {
+      setError('Payment method unavailable')
+      return
+    }
     setError(null)
     setLoading(true)
     const { data, error: err } = await creditsApi.topupIntent(token, amountVnd, activeMethodId)
@@ -80,9 +85,7 @@ export default function CreditsTopUpPage() {
     setPaymentId(data.payment.id)
     setTransferContent(data.payment.transferContent)
     setAmountMoney(data.payment.amountMoney)
-    setCreditsEst(data.payment.credits)
     setQrUrl(data.payment.qrImageUrl ?? null)
-    setExpiresAt(data.payment.expiresAt)
     setStatus(data.payment.status)
     setRate(data.creditVndRate ?? 1000)
   }
@@ -138,10 +141,8 @@ export default function CreditsTopUpPage() {
 
         {paymentId && transferContent && amountMoney != null && (
           <div className="bg-white border border-slate-300 rounded-xl p-6 space-y-4 shadow-sm">
-            <p className="text-sm font-medium text-slate-800">{t('credits.transferInstructions')}</p>
             <p className="text-sm text-slate-600">
-              {t('credits.vndAmount')}: <strong>{amountMoney.toLocaleString()} đ</strong> — {t('credits.estimatedCredits')}:{' '}
-              <strong>{creditsEst ?? previewCredits}</strong>
+              {t('credits.vndAmount')}: <strong>{amountMoney.toLocaleString()} đ</strong>
             </p>
             <p className="text-sm text-slate-600">
               {t('credits.transferContent')}:{' '}
@@ -152,12 +153,6 @@ export default function CreditsTopUpPage() {
                 <img src={qrUrl} alt="VietQR" className="max-w-[280px] w-full rounded-lg border border-slate-200" />
               </div>
             )}
-            {expiresAt && (
-              <p className="text-xs text-slate-500">
-                {t('credits.expires')}: {new Date(expiresAt).toLocaleString()}
-              </p>
-            )}
-            <p className="text-xs text-slate-500">{t('credits.mockHint')}</p>
             <p className="text-sm">
               {t('credits.status')}: <strong>{status}</strong>
             </p>

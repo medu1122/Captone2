@@ -10,15 +10,9 @@ export const PAYMENT_MIN_AMOUNT_VND = Math.max(1000, parseInt(process.env.PAYMEN
 
 export function getPaymentMethods() {
   const methods = []
-  if (process.env.PAYMENT_METHOD_MOCK !== '0') {
-    methods.push({ id: 'mock', label: 'Mock (dev)' })
-  }
   const hasVietqr = (process.env.VIETQR_BANK_BIN || '').trim() && (process.env.VIETQR_ACCOUNT_NO || '').trim()
   if (hasVietqr && process.env.PAYMENT_METHOD_VIETQR !== '0') {
     methods.push({ id: 'vietqr_bank', label: 'VietQR chuyển khoản' })
-  }
-  if (methods.length === 0) {
-    methods.push({ id: 'mock', label: 'Mock (dev)' })
   }
   return methods
 }
@@ -88,14 +82,14 @@ export async function createPendingPaymentFromAmountVnd(userId, amountVnd, metho
   }
   const amountRounded = Math.round(amountVnd)
   const credits = Math.max(1, Math.floor(amountRounded / CREDIT_VND_RATE))
-  const gateway = methodId === 'mock' ? 'mock' : 'vietqr_bank'
+  const gateway = 'vietqr_bank'
   const short = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`.toUpperCase()
   const transferContent = `AIMAP-${short}`.slice(0, 80)
   const expiresAt = new Date(Date.now() + PAYMENT_EXPIRY_MINUTES * 60 * 1000)
 
-  let qrImageUrl = null
-  if (methodId === 'vietqr_bank') {
-    qrImageUrl = buildVietQrImageUrl(amountRounded, transferContent)
+  const qrImageUrl = buildVietQrImageUrl(amountRounded, transferContent)
+  if (!qrImageUrl) {
+    throw Object.assign(new Error('vietqr config missing'), { status: 400 })
   }
 
   const ins = await pool.query(

@@ -1,0 +1,26 @@
+---
+description: Frontend content ngắn gọn, ít chữ, đi thẳng ý chính
+alwaysApply: true
+globs:
+  - aimap/frontend/src/**/*.tsx
+  - aimap/frontend/src/i18n/translations.ts
+---
+
+# Rule: Frontend Ít Chữ, Rõ Ý
+
+## Mục tiêu
+
+- Giao diện chỉ hiển thị nội dung cần thiết.
+- Tránh đoạn mô tả dài gây rối mắt.
+
+## Quy tắc bắt buộc
+
+- Chỉ ghi **ý chính** cho title, label, button, trạng thái.
+- Mỗi câu nên ngắn, dễ đọc, tránh văn phong giải thích dài dòng.
+- Không thêm subtitle/đoạn mô tả nếu không thật sự cần cho thao tác.
+- Ưu tiên từ ngắn gọn trong i18n (vi/en), không viết kiểu marketing.
+- Thông báo lỗi/thành công: ngắn + hành động rõ ràng (ví dụ: “Thanh toán thất bại, thử lại”).
+
+## Khi review frontend
+
+- Nếu text dài hơn mức cần thiết thì rút gọn trước khi merge.

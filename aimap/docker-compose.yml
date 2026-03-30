@@ -46,6 +46,13 @@ services:
       - GEMINI_API_KEY=${GEMINI_API_KEY:-}
       - GEMINI_IMAGEN_MODEL=${GEMINI_IMAGEN_MODEL:-imagen-3.0-generate-002}
       - GEMINI_IMAGE_MODEL=${GEMINI_IMAGE_MODEL:-gemini-2.5-flash-preview-05-20}
+      - CREDIT_VND_RATE=${CREDIT_VND_RATE:-1000}
+      - PAYMENT_MIN_AMOUNT_VND=${PAYMENT_MIN_AMOUNT_VND:-10000}
+      - PAYMENT_EXPIRY_MINUTES=${PAYMENT_EXPIRY_MINUTES:-30}
+      - PAYMENT_METHOD_VIETQR=${PAYMENT_METHOD_VIETQR:-1}
+      - VIETQR_BANK_BIN=${VIETQR_BANK_BIN:-}
+      - VIETQR_ACCOUNT_NO=${VIETQR_ACCOUNT_NO:-}
+      - CASSO_WEBHOOK_BEARER=${CASSO_WEBHOOK_BEARER:-}
     volumes:
       - backend-storage:/app/storage
       - /var/run/docker.sock:/var/run/docker.sock

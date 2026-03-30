@@ -18,7 +18,10 @@ function collectCassoTxns(body) {
 function txnAmountDesc(item) {
   const amount = Number(item?.amount ?? item?.transferAmount ?? item?.transfer_amount ?? 0)
   const desc = String(item?.description ?? item?.content ?? item?.remark ?? '')
-  return { amount, desc }
+  const extId = String(
+    item?.id ?? item?.reference ?? item?.tid ?? item?.transactionID ?? item?.virtualAccount ?? ''
+  ).slice(0, 255)
+  return { amount, desc, extId }
 }
 
 router.post('/casso', async (req, res) => {
@@ -34,14 +37,14 @@ router.post('/casso', async (req, res) => {
     const txns = collectCassoTxns(req.body)
     let matched = 0
     for (const item of txns) {
-      const { amount, desc } = txnAmountDesc(item)
+      const { amount, desc, extId } = txnAmountDesc(item)
       if (!Number.isFinite(amount) || amount <= 0 || !desc) continue
       const m = desc.match(/AIMAP-[A-Z0-9]+/i)
       if (!m) continue
       const transferContent = m[0]
       const paymentId = await findPendingPaymentByContentAndAmount(transferContent, amount)
       if (!paymentId) continue
-      const extId = String(item?.id ?? item?.reference ?? `casso_${Date.now()}`).slice(0, 255)
+      if (!extId) continue
       const result = await applyTopupSuccess(paymentId, extId)
       if (result.ok) matched += 1
     }

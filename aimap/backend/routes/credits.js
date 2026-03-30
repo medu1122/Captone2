@@ -14,8 +14,12 @@ import {
 const router = Router()
 
 router.get('/methods', requireAuth, (req, res) => {
+  const methods = getPaymentMethods()
+  if (!methods.length) {
+    return res.status(503).json({ error: 'payment method unavailable: configure VIETQR_BANK_BIN and VIETQR_ACCOUNT_NO' })
+  }
   res.json({
-    methods: getPaymentMethods(),
+    methods,
     creditVndRate: CREDIT_VND_RATE,
     minAmountVnd: PAYMENT_MIN_AMOUNT_VND,
   })
