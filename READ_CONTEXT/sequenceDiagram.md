@@ -6,7 +6,7 @@ sequenceDiagram
     participant BE as Backend
     participant DB as Database
 
-    User->>FE: Generate marketing images
+    User->>FE: Create or update shop information
     FE->>BE: Send shop data
     BE->>DB: Save shop profile
     DB-->>BE: Shop stored
@@ -60,34 +60,3 @@ sequenceDiagram
     BE-->>FE: Return current assets
 ```
 
-Website Deployment
-```mermaid
-sequenceDiagram
-    actor User
-    participant FE as Frontend
-    participant BE as Backend
-    participant DK as DockerHost
-    participant DB as Database
-
-    User->>FE: Deploy shop website
-    FE->>BE: Trigger deploy
-    BE->>DK: Build or start shop container
-    DK-->>BE: Return deployment status
-    BE->>DB: Save deployment record
-    BE-->>FE: Return deploy and container status
-```
-
-Admin Operations
-```mermaid
-sequenceDiagram
-    actor Admin
-    participant FE as Frontend
-    participant BE as Backend
-    participant DB as Database
-
-    Admin->>FE: Monitor users, credits, and containers
-    FE->>BE: Request admin operations
-    BE->>DB: Read or update admin data
-    DB-->>BE: Return operation result
-    BE-->>FE: Return admin dashboard data
-```
