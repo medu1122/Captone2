@@ -1,3 +1,4 @@
+Shop Management
 ```mermaid
 sequenceDiagram
     actor User
@@ -12,6 +13,7 @@ sequenceDiagram
     BE-->>FE: Return shop summary
 ```
 
+Product Management
 ```mermaid
 sequenceDiagram
     actor User
@@ -26,6 +28,7 @@ sequenceDiagram
     BE-->>FE: Return updated products
 ```
 
+Image Generation
 ```mermaid
 sequenceDiagram
     actor User
@@ -42,6 +45,7 @@ sequenceDiagram
     BE-->>FE: Return image results
 ```
 
+Asset Storage Management
 ```mermaid
 sequenceDiagram
     actor User
@@ -56,6 +60,7 @@ sequenceDiagram
     BE-->>FE: Return current assets
 ```
 
+Website Deployment
 ```mermaid
 sequenceDiagram
     actor User
@@ -72,6 +77,7 @@ sequenceDiagram
     BE-->>FE: Return deploy and container status
 ```
 
+Admin Operations
 ```mermaid
 sequenceDiagram
     actor Admin
