@@ -8,6 +8,12 @@ import { applyTopupSuccess, findPendingPaymentByContentAndAmount } from '../serv
 const router = Router()
 const issuedTokens = new Map()
 
+// #region agent log
+function debugLog(runId, hypothesisId, location, message, data) {
+  fetch('http://127.0.0.1:7400/ingest/af45a3e1-78d3-46dd-8909-9dc8c86a5334',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'dc91b4'},body:JSON.stringify({sessionId:'dc91b4',runId,hypothesisId,location,message,data,timestamp:Date.now()})}).catch(()=>{})
+}
+// #endregion
+
 function collectVietQrTxns(body) {
   if (!body || typeof body !== 'object') return []
   if (Array.isArray(body.transactions)) return body.transactions
@@ -105,12 +111,32 @@ function isAuthorizedForVietQr(req) {
 }
 
 async function handleVietQrCallback(req, res) {
+  // #region agent log
+  debugLog('pre-fix', 'H1', 'webhooks.js:handleVietQrCallback:entry', 'callback_entry', {
+    path: req.path,
+    hasAuth: Boolean(req.headers.authorization),
+    bodyType: typeof req.body,
+  })
+  // #endregion
   if (!isAuthorizedForVietQr(req)) {
+    // #region agent log
+    debugLog('pre-fix', 'H2', 'webhooks.js:handleVietQrCallback:unauthorized', 'callback_unauthorized', {
+      path: req.path,
+      hasBearerPrefix: String(req.headers.authorization || '').startsWith('Bearer '),
+      hasBasicPrefix: String(req.headers.authorization || '').startsWith('Basic '),
+    })
+    // #endregion
     return res.status(401).json({ error: true, errorReason: 'unauthorized', toastMessage: 'unauthorized' })
   }
 
   try {
     const txns = collectVietQrTxns(req.body)
+    // #region agent log
+    debugLog('pre-fix', 'H3', 'webhooks.js:handleVietQrCallback:txns', 'callback_txn_parsed', {
+      path: req.path,
+      txnCount: txns.length,
+    })
+    // #endregion
     const signSecret = String(process.env.VIETQR_CALLBACK_SECRET || '').trim()
     let matched = 0
     let invalidSign = 0
@@ -131,6 +157,14 @@ async function handleVietQrCallback(req, res) {
       const result = await applyTopupSuccess(paymentId, extId || null)
       if (result.ok) matched += 1
     }
+    // #region agent log
+    debugLog('pre-fix', 'H4', 'webhooks.js:handleVietQrCallback:result', 'callback_processed', {
+      path: req.path,
+      matched,
+      invalidSign,
+      received: txns.length,
+    })
+    // #endregion
     res.json({
       error: false,
       errorReason: null,
@@ -149,17 +183,42 @@ router.post('/bank/api/transaction-callback', handleVietQrCallback)
 router.post('/bank/api/transaction-sync', handleVietQrCallback)
 
 router.post('/api/token_generate', (req, res) => {
+  // #region agent log
+  debugLog('pre-fix', 'H5', 'webhooks.js:token_generate:entry', 'token_generate_entry', {
+    path: req.path,
+    hasAuth: Boolean(req.headers.authorization),
+    hasBasicPrefix: String(req.headers.authorization || '').startsWith('Basic '),
+  })
+  // #endregion
   const username = String(process.env.VIETQR_CLIENT_USERNAME || '').trim()
   const password = String(process.env.VIETQR_CLIENT_PASSWORD || '').trim()
   const authHeader = req.headers.authorization || ''
   if (!username || !password) {
+    // #region agent log
+    debugLog('pre-fix', 'H5', 'webhooks.js:token_generate:missing_env', 'token_generate_missing_env', {
+      hasUsername: Boolean(username),
+      hasPassword: Boolean(password),
+    })
+    // #endregion
     return res.status(503).json({ error: true, errorReason: 'vietqr_client_auth_missing', toastMessage: 'client auth missing' })
   }
   if (!verifyBasicAuth(authHeader, username, password)) {
+    // #region agent log
+    debugLog('pre-fix', 'H2', 'webhooks.js:token_generate:unauthorized', 'token_generate_unauthorized', {
+      hasBasicPrefix: String(authHeader).startsWith('Basic '),
+      usernameLen: username.length,
+    })
+    // #endregion
     return res.status(401).json({ error: true, errorReason: 'unauthorized', toastMessage: 'unauthorized' })
   }
   const ttl = Math.max(60, parseInt(process.env.VIETQR_CLIENT_TOKEN_TTL_SEC || '900', 10))
   const out = issueClientToken(ttl)
+  // #region agent log
+  debugLog('pre-fix', 'H5', 'webhooks.js:token_generate:success', 'token_generate_success', {
+    ttl: out.expiresIn,
+    tokenIssued: Boolean(out.token),
+  })
+  // #endregion
   res.json({
     access_token: out.token,
     token_type: 'Bearer',

@@ -30,10 +30,15 @@ export default function ShopStoragePage() {
   const [error, setError] = useState<string | null>(null)
 
   const [search, setSearch] = useState('')
-  const [sortDir, setSortDir] = useState<'newest' | 'oldest'>('newest')
 
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
   const [deleting, setDeleting] = useState(false)
+  const [showUploadModal, setShowUploadModal] = useState(false)
+  const [uploadMode, setUploadMode] = useState<'device' | 'url'>('device')
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([])
+  const [urlInput, setUrlInput] = useState('')
+  const [selectedUrls, setSelectedUrls] = useState<string[]>([])
+  const [uploading, setUploading] = useState(false)
 
   const load = useCallback(() => {
     if (!token || !id) return
@@ -56,7 +61,7 @@ export default function ShopStoragePage() {
     .sort((a, b) => {
       const ta = new Date(a.created_at).getTime()
       const tb = new Date(b.created_at).getTime()
-      return sortDir === 'newest' ? tb - ta : ta - tb
+      return tb - ta
     })
 
   const handleDelete = async (assetId: string) => {
@@ -69,20 +74,82 @@ export default function ShopStoragePage() {
     load()
   }
 
+  const fileToDataUrl = (file: File) =>
+    new Promise<string>((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => resolve(String(reader.result || ''))
+      reader.onerror = () => reject(new Error('Cannot read file'))
+      reader.readAsDataURL(file)
+    })
+
+  const resetUploadState = () => {
+    setUploadMode('device')
+    setSelectedFiles([])
+    setUrlInput('')
+    setSelectedUrls([])
+  }
+
+  const closeUploadModal = () => {
+    if (uploading) return
+    setShowUploadModal(false)
+    resetUploadState()
+  }
+
+  const addUrls = () => {
+    const urls = urlInput
+      .split('\n')
+      .map((u) => u.trim())
+      .filter(Boolean)
+    if (!urls.length) return
+    setSelectedUrls((prev) => [...prev, ...urls])
+    setUrlInput('')
+  }
+
+  const handleUpload = async () => {
+    if (!token || !id || uploading) return
+    setError(null)
+    setUploading(true)
+    let uploadedCount = 0
+    try {
+      if (uploadMode === 'device') {
+        for (const file of selectedFiles) {
+          const imageBase64 = await fileToDataUrl(file)
+          const { error: err } = await shopsApi.saveImage(token, id, {
+            image_base64: imageBase64,
+            type: 'image',
+            name: file.name,
+          })
+          if (err) throw new Error(err)
+          uploadedCount += 1
+        }
+      } else {
+        for (const imageUrl of selectedUrls) {
+          const { error: err } = await shopsApi.saveImage(token, id, {
+            image_url: imageUrl,
+            type: 'image',
+          })
+          if (err) throw new Error(err)
+          uploadedCount += 1
+        }
+      }
+      if (uploadedCount > 0) {
+        closeUploadModal()
+        load()
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Upload failed')
+    } finally {
+      setUploading(false)
+    }
+  }
+
   return (
     <div className="space-y-5">
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 tracking-tight">{t('storage.title')}</h1>
-          <p className="text-sm text-slate-500 mt-1">{t('storage.subtitle')}</p>
         </div>
-        <Link
-          to={`/shops/${id}/image-bot`}
-          className="shrink-0 text-sm font-medium text-primary hover:underline pt-1"
-        >
-          {t('storage.openImageBot')}
-        </Link>
       </div>
 
       {/* Error */}
@@ -108,26 +175,19 @@ export default function ShopStoragePage() {
           />
         </div>
 
-        <div className="flex rounded-xl border border-slate-200 overflow-hidden">
-          <button
-            type="button"
-            onClick={() => setSortDir('newest')}
-            className={`px-3.5 py-2 text-xs font-medium transition-colors ${
-              sortDir === 'newest' ? 'bg-slate-800 text-white' : 'bg-white text-slate-600 hover:bg-slate-50'
-            }`}
-          >
-            {t('storage.sortNewest')}
-          </button>
-          <button
-            type="button"
-            onClick={() => setSortDir('oldest')}
-            className={`px-3.5 py-2 text-xs font-medium transition-colors border-l border-slate-200 ${
-              sortDir === 'oldest' ? 'bg-slate-800 text-white' : 'bg-white text-slate-600 hover:bg-slate-50'
-            }`}
-          >
-            {t('storage.sortOldest')}
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={() => setShowUploadModal(true)}
+          className="px-3.5 py-2 text-sm font-medium rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+        >
+          Upload more image
+        </button>
+        <Link
+          to={`/shops/${id}/image-bot`}
+          className="px-3.5 py-2 text-sm font-medium rounded-xl bg-slate-900 text-white hover:bg-slate-800"
+        >
+          Create image with AI
+        </Link>
 
         {!loading && (
           <span className="text-xs text-slate-400 ml-auto">
@@ -135,6 +195,131 @@ export default function ShopStoragePage() {
           </span>
         )}
       </div>
+
+      {showUploadModal && (
+        <div className="fixed inset-0 z-40 bg-black/45 flex items-center justify-center p-4">
+          <div className="w-full max-w-xl rounded-2xl bg-white border border-slate-200 shadow-xl">
+            <div className="px-4 py-3 border-b border-slate-200 flex items-center justify-between">
+              <h2 className="text-base font-semibold text-slate-900">Upload image</h2>
+              <button
+                type="button"
+                onClick={closeUploadModal}
+                disabled={uploading}
+                className="text-slate-500 hover:text-slate-700 disabled:opacity-50"
+              >
+                x
+              </button>
+            </div>
+            <div className="p-4 space-y-4">
+              <div className="flex rounded-xl border border-slate-200 overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setUploadMode('device')}
+                  className={`px-3.5 py-2 text-xs font-medium transition-colors ${
+                    uploadMode === 'device' ? 'bg-slate-800 text-white' : 'bg-white text-slate-600 hover:bg-slate-50'
+                  }`}
+                >
+                  Upload from device
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setUploadMode('url')}
+                  className={`px-3.5 py-2 text-xs font-medium transition-colors border-l border-slate-200 ${
+                    uploadMode === 'url' ? 'bg-slate-800 text-white' : 'bg-white text-slate-600 hover:bg-slate-50'
+                  }`}
+                >
+                  Input image link
+                </button>
+              </div>
+
+              {uploadMode === 'device' ? (
+                <div className="space-y-3">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    onChange={(e) => {
+                      const files = Array.from(e.target.files || [])
+                      if (!files.length) return
+                      setSelectedFiles((prev) => [...prev, ...files])
+                      e.currentTarget.value = ''
+                    }}
+                    className="block w-full text-sm text-slate-700 file:mr-3 file:px-3 file:py-1.5 file:rounded-lg file:border file:border-slate-200 file:bg-slate-50 file:text-slate-700 hover:file:bg-slate-100"
+                  />
+                  <div className="space-y-2 max-h-44 overflow-auto">
+                    {selectedFiles.map((file, idx) => (
+                      <div key={`${file.name}-${idx}`} className="flex items-center justify-between rounded-lg border border-slate-200 px-3 py-2">
+                        <span className="text-sm text-slate-700 truncate pr-3">{file.name}</span>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedFiles((prev) => prev.filter((_, i) => i !== idx))}
+                          className="text-xs text-red-600 hover:underline"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ))}
+                    {selectedFiles.length === 0 && <p className="text-sm text-slate-400">No image selected</p>}
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <textarea
+                    value={urlInput}
+                    onChange={(e) => setUrlInput(e.target.value)}
+                    placeholder="One image URL per line"
+                    rows={4}
+                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/60"
+                  />
+                  <button
+                    type="button"
+                    onClick={addUrls}
+                    className="px-3 py-2 text-sm font-medium rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                  >
+                    Add links
+                  </button>
+                  <div className="space-y-2 max-h-44 overflow-auto">
+                    {selectedUrls.map((url, idx) => (
+                      <div key={`${url}-${idx}`} className="flex items-center justify-between rounded-lg border border-slate-200 px-3 py-2">
+                        <span className="text-sm text-slate-700 truncate pr-3">{url}</span>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedUrls((prev) => prev.filter((_, i) => i !== idx))}
+                          className="text-xs text-red-600 hover:underline"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ))}
+                    {selectedUrls.length === 0 && <p className="text-sm text-slate-400">No link added</p>}
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className="px-4 py-3 border-t border-slate-200 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={closeUploadModal}
+                disabled={uploading}
+                className="px-3 py-2 text-sm rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleUpload}
+                disabled={
+                  uploading ||
+                  (uploadMode === 'device' ? selectedFiles.length === 0 : selectedUrls.length === 0)
+                }
+                className="px-3 py-2 text-sm rounded-lg bg-slate-900 text-white hover:bg-slate-800 disabled:opacity-50"
+              >
+                {uploading ? 'Uploading...' : 'Upload now'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Grid */}
       {loading ? (
@@ -149,9 +334,6 @@ export default function ShopStoragePage() {
             <path strokeLinecap="round" strokeLinejoin="round" d="M6 34l10-10 7 7 6-6 13 10" />
           </svg>
           <p className="text-sm text-slate-400">{t('storage.empty')}</p>
-          <Link to={`/shops/${id}/image-bot`} className="text-sm font-medium text-primary hover:underline">
-            {t('storage.openImageBot')} →
-          </Link>
         </div>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
