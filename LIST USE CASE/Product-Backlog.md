@@ -48,6 +48,31 @@
 
 ---
 
+## Support Marketing Rollout (Manual-first)
+
+### Phase A – Manual marketing (ưu tiên triển khai trước)
+
+| ID | Product Backlog Item |
+|----|----------------------|
+| SM.1 | Support Marketing page in shop context (`/shops/:id/marketing`) |
+| SM.2 | Connect and manage multiple Facebook Pages per shop |
+| SM.3 | Generate marketing text draft with AI (ad post / product description / caption hashtag) |
+| SM.4 | Save, list, and edit draft content in shop library |
+| SM.5 | Manual composer: select page + text + images (storage or URL) |
+| SM.6 | Manual publish to selected Facebook Page |
+| SM.7 | Basic audit log for connect/generate/publish actions |
+
+### Phase B – Pipeline automation (làm sau Phase A)
+
+| ID | Product Backlog Item |
+|----|----------------------|
+| SM.8 | Scheduled publishing and queue management |
+| SM.9 | Pipeline step automation: Content -> Visual -> Publish |
+| SM.10 | Auto-retry and failure handling for publish jobs |
+| SM.11 | Analytics dashboard for post performance and delivery |
+
+---
+
 ## Sprint 3 – Website Builder, Deploy & Operations (12-Apr → 02-May)
 
 | ID | Product Backlog Item |

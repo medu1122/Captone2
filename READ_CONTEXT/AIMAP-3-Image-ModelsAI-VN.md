@@ -134,6 +134,25 @@ Cả 3 đều **có API công khai**, **được dùng trong sản phẩm thực
 
 ---
 
+## Ghi chú cho Support Marketing (text + publish)
+
+- Tài liệu này tập trung cho **model tạo ảnh**. Với module **Support Marketing manual**, nên dùng **model text riêng** để tạo draft nội dung (ad post/caption/hashtag), không buộc dùng chung model với image-bot.
+- Chỉ dùng chung phần hạ tầng API key/config và logging, còn prompt + output schema nên tách giữa image và text.
+- Khi tính chi phí, tách 2 nhóm:
+  - **Image cost** (theo ảnh/lần generate).
+  - **Text cost** (theo token input/output).
+
+### Chi phí tham khảo (cần kiểm tra lại trước khi chạy production)
+
+- **Meta Graph API (Facebook Page):** không tính tiền trực tiếp theo mỗi lần post, nhưng bị giới hạn quota/rate-limit và yêu cầu app review quyền truy cập.
+- **OpenAI text (`gpt-4o-mini`):** mức giá token thấp, phù hợp generate draft số lượng cao.
+- **Google Gemini text (`gemini-2.5-flash` / `flash-lite`):** có free tier + paid tier; phù hợp batch lớn.
+- **Google Imagen:** có mức giá theo ảnh (vd Imagen 4 Fast/Standard/Ultra theo bảng giá hiện hành).
+
+> Lưu ý: giá model thay đổi theo thời điểm và khu vực; luôn kiểm tra trang pricing chính thức trước khi chốt ngân sách.
+
+---
+
 ## Tài liệu liên quan
 
 - **Kiến trúc:** `AIMAP-Architecture-VN.md`, `AIMAP-Architecture-EN.md`

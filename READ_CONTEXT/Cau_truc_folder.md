@@ -63,8 +63,8 @@ aimap/
 | Folder | Mục tiêu chính | Không làm gì (tránh lẫn) |
 |--------|----------------|---------------------------|
 | `frontend/` | Hiển thị UI, form nhập, preview, gọi API backend. | Không gọi AI/Docker trực tiếp, không lưu DB. |
-| `backend/routes/` | Endpoint: **`auth.js`**; **`admin.js`**; **`shops.js`**; **`shopImageBot.js`** (image-prompts, images generate/save/edit/rebuild, PUT products). | Không chứa logic workflow hay gọi LLM/Docker trực tiếp. |
-| `backend/services/` | Nghiệp vụ: **`activityLog.js`**, **`imagePromptBuilder.js`**, **`imageGeneration.js`**, **`assetStorage.js`** (lưu file ảnh shop). | Không định nghĩa route; không chứa template HTML. |
+| `backend/routes/` | Endpoint: **`auth.js`**; **`admin.js`**; **`shops.js`**; **`shopImageBot.js`**; **`shopMarketing.js`** (facebook pages, drafts, generate, publish manual). | Không chứa logic workflow hay gọi LLM/Docker trực tiếp. |
+| `backend/services/` | Nghiệp vụ: **`activityLog.js`**, **`imagePromptBuilder.js`**, **`imageGeneration.js`**, **`assetStorage.js`**, **`marketingContentService.js`**, **`facebookService.js`**. | Không định nghĩa route; không chứa template HTML. |
 | `backend/agents/` | Từng agent: branding, content, visualPost, websiteBuilder, deploy, socialPosting (input/output rõ). | Không điều phối lẫn nhau; không định nghĩa API. |
 | `backend/lib/` | Công cụ: kết nối LLM, Image API, build prompt, gọi Docker (dockerode). | Không chứa logic nghiệp vụ hay workflow. |
 | `backend/templates/` | File template (partial) để render HTML từ config. | Không chứa logic Node, không gọi API. |

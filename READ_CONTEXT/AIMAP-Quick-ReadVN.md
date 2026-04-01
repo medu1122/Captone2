@@ -96,6 +96,10 @@ Capstone Project 2 – International School, Duy Tan University
 
 **Tóm lại:** Từ nội dung và ảnh đã tạo trong hệ thống → đăng trực tiếp lên Fanpage, không copy-paste thủ công.
 
+**Lộ trình triển khai thực tế (ưu tiên):**
+- **Giai đoạn 1 (manual):** kết nối nhiều page theo shop, tạo draft bằng AI, chọn text + ảnh và bấm đăng thủ công.
+- **Giai đoạn 2 (automation):** pipeline/schedule tự động đăng bài theo kịch bản.
+
 ---
 
 ### 3. Chỉnh sửa website bằng Prompt (Prompt-based Editing)

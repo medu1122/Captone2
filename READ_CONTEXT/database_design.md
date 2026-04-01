@@ -157,6 +157,10 @@ Thiết kế đầy đủ các bảng dùng trong Sprint 2 (AI Automation & Face
 - **marketing_content** (nội dung AI sinh): id (PK), shop_id (FK), type (ad_post | product_description | caption_hashtag), content (JSONB hoặc TEXT), source_prompt (TEXT, optional), **prompt_template_id** (FK → prompt_templates, nullable — prompt gốc đã dùng), **user_prompt** (TEXT nullable — prompt bổ sung của user), created_at, updated_at. Để lưu bài quảng cáo, mô tả SP, caption/hashtag (P2.5–P2.8 view/edit). Index (shop_id, type).
 - **pipeline_runs** (tùy chọn): id (PK), shop_id (FK), user_id (FK), status (running | completed | failed), steps (JSONB: [{ step, status, result_ref }]), started_at, finished_at, error_message (TEXT). Cho P2.12, P2.14 (chạy pipeline Store → Branding → Content → Visual Post; xem trạng thái từng bước). Trừ credit vẫn dùng credit_transactions với reference_type = 'pipeline_run', reference_id = pipeline_runs.id (và có thể từng bước nhỏ trong description hoặc bảng con). **UI:** Tạo và chạy pipeline chỉ từ trang chi tiết shop (nút "AI Pipeline" trên `/shops/[id]`); mục "Pipeline" trên sidebar (nếu có) chỉ dùng để xem danh sách/lịch sử runs (dashboard xem).
 
+**Manual-first note cho Support Marketing:**
+- Phase hiện tại ưu tiên flow thủ công theo shop: connect nhiều page -> generate draft -> user chọn text/ảnh -> publish thủ công.
+- Các bảng `facebook_page_tokens` và `marketing_content` là lõi cho phase manual; `pipeline_runs` dùng cho phase tự động hóa phía sau.
+
 Ràng buộc Sprint 2: asset.shop_id thuộc user; facebook_page_tokens một page_id không trùng cho cùng shop; pipeline_runs.steps có thể tham chiếu tới assets.id hoặc marketing_content.id.
 
 ### Bước 5c: Schema chi tiết Sprint 3 (Website Builder, Deploy & Operations)

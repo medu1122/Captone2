@@ -24,6 +24,8 @@
 | Nội dung marketing | Tạo mô tả sản phẩm (AI) |
 | Nội dung marketing | Tạo caption và hashtag (AI) |
 | Nội dung marketing | Xem và chỉnh sửa nội dung đã tạo |
+| Nội dung marketing | Lưu thư viện bản nháp theo từng shop |
+| Nội dung marketing | Tạo bản nháp theo ngữ cảnh shop và mục tiêu thủ công |
 | Visual post | Tạo ảnh bài đăng từ branding + nội dung + sản phẩm |
 | Visual post | Xuất ảnh đúng kích thước Facebook |
 | Visual post | Lưu và tái sử dụng ảnh đã tạo |
@@ -34,6 +36,8 @@
 | Facebook & mạng xã hội | Lưu và làm mới Page Access Token |
 | Facebook & mạng xã hội | Đăng nội dung và ảnh lên Facebook Page |
 | Facebook & mạng xã hội | Hủy kết nối Facebook Page |
+| Facebook & mạng xã hội | Kết nối nhiều Facebook Page cho một shop |
+| Facebook & mạng xã hội | Composer thủ công: chọn page + text + ảnh trước khi đăng |
 | Website builder | Tạo cấu hình website từ store + branding |
 | Website builder | Render website từ config + template |
 | Website builder | Xem preview website |

@@ -41,6 +41,13 @@ Compose sẽ inject biến vào container backend (không dùng `aimap/backend/.
 | `VIETQR_CLIENT_PASSWORD` | (Tuỳ chọn) Password Basic Auth phía khách hàng cấu hình trong VietQR API Service |
 | `VIETQR_CALLBACK_SECRET` | (Tuỳ chọn) Secret để verify trường `sign` callback VietQR (nếu tài khoản có bật) |
 | `VIETQR_CLIENT_TOKEN_TTL_SEC` | TTL token cấp bởi endpoint `POST /vqr/api/token_generate` (mặc định `900` giây) |
+| `FB_APP_ID` | Meta App ID cho OAuth kết nối Facebook Page |
+| `FB_APP_SECRET` | Meta App Secret để exchange code lấy user token |
+| `FB_GRAPH_VERSION` | Version Graph API (vd. `v22.0`) |
+| `FB_OAUTH_SCOPES` | Scope OAuth cho page flow (vd. `pages_show_list,pages_manage_posts,pages_read_engagement`) |
+| `MARKETING_MODEL_PROVIDER` | Provider tạo text marketing (`openai` hoặc `gemini`) |
+| `MARKETING_OPENAI_MODEL` | Model OpenAI cho draft content (vd. `gpt-4o-mini`) |
+| `MARKETING_GEMINI_MODEL` | Model Gemini cho draft content (vd. `gemini-2.5-flash`) |
 
 **Frontend:** `VITE_API_URL` trong `aimap/frontend/.env` phải trỏ tới API có suffix `/api`, vd. `http://localhost:4111/api`. Không nhầm với `API_PUBLIC_URL`.
 

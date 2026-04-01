@@ -24,6 +24,8 @@
 | Marketing Content | Create product description (AI) |
 | Marketing Content | Create caption and hashtag (AI) |
 | Marketing Content | View and edit created content |
+| Marketing Content | Save draft library per shop |
+| Marketing Content | Generate drafts with shop-context manual input |
 | Visual Post | Create post image from branding + content + product |
 | Visual Post | Export image in correct Facebook size |
 | Visual Post | Save and reuse created images |
@@ -34,6 +36,8 @@
 | Facebook & Social | Save and refresh Page Access Token |
 | Facebook & Social | Publish content and images to Facebook Page |
 | Facebook & Social | Disconnect Facebook Page |
+| Facebook & Social | Connect multiple Facebook Pages per shop |
+| Facebook & Social | Manual composer: choose page + text + images before publish |
 | Website Builder | Create website config from store + branding |
 | Website Builder | Render website from config + template |
 | Website Builder | View website preview |

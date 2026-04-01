@@ -32,6 +32,10 @@ isProject: false
 | 3.2.2 | Branding and Asset Management (design, coding, testing) | 16-Mar-2026 | 20-Mar-2026 | 42 hrs |
 | — | **Done:** Image bot backend (`prompt_templates` seed từ `Promp_AI/Prompt_image`, API generate/save/edit/rebuild) + frontend nối API | — | — | — |
 | 3.2.3 | Marketing Content and Visual Post Generation (design, coding, testing) | 21-Mar-2026 | 26-Mar-2026 | 54 hrs |
+| 3.2.3.a | Support Marketing Manual UI/UX map + screen design (page connect/draft/composer) | 21-Mar-2026 | 22-Mar-2026 | 14 hrs |
+| 3.2.3.b | Support Marketing backend contract and data-shape review (pages/drafts/generate/publish) | 23-Mar-2026 | 23-Mar-2026 | 8 hrs |
+| 3.2.3.c | Feasibility and cost check (Meta API + AI model pricing) | 24-Mar-2026 | 24-Mar-2026 | 6 hrs |
+| 3.2.3.d | Manual posting flow implementation and test checklist | 25-Mar-2026 | 26-Mar-2026 | 26 hrs |
 | 3.2.4 | Automation Pipeline and Credit Deduction (design, coding, testing) | 27-Mar-2026 | 30-Mar-2026 | 30 hrs |
 | 3.2.5 | Facebook Integration and Publishing (design, coding, testing) | 31-Mar-2026 | 03-Apr-2026 | 34 hrs |
 | 3.2.6 | Sprint 2 Review and Retrospective | 04-Apr-2026 | 04-Apr-2026 | 8 hrs |

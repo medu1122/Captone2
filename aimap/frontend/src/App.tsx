@@ -17,6 +17,7 @@ import ShopDashboardPage from './pages/shop/ShopDashboardPage'
 import ShopImageBotPage from './pages/shop/ShopImageBotPage'
 import ShopStoragePage from './pages/shop/ShopStoragePage'
 import ShopMarketingPage from './pages/shop/ShopMarketingPage'
+import ShopMarketingFacebookWorkspacePage from './pages/shop/ShopMarketingFacebookWorkspacePage'
 import ShopPipelinePage from './pages/shop/ShopPipelinePage'
 import ShopWebsitePage from './pages/shop/ShopWebsitePage'
 import ShopProductsPage from './pages/shop/ShopProductsPage'
@@ -95,6 +96,7 @@ function App() {
           <Route path="image-bot" element={<ShopImageBotPage />} />
           <Route path="storage" element={<ShopStoragePage />} />
           <Route path="marketing" element={<ShopMarketingPage />} />
+          <Route path="marketing/facebook" element={<ShopMarketingFacebookWorkspacePage />} />
           <Route path="pipeline" element={<ShopPipelinePage />} />
           <Route path="website" element={<ShopWebsitePage />} />
           {/* Chỉnh sửa shop nằm trên dashboard (index); giữ redirect cho bookmark /shops/:id/edit */}

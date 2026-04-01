@@ -303,6 +303,18 @@ flowchart TB
 
 **Rủi ro chính:** AI trả config lỗi → validate, rollback, không lưu; config phình/lặp → business rule (section id unique, giới hạn section); history quá dài → tóm tắt bằng model nhẹ; Docker chưa kịp nhận HTML → chỉ trả 200 sau khi đẩy xong.
 
+### Bổ sung kiến trúc cho Support Marketing (manual-first)
+
+- **Phase A (manual):** user thao tác trong `/shops/[id]/marketing`, gồm connect page, tạo draft text bằng AI, chọn ảnh từ storage hoặc URL, rồi publish thủ công.
+- **Phase B (automation):** mới đưa vào pipeline/scheduler sau khi Phase A ổn định.
+- **Ràng buộc production với Meta Graph API:**
+  - Cần app review cho quyền `pages_show_list`, `pages_manage_posts`, `pages_read_engagement`.
+  - Quota/rate limit phụ thuộc token/app/business use case; không nên giả định vô hạn.
+  - Cần refresh/rotate token và log lỗi publish rõ ràng cho từng shop/page.
+- **Khuyến nghị model cho text marketing:**
+  - Dùng model text riêng (OpenAI/Gemini) tách khỏi image-bot để dễ tối ưu chất lượng và chi phí.
+  - Chốt một model rẻ cho volume cao + một model fallback khi lỗi.
+
 **Thứ tự triển khai gợi ý:**
 
 1. Schema config + template engine (partials theo section type).
