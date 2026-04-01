@@ -320,67 +320,65 @@ Các bảng dưới đây thuộc **vùng Centralized** (Database). Vùng Per-sh
 
 ```mermaid
 erDiagram
-  logins ||--o| user_profiles : has_one
+  logins ||--o| user_profiles : has_profile
   user_profiles ||--o{ shops : owns
   user_profiles ||--o{ credit_transactions : has
   user_profiles ||--o{ payments : makes
-  shops ||--o| sites : has_one
-  sites ||--o{ conversation_messages : has
   user_profiles ||--o{ assets : owns
+  user_profiles ||--o{ activity_logs : has
+  user_profiles ||--o{ pipeline_runs : runs
+  user_profiles ||--o{ facebook_page_tokens : connects
+
+  shops ||--o| sites : has_site
   shops ||--o{ assets : has
-  user_profiles ||--o| facebook_page_tokens : has
-  payments ||--o| credit_transactions : "topup ref"
+  shops ||--o{ marketing_content : has
+  shops ||--o{ pipeline_runs : has
+  shops ||--o{ facebook_page_tokens : has_pages
+  shops ||--o{ facebook_posts_cache : caches_posts
+  shops ||--o{ facebook_post_insight_snapshots : snapshots
+  shops ||--o{ marketing_ai_cache : ai_cache
+
+  sites ||--o{ conversation_messages : has
+  sites ||--o| site_deployments : deploys
+  shops ||--o| site_deployments : has_deploy
+
+  prompt_templates ||--o{ assets : template
+  prompt_templates ||--o{ marketing_content : template
+
+  payments ||--o| credit_transactions : may_credit
+
   logins {
     uuid id PK
     string email UK
     string password_hash
     string role
     string status
-    timestamp last_login_at
-    timestamp created_at
-    timestamp updated_at
+    timestamptz last_login_at
+    timestamptz created_at
+    timestamptz updated_at
   }
+
   user_profiles {
     uuid id PK
     uuid login_id FK
     string name
     string phone
-    string avatar_url
-    text address
-    string city
-    string district
-    string country
-    string postal_code
-    date date_of_birth
-    string gender
-    string company_name
-    text bio
-    string timezone
     string locale
-    timestamp created_at
-    timestamp updated_at
+    timestamptz created_at
+    timestamptz updated_at
   }
+
   shops {
     uuid id PK
     uuid user_id FK
     string name
     string slug UK
     string industry
-    text description
-    jsonb products
     jsonb contact_info
-    jsonb brand_preferences
-    text address
-    string city
-    string district
-    string country
-    jsonb social_links
-    jsonb opening_hours
-    string logo_url
-    string cover_url
-    timestamp created_at
-    timestamp updated_at
+    timestamptz created_at
+    timestamptz updated_at
   }
+
   sites {
     uuid id PK
     uuid shop_id FK
@@ -388,9 +386,10 @@ erDiagram
     jsonb config_json
     string slug UK
     string status
-    timestamp created_at
-    timestamp updated_at
+    timestamptz created_at
+    timestamptz updated_at
   }
+
   credit_transactions {
     uuid id PK
     uuid user_id FK
@@ -398,78 +397,109 @@ erDiagram
     string type
     string reference_type
     string reference_id
-    timestamp created_at
+    timestamptz created_at
   }
+
   payments {
     uuid id PK
     uuid user_id FK
     int amount_money
     int credits
     string gateway
-    string gateway_txn_id
     string status
-    string transfer_content UK
-    string qr_image_url
-    jsonb callback_data
-    timestamp paid_at
-    timestamp expires_at
-    timestamp created_at
-    timestamp updated_at
+    string transfer_content
+    timestamptz created_at
+    timestamptz updated_at
   }
+
   assets {
     uuid id PK
     uuid user_id FK
     uuid shop_id FK
     string type
-    string name
     string storage_path_or_url
-    string mime_type
     string model_source
     uuid prompt_template_id FK
-    text user_prompt
-    jsonb metadata
-    timestamp created_at
+    timestamptz created_at
   }
+
   facebook_page_tokens {
     uuid id PK
     uuid user_id FK
     uuid shop_id FK
     string page_id
     string page_name
-    string access_token
-    string refresh_token
-    timestamp expires_at
-    timestamp created_at
-    timestamp updated_at
+    text access_token
+    string page_category
+    text picture_url
+    int followers_count
+    jsonb tasks_json
+    timestamptz expires_at
+    timestamptz updated_at
   }
+
+  facebook_posts_cache {
+    uuid id PK
+    uuid shop_id FK
+    string page_id
+    string post_id
+    text permalink_url
+    bigint reach
+    int reactions
+    int comments
+    int shares
+    jsonb insights_json
+    timestamptz synced_at
+  }
+
+  facebook_post_insight_snapshots {
+    uuid id PK
+    uuid shop_id FK
+    string post_id
+    date snapshot_date
+    string metric_key
+    numeric value
+  }
+
+  marketing_ai_cache {
+    uuid id PK
+    uuid shop_id FK
+    string page_id
+    string post_id
+    string kind
+    string input_hash
+    jsonb payload_json
+    timestamptz expires_at
+  }
+
   marketing_content {
     uuid id PK
     uuid shop_id FK
     string type
     jsonb content
-    text source_prompt
     uuid prompt_template_id FK
-    text user_prompt
-    timestamp created_at
-    timestamp updated_at
+    timestamptz created_at
+    timestamptz updated_at
   }
+
   pipeline_runs {
     uuid id PK
     uuid shop_id FK
     uuid user_id FK
     string status
     jsonb steps
-    timestamp started_at
-    timestamp finished_at
-    text error_message
+    timestamptz started_at
+    timestamptz finished_at
   }
+
   conversation_messages {
     uuid id PK
     uuid site_id FK
     string role
     text content
-    timestamp created_at
+    timestamptz created_at
   }
+
   site_deployments {
     uuid id PK
     uuid site_id FK
@@ -477,12 +507,9 @@ erDiagram
     string container_id
     string subdomain UK
     string status
-    timestamp deployed_at
-    timestamp last_build_at
-    text error_message
-    timestamp created_at
-    timestamp updated_at
+    timestamptz deployed_at
   }
+
   activity_logs {
     uuid id PK
     uuid user_id FK
@@ -491,43 +518,48 @@ erDiagram
     uuid entity_id
     jsonb details
     string severity
-    string ip_address
-    timestamp created_at
+    timestamptz created_at
   }
+
   prompt_templates {
     uuid id PK
     string type
     string category
-    string name
     text content
-    jsonb variables
     jsonb tags
-    boolean is_system
     boolean is_active
-    int sort_order
-    timestamp created_at
-    timestamp updated_at
+    timestamptz updated_at
   }
+
   industry_tag_mappings {
     uuid id PK
     string industry UK
     jsonb tags
-    timestamp created_at
+    timestamptz created_at
   }
-  user_profiles ||--o{ activity_logs : has
-  shops ||--o{ assets : has
-  shops ||--o{ marketing_content : has
-  shops ||--o{ pipeline_runs : has
-  user_profiles ||--o{ pipeline_runs : triggers
-  shops ||--o| facebook_page_tokens : "page per shop"
-  prompt_templates ||--o{ assets : "used by"
-  prompt_templates ||--o{ marketing_content : "used by"
-  sites ||--o{ conversation_messages : has
-  sites ||--o| site_deployments : has_one
-  shops ||--o| site_deployments : has_one
+
+  pending_registrations {
+    uuid id PK
+    string email UK
+    text password_hash
+    string name
+    timestamptz created_at
+  }
+
+  email_verification_codes {
+    uuid id PK
+    string email UK
+    string code
+    timestamptz expires_at
+  }
 ```
 
+**Ghi chú ERD:**
 
+- **industry_tag_mappings**, **pending_registrations**, **email_verification_codes** không có FK sang bảng khác (tra cứu / đăng ký tạm); vẫn liệt kê entity để đủ schema.
+- **facebook_posts_cache**, **facebook_post_insight_snapshots**, **marketing_ai_cache** (migration 006) chỉ khóa ngoại **shops**; `page_id` / `post_id` là id Meta dạng chuỗi, không FK tới `facebook_page_tokens`.
+- **payments → credit_transactions**: mối quan hệ logic (topup sau thanh toán), không bắt buộc FK trong DB — vẽ nét gợi ý.
+- **marketing_ai_cache**: cache kết quả gọi bot Ollama (VPS), không lưu model trong DB.
 
 ---
 
@@ -897,6 +929,59 @@ CREATE TABLE facebook_page_tokens (
 CREATE INDEX idx_fb_tokens_user_id ON facebook_page_tokens (user_id);
 CREATE INDEX idx_fb_tokens_shop_id ON facebook_page_tokens (shop_id);
 
+-- 10b. Facebook marketing — cột + bảng cache (áp dụng qua migration 006)
+-- File: aimap/backend/db/migrations/006_facebook_marketing.sql
+-- Mở rộng facebook_page_tokens: page_category, picture_url, followers_count, tasks_json (đồng bộ từ Graph).
+-- facebook_posts_cache: snapshot bài post (reach, reactions, …) theo shop_id + post_id.
+-- facebook_post_insight_snapshots: điểm insight theo ngày (sparkline).
+-- marketing_ai_cache: cache kết quả gọi bot Ollama (marketing AI) theo kind + input_hash.
+
+ALTER TABLE facebook_page_tokens ADD COLUMN IF NOT EXISTS page_category VARCHAR(255);
+ALTER TABLE facebook_page_tokens ADD COLUMN IF NOT EXISTS picture_url TEXT;
+ALTER TABLE facebook_page_tokens ADD COLUMN IF NOT EXISTS followers_count INTEGER;
+ALTER TABLE facebook_page_tokens ADD COLUMN IF NOT EXISTS tasks_json JSONB DEFAULT '[]'::jsonb;
+
+CREATE TABLE IF NOT EXISTS facebook_posts_cache (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    shop_id UUID NOT NULL REFERENCES shops(id) ON DELETE CASCADE,
+    page_id VARCHAR(100) NOT NULL,
+    post_id VARCHAR(120) NOT NULL,
+    message_preview TEXT,
+    permalink_url TEXT,
+    created_time TIMESTAMPTZ,
+    reach BIGINT,
+    reactions INTEGER DEFAULT 0,
+    comments INTEGER DEFAULT 0,
+    shares INTEGER DEFAULT 0,
+    created_by_app_id VARCHAR(100),
+    insights_json JSONB DEFAULT '{}'::jsonb,
+    synced_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE (shop_id, post_id)
+);
+
+CREATE TABLE IF NOT EXISTS facebook_post_insight_snapshots (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    shop_id UUID NOT NULL REFERENCES shops(id) ON DELETE CASCADE,
+    post_id VARCHAR(120) NOT NULL,
+    snapshot_date DATE NOT NULL,
+    metric_key VARCHAR(80) NOT NULL,
+    value NUMERIC,
+    UNIQUE (shop_id, post_id, snapshot_date, metric_key)
+);
+
+CREATE TABLE IF NOT EXISTS marketing_ai_cache (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    shop_id UUID NOT NULL REFERENCES shops(id) ON DELETE CASCADE,
+    page_id VARCHAR(100),
+    post_id VARCHAR(120),
+    kind VARCHAR(40) NOT NULL,
+    input_hash VARCHAR(64) NOT NULL,
+    payload_json JSONB NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    expires_at TIMESTAMPTZ NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_marketing_ai_lookup ON marketing_ai_cache (shop_id, kind, input_hash);
+
 -- 11. marketing_content (nội dung AI sinh: bài đăng, mô tả SP, caption)
 CREATE TABLE marketing_content (
     id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -935,6 +1020,8 @@ CREATE INDEX idx_pipeline_shop_id ON pipeline_runs (shop_id);
 CREATE INDEX idx_pipeline_user_id ON pipeline_runs (user_id);
 CREATE INDEX idx_pipeline_status  ON pipeline_runs (status);
 ```
+
+**Env backend (bot Ollama trên VPS — marketing):** `MARKETING_AI_BASE_URL` (vd. `http://IP:11434`), `MARKETING_AI_MODEL` (vd. `qwen2.5:7b`), tùy chọn `FACEBOOK_GRAPH_VERSION`, `META_APP_ID`. Không set `MARKETING_AI_BASE_URL` thì API marketing vẫn chạy nhưng phần AI trả placeholder.
 
 ### 8.3 Sprint 3 — Conversation, Deploy, Activity Logs (3 bảng)
 

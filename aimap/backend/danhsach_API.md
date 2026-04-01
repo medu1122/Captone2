@@ -708,3 +708,77 @@ Response:
 Headers: Authorization: Bearer <admin-token>
 ```
 Response: `{ "ok": true }`
+
+---
+
+## Facebook Marketing (Graph API + bot Ollama)
+
+Prefix: `/api/shops/:shopId/facebook/...` — `:shopId` = UUID shop. Header: `Authorization: Bearer <token>`.
+
+**Env server:** `MARKETING_AI_BASE_URL` (Ollama, vd. `http://IP_VPS:11434`), `MARKETING_AI_MODEL` (vd. `qwen2.5:7b`), `META_APP_ID` (để biết bài nào sửa được qua API), `FACEBOOK_GRAPH_VERSION` (mặc định `v20.0`).
+
+**Migration DB:** `psql $DATABASE_URL -f aimap/backend/db/migrations/006_facebook_marketing.sql`
+
+---
+
+**GET /shops/:shopId/facebook/pages** — Danh sách Page đã lưu token.
+
+Query: `sync=true` (optional) — gọi Graph cập nhật tên, followers, ảnh.
+
+Response: `{ "pages": [ { "pageId", "name", "followers", "category", "pictureUrl", "updatedAt" } ] }`
+
+---
+
+**POST /shops/:shopId/facebook/pages/connect** — Lưu Page access token (test / chờ OAuth).
+
+Body:
+```json
+{
+  "pageId": "123456789",
+  "pageName": "Tên page (optional)",
+  "accessToken": "EAA...",
+  "expiresAt": "2026-12-01T00:00:00.000Z"
+}
+```
+
+Backend gọi Graph xác minh token rồi `UPSERT` vào `facebook_page_tokens`. Lỗi token: `400` + `code` từ Graph.
+
+---
+
+**GET /shops/:shopId/facebook/pages/:pageId/detail** — KPI + trend + AI actions (Ollama).
+
+Query: `range=7d|30d`
+
+Response: `{ pageId, range, kpis, trendBars, engagementMix, bestTimes, topPosts, aiActions, sources: { insightsSyncedAt, isPartial } }`
+
+---
+
+**GET /shops/:shopId/facebook/pages/:pageId/posts** — Feed bài đăng.
+
+Query: `limit` (default 25, max 50)
+
+Response: `{ "posts": [ { "postId", "title", "messagePreview", "createdTime", "timeLabel", "reach", "engagementRate", "reactions", "comments", "shares", "canEditViaApi", "canDeleteViaApi", "permalinkUrl" } ], "paging" }`
+
+---
+
+**GET /shops/:shopId/facebook/posts/:postId/detail** — Modal xem bài: insight, comment AI, bot score.
+
+Response: `insights`, `sparkline`, `commentAi`, `botEvaluation`, `capabilities`, `permalinkUrl`, `isPartial`
+
+---
+
+**PATCH /shops/:shopId/facebook/posts/:postId** — Sửa `message` (chỉ khi bài do app Meta có `META_APP_ID` đăng).
+
+Body: `{ "message": "..." }` — Lỗi `409` `POST_NOT_EDITABLE_APP_ONLY`.
+
+---
+
+**DELETE /shops/:shopId/facebook/posts/:postId** — Xóa bài trên Facebook.
+
+---
+
+**POST /shops/:shopId/facebook/assist** — AI gợi ý caption (Ollama).
+
+Body: `{ "draftMessage": "", "instruction": "", "locale": "vi" }`
+
+Response: `{ "suggestedMessage", "skipped": true nếu chưa cấu hình bot, "error" }`

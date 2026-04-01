@@ -1,6 +1,6 @@
 ---
 name: Image Bot Page UI
-overview: "Kế hoạch giao diện trang `/shops/[id]/image-bot`: ba vùng cố định (input tạo ảnh, vùng output với Save/Edit/Rebuild + form con, gallery ảnh shop chỉ xem), bám [UI STRUCT.md](READ_CONTEXT/UI STRUCT.md) và [shoplist_shopdetail_ui_struct plan](.cursor/.cursor/plans/shoplist_shopdetail_ui_struct_31a4c65d.plan.md); backend gen ảnh theo lộ trình [AIMAP-3-Image-ModelsAI-VN.md](READ_CONTEXT/AIMAP-3-Image-ModelsAI-VN.md) (map UI \"GPT/Gemini\" sang provider thực tế)."
+overview: "Kế hoạch giao diện trang `/shops/[id]/image-bot`: ba vùng cố định (input tạo ảnh, vùng output với Save/Edit/Rebuild + form con, gallery ảnh shop chỉ xem), bám [UI STRUCT.md](READ_CONTEXT/UI STRUCT.md) và [plan gộp Shop + Marketing](.cursor/.cursor/plans/aimap_shop_marketing_unified.plan.md) (Phần A — Shop Detail); backend gen ảnh theo lộ trình [AIMAP-3-Image-ModelsAI-VN.md](READ_CONTEXT/AIMAP-3-Image-ModelsAI-VN.md) (map UI \"GPT/Gemini\" sang provider thực tế)."
 todos:
   - id: layout-zones
     content: "ShopImageBotPage: 3 zones fixed height/scroll + component split"
@@ -137,4 +137,4 @@ Một **card** hoặc **panel** có tiêu đề (i18n), bên trong form theo th�
 
 ## Liên kết plan Shop Detail
 
-Bổ sung mục **Image Bot** trong [shoplist_shopdetail_ui_struct_31a4c65d.plan.md](.cursor/.cursor/plans/shoplist_shopdetail_ui_struct_31a4c65d.plan.md) (khi cập nhật tài liệu): mô tả 3 zone, phân biệt rõ **image-bot** (tạo + output + gallery xem nhanh) vs **storage** (quản lý đầy đủ).
+Bổ sung mục **Image Bot** trong [aimap_shop_marketing_unified.plan.md](.cursor/.cursor/plans/aimap_shop_marketing_unified.plan.md) Phần A (khi cập nhật tài liệu): mô tả 3 zone, phân biệt rõ **image-bot** (tạo + output + gallery xem nhanh) vs **storage** (quản lý đầy đủ).
