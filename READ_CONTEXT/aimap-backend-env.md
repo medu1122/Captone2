@@ -41,11 +41,16 @@ Compose sẽ inject biến vào container backend (không dùng `aimap/backend/.
 | `VIETQR_CLIENT_PASSWORD` | (Tuỳ chọn) Password Basic Auth phía khách hàng cấu hình trong VietQR API Service |
 | `VIETQR_CALLBACK_SECRET` | (Tuỳ chọn) Secret để verify trường `sign` callback VietQR (nếu tài khoản có bật) |
 | `VIETQR_CLIENT_TOKEN_TTL_SEC` | TTL token cấp bởi endpoint `POST /vqr/api/token_generate` (mặc định `900` giây) |
-| `FB_APP_ID` | Meta App ID cho OAuth kết nối Facebook Page |
-| `FB_APP_SECRET` | Meta App Secret để exchange code lấy user token |
-| `FB_GRAPH_VERSION` | Version Graph API (vd. `v22.0`) |
+| `FB_APP_ID` | Meta App ID (OAuth / tool Meta) — có thể trùng `META_APP_ID` |
+| `FB_APP_SECRET` | Meta App Secret để exchange code lấy user token (OAuth — khi triển khai flow đầy đủ) |
+| `META_APP_ID` | **Bắt buộc nếu cần biết bài post do app nào tạo** — dùng trong `routes/shopFacebookMarketing.js` để set `canEditViaApi` / PATCH post |
+| `FACEBOOK_GRAPH_VERSION` | Version Graph API khi gọi từ backend (mặc định `v20.0`) — biến dùng trong `facebookGraphService.js` |
+| `FB_GRAPH_VERSION` | (Tuỳ chọn) Alias / tài liệu cũ; ưu tiên `FACEBOOK_GRAPH_VERSION` trong code hiện tại |
 | `FB_OAUTH_SCOPES` | Scope OAuth cho page flow (vd. `pages_show_list,pages_manage_posts,pages_read_engagement`) |
-| `MARKETING_MODEL_PROVIDER` | Provider tạo text marketing (`openai` hoặc `gemini`) |
+| `MARKETING_AI_BASE_URL` | URL Ollama trên VPS (vd. `http://IP:11434`) — tóm tắt comment / đánh giá bài / AI assist; không set → API vẫn chạy, phần AI trả placeholder |
+| `MARKETING_AI_MODEL` | Tên model Ollama (mặc định `qwen2.5:7b`) |
+| `MARKETING_AI_TIMEOUT_MS` | Timeout gọi Ollama (mặc định `45000`) |
+| `MARKETING_MODEL_PROVIDER` | (Tùy module khác) Provider text marketing `openai` / `gemini` nếu có route tách |
 | `MARKETING_OPENAI_MODEL` | Model OpenAI cho draft content (vd. `gpt-4o-mini`) |
 | `MARKETING_GEMINI_MODEL` | Model Gemini cho draft content (vd. `gemini-2.5-flash`) |
 

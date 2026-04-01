@@ -68,7 +68,7 @@ Kế hoạch này vạch ra các bước cụ thể để xây dựng toàn bộ
     4. **Support marketing** — Kho content marketing (ad post, product description, caption/hashtag): tạo/sửa/xem.
     5. **Pipeline** — Quản lý và xem quy trình tự động (chạy pipeline, xem lịch sử runs, trạng thái từng bước).
   - **Dưới cùng sidebar:** Khối **Credit balance** giống Dashboard — hiển thị số dư **user** từ API (**`GET /api/auth/me`** → field **`creditBalance`**, tổng `credit_transactions`). Khi đang tải profile có thể hiện "…". Sau khi admin cấp thêm credit, user **F5** hoặc đăng nhập lại để thấy số mới (nếu chưa có refetch tự động). Credit theo **user**, không theo shop.
-  - **Route con:** `/shops/[id]` (index = Shop Dashboard), `/shops/[id]/image-bot`, `/shops/[id]/storage`, `/shops/[id]/marketing`, `/shops/[id]/pipeline`. Quick action từ trang chi tiết: Edit Shop, Website Builder, Facebook (trong ngữ cảnh shop).
+  - **Route con:** `/shops/[id]` (index = Shop Dashboard), `/shops/[id]/image-bot`, `/shops/[id]/storage`, `/shops/[id]/marketing`, `/shops/[id]/marketing/facebook`, `/shops/[id]/pipeline`. Quick action từ trang chi tiết: Edit Shop, Website Builder, Facebook workspace (trong ngữ cảnh shop).
 
 - **`/shops/[id]/edit`:** Form cập nhật thông tin cửa hàng (thêm product, địa chỉ, social links, website_url, branding…).
 
@@ -91,7 +91,8 @@ Kế hoạch này vạch ra các bước cụ thể để xây dựng toàn bộ
 
 - **AI Tools không nằm ở sidebar Dashboard** như mục độc lập; **điểm vào (entry)** là từ **Shop Detail** — sidebar có **Bot tạo ảnh** và **Support marketing**.
 - **Bot tạo ảnh** (`/shops/[id]/image-bot`): Chọn mẫu prompt gốc (optional, `GET …/image-prompts`) hoặc để hệ thống chọn theo ngành; **Tạo ảnh** → `POST …/images/generate`; **Lưu** → `POST …/images/save`; chỉnh/sửa/tạo lại → `edit` / `rebuild`. Sản phẩm chỉnh tại `/shops/[id]/edit` (`PUT …/products`). Shop context luôn có sẵn.
-- **Support marketing** (`/shops/[id]/marketing`): Kho content marketing (ad post, product description, caption/hashtag) — tạo/sửa/xem bằng Agent tạo content; khi **Lưu** lưu vào **marketing_content** của shop.
+- **Support marketing** (`/shops/[id]/marketing`): Kho content marketing (ad post, product description, caption/hashtag) — tạo/sửa/xem; khi **Lưu** lưu vào **marketing_content** của shop.
+- **Facebook workspace** (`/shops/[id]/marketing/facebook`): Quản lý Page đã kết nối, danh sách bài, chi tiết bài, insight; AI assist (Ollama trên VPS qua backend). API backend: prefix **`/api/shops/:shopId/facebook/...`** — chi tiết method/body trong [`aimap/backend/danhsach_API.md`](../aimap/backend/danhsach_API.md) (mục Facebook Marketing).
 - **Thiết kế chi tiết Support marketing (manual-first):**
   - **Zone A — Facebook Pages:** connect nhiều page theo shop, list page đã kết nối, remove page.
   - **Zone B — AI Content Draft:** nhập goal/tone/ngữ cảnh, generate draft, lưu thư viện draft, chọn draft đưa vào composer.

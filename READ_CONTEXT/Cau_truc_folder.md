@@ -19,7 +19,7 @@ Tài liệu mô tả **struct folder** của dự án AIMAP sau khi gộp bớt,
 |----------------------|------------------|----------------|
 | Frontend (Dashboard) | `frontend/` | Giao diện người dùng: form, preview, gọi API |
 | Backend Core (API, workflow) | `backend/routes/` + `backend/services/` | Nhận request, điều phối và trả response |
-| AI + Agents | `backend/services/` (orchestrator) + `backend/agents/` | Chạy workflow và từng agent (branding, content, web, deploy, social) |
+| AI + workflow | `backend/services/` | Logic nghiệp vụ + Facebook Graph + Ollama marketing bot; **không có** folder `backend/agents/` trong repo hiện tại (agent có thể gom trong `services/` sau) |
 | AI client & Docker | `backend/lib/` | Gọi LLM/Image API, Docker (dockerode), prompt builder |
 | Website render | `backend/templates/` | Template (Handlebars/EJS) render HTML từ config |
 | Dữ liệu | `backend/db/` | Schema, migrations, config + conversation store |
@@ -37,9 +37,9 @@ aimap/
 │   └── package.json
 │
 ├── backend/                  # Mục tiêu: API + nghiệp vụ + AI + lưu trữ
-│   ├── routes/               # Mục tiêu: Định nghĩa API (auth, stores, branding, sites, deploy, facebook, admin)
+│   ├── routes/               # Mục tiêu: Định nghĩa API (auth, shops, image-bot, **shopFacebookMarketing**, admin, …)
 │   ├── services/             # Mục tiêu: Logic nghiệp vụ + điều phối workflow (orchestrator)
-│   ├── agents/               # Mục tiêu: Các agent (branding, content, visualPost, websiteBuilder, deploy, socialPosting)
+│   ├── (agents/)             # Tuỳ chọn tương lai — hiện chưa có; logic tương đương nằm trong services/
 │   ├── lib/                  # Mục tiêu: Công cụ dùng chung (LLM client, image API, prompt builder, dockerode)
 │   ├── templates/            # Mục tiêu: Partial Handlebars/EJS cho website (hero, cta, footer...)
 │   ├── db/                   # Mục tiêu: Schema DB, migrations, config + conversation store
@@ -63,9 +63,9 @@ aimap/
 | Folder | Mục tiêu chính | Không làm gì (tránh lẫn) |
 |--------|----------------|---------------------------|
 | `frontend/` | Hiển thị UI, form nhập, preview, gọi API backend. | Không gọi AI/Docker trực tiếp, không lưu DB. |
-| `backend/routes/` | Endpoint: **`auth.js`**; **`admin.js`**; **`shops.js`**; **`shopImageBot.js`**; **`shopMarketing.js`** (facebook pages, drafts, generate, publish manual). | Không chứa logic workflow hay gọi LLM/Docker trực tiếp. |
-| `backend/services/` | Nghiệp vụ: **`activityLog.js`**, **`imagePromptBuilder.js`**, **`imageGeneration.js`**, **`assetStorage.js`**, **`marketingContentService.js`**, **`facebookService.js`**. | Không định nghĩa route; không chứa template HTML. |
-| `backend/agents/` | Từng agent: branding, content, visualPost, websiteBuilder, deploy, socialPosting (input/output rõ). | Không điều phối lẫn nhau; không định nghĩa API. |
+| `backend/routes/` | Endpoint: **`auth.js`**, **`admin.js`**, **`shops.js`**, **`shopImageBot.js`**, **`shopFacebookMarketing.js`** (prefix `/api/shops/:id/facebook/...` — Page, post, insight, AI assist). | Không chứa logic workflow hay gọi LLM/Docker trực tiếp. |
+| `backend/services/` | Nghiệp vụ: **`activityLog.js`**, **`imagePromptBuilder.js`**, **`imageGeneration.js`**, **`assetStorage.js`**, **`marketingContentService.js`**, **`facebookGraphService.js`** (Graph API), **`marketingAiBot.js`** (Ollama). | Không định nghĩa route; không chứa template HTML. |
+| `backend/agents/` | *(Chưa có trong repo.)* | — |
 | `backend/lib/` | Công cụ: kết nối LLM, Image API, build prompt, gọi Docker (dockerode). | Không chứa logic nghiệp vụ hay workflow. |
 | `backend/templates/` | File template (partial) để render HTML từ config. | Không chứa logic Node, không gọi API. |
 | `backend/db/` | Schema, migrations, truy vấn (sites, users, conversation, credits). | Không chứa logic workflow hay agent. |
@@ -76,4 +76,4 @@ aimap/
 
 - **Cho người review:** Dùng cây thư mục (mục 2) + bảng mục tiêu (mục 3); có thể thêm 1 sơ đồ Architecture → Folders (mục 1).
 - **Trong repo:** Đặt đúng tên folder như trên. (Promp_AI/ là folder ngoài dự án, không nằm trong cấu trúc code.)
-- **Quy ước đặt tên gợi ý:** `routes/auth.js`, `routes/shops.js`, `services/activityLog.js`, `services/orchestrator.js`, `agents/brandingAgent.js`, `lib/llmClient.js`, `lib/docker.js`.
+- **Quy ước đặt tên gợi ý:** `routes/auth.js`, `routes/shops.js`, `routes/shopFacebookMarketing.js`, `services/activityLog.js`, `services/facebookGraphService.js`, `lib/llmClient.js`, `lib/docker.js`.

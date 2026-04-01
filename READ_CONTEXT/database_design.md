@@ -40,6 +40,9 @@ Tài liệu này là **nguồn tham chiếu chính** cho thiết kế database c
 | **2** | pipeline_runs | Chạy pipeline (branding → content → visual → …); steps JSONB |
 | **2** | prompt_templates | Kho prompt hệ thống gắn **tag ngành hàng** + **category** (image/content); Prompt Builder lọc theo tag → gen 4–5 ảnh/content cho user chọn |
 | **2** | industry_tag_mappings | Map ngành hàng (shops.industry) → tag(s) cho prompt (40 tag, seed data) |
+| **2** | facebook_posts_cache | Snapshot post Page từ Graph (migration **006**) |
+| **2** | facebook_post_insight_snapshots | Insight theo ngày cho sparkline (migration **006**) |
+| **2** | marketing_ai_cache | Cache kết quả AI marketing / Ollama (migration **006**) |
 | **3** | conversation_messages | Lịch sử chỉnh website bằng prompt (site_id, role, content) |
 | **3** | site_deployments | Deploy: container_id, subdomain, status; 1 site → 1 container |
 | **3** | activity_logs | Log hành động user + công đoạn web: **đã triển khai** `login`, `create_shop`, `update_shop` (+ `ip_address`); Sprint 3 thêm create_site, deploy_site, …; **không** có bảng `access_logs` — access log = các dòng `action = login` |
@@ -179,7 +182,7 @@ Sprint 3 không thêm bảng cho revenue/credit reports (P3.12): dùng sẵn cre
 
 - **Không có bảng `access_logs`.** Dashboard user — mục “Nhật ký truy cập” — dùng các bản ghi `activity_logs` với **`action = 'login'`**, cột **`ip_address`** và **`created_at`**.
 - **Đã ghi log:** mỗi **đăng nhập thành công** (`login`, `entity_type = session`), **tạo shop** (`create_shop`), **cập nhật shop** (`update_shop`); có thể kèm `ip_address`. Các action website/deploy sẽ bổ sung khi làm Sprint 3.
-- **API (JWT Bearer):** `GET /api/auth/me/activity` — nhật ký hoạt động theo `user_id`; `GET /api/auth/me/access-log` — chỉ các lần đăng nhập. Mô tả đầy đủ: **`aimap/backend/API.md`**.
+- **API (JWT Bearer):** `GET /api/auth/me/activity` — nhật ký hoạt động theo `user_id`; `GET /api/auth/me/access-log` — chỉ các lần đăng nhập. Mô tả đầy đủ: **`aimap/backend/danhsach_API.md`**.
 
 ### Bước 5d: Hỗ trợ Admin (đã bao gồm trong database)
 

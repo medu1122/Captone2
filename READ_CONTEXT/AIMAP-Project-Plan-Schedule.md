@@ -38,6 +38,7 @@ isProject: false
 | 3.2.3.d | Manual posting flow implementation and test checklist | 25-Mar-2026 | 26-Mar-2026 | 26 hrs |
 | 3.2.4 | Automation Pipeline and Credit Deduction (design, coding, testing) | 27-Mar-2026 | 30-Mar-2026 | 30 hrs |
 | 3.2.5 | Facebook Integration and Publishing (design, coding, testing) | 31-Mar-2026 | 03-Apr-2026 | 34 hrs |
+| — | **Done (Apr 2026):** migration `006_facebook_marketing.sql`; `routes/shopFacebookMarketing.js` + `facebookGraphService.js` + `marketingAiBot.js`; doc API trong `danhsach_API.md` | — | — | — |
 | 3.2.6 | Sprint 2 Review and Retrospective | 04-Apr-2026 | 04-Apr-2026 | 8 hrs |
 | 3.3 | Sprint 3 - Website Builder, Deploy and Operations | 12-Apr-2026 | 02-May-2026 | 180 hrs |
 | 3.3.1 | Sprint 3 Planning and Backlog | 12-Apr-2026 | 12-Apr-2026 | 12 hrs |

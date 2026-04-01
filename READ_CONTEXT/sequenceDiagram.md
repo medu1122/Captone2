@@ -66,21 +66,24 @@ sequenceDiagram
     actor User
     participant FE as Frontend
     participant BE as Backend
-    participant AI as TextModel
-    participant FB as FacebookGraphAPI
+    participant Ollama as Ollama_VPS
+    participant FB as Meta_Graph_API
     participant DB as Database
 
-    User->>FE: Connect/select Facebook Page and input content goal
-    FE->>BE: Request draft generation with shop context
-    BE->>AI: Generate marketing text draft
-    AI-->>BE: Return draft text
-    BE->>DB: Save draft to marketing_content
-    BE-->>FE: Return draft list
-    User->>FE: Select draft and images, click publish
-    FE->>BE: Publish manual post request
-    BE->>FB: Post text + images to selected page
-    FB-->>BE: Return post_id/status
-    BE->>DB: Save activity log
-    BE-->>FE: Return publish result
+    User->>FE: Connect Page (hoặc nhập page token) / xem post / yêu cầu AI
+    FE->>BE: GET/POST /api/shops/:id/facebook/... (pages, posts, assist)
+    BE->>FB: Graph API (token server-side, không lộ client)
+    FB-->>BE: Page list, posts, insights
+    BE->>DB: Cache facebook_posts_cache, snapshots, tokens
+    BE-->>FE: JSON cho UI
+
+    User->>FE: AI assist / tóm tắt comment / gợi ý caption
+    FE->>BE: POST .../assist (hoặc route tương đương)
+    BE->>Ollama: POST /api/generate (MARKETING_AI_*)
+    Ollama-->>BE: Text
+    BE->>DB: marketing_ai_cache (tuỳ gọi)
+    BE-->>FE: Gợi ý text
+
+    Note over BE,FB: OAuth flow đầy đủ có thể bổ sung sau; hiện có thể connect bằng page token / bước manual.
 ```
 

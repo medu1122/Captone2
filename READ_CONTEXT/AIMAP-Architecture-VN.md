@@ -26,7 +26,7 @@ Phạm vi (theo Proposal): Thu thập store info | AI Branding (logo, banner, co
 - **F6 – Multi-Agent Orchestration:** Orchestrator điều phối Branding Agent, Content Agent, Visual Post Agent, Website Builder Agent, Deploy Agent, Social Posting Agent.
 - **Credit & Payment:** Mô hình sử dụng theo credit; tích hợp Payment Gateway để mua credit; Admin theo dõi doanh thu và giao dịch.
 - **Administrator:** Quản lý user, xem activity log, theo dõi revenue/credit, dashboard hiệu năng hệ thống.
-- **User dashboard:** User thường xem **activity log** và **access log** (lịch sử đăng nhập / IP) trên trang tổng quan — cùng bảng **`activity_logs`**, API **`GET /api/auth/me/activity`** và **`GET /api/auth/me/access-log`** (xem `aimap/backend/API.md`).
+- **User dashboard:** User thường xem **activity log** và **access log** (lịch sử đăng nhập / IP) trên trang tổng quan — cùng bảng **`activity_logs`**, API **`GET /api/auth/me/activity`** và **`GET /api/auth/me/access-log`** (xem [`aimap/backend/danhsach_API.md`](../aimap/backend/danhsach_API.md)).
 
 **Triển khai số dư credit (phiên bản code hiện tại):** Nguồn sự thật là bảng **`credit_transactions`**; số dư user = **SUM(`amount`)** theo **`user_profiles.id`**. Khi **verify email** sau đăng ký: ghi nhận **+100** (`type` bonus, `reference_type` **signup_bonus**). **`GET /api/auth/me`** và **POST /api/auth/login** trả **`creditBalance`**. Admin cấp thêm: **`POST /api/admin/users/:id/credits`**. Payment gateway, trừ credit khi gọi AI — giai đoạn sau.
 
@@ -305,14 +305,16 @@ flowchart TB
 
 ### Bổ sung kiến trúc cho Support Marketing (manual-first)
 
-- **Phase A (manual):** user thao tác trong `/shops/[id]/marketing`, gồm connect page, tạo draft text bằng AI, chọn ảnh từ storage hoặc URL, rồi publish thủ công.
+- **Phase A (manual):** user thao tác trong `/shops/[id]/marketing` → **Facebook workspace** `/shops/[id]/marketing/facebook`: connect page, viết content, overview, quản lý post; tạo draft / AI assist; publish (UI/API tùy phase).
 - **Phase B (automation):** mới đưa vào pipeline/scheduler sau khi Phase A ổn định.
+- **Triển khai backend (đã có):** prefix **`/api/shops/:shopId/facebook/...`** — `routes/shopFacebookMarketing.js`; gọi **Meta Graph** qua `services/facebookGraphService.js` (chỉ server, không lộ token client); **AI text** (tóm tắt comment, đánh giá bài, gợi ý page, assist caption) qua **`services/marketingAiBot.js`** → HTTP **Ollama** (`POST /api/generate`) tại VPS cấu hình bởi `MARKETING_AI_BASE_URL` / `MARKETING_AI_MODEL`. DB: `facebook_page_tokens` + migration **006** (`facebook_posts_cache`, `facebook_post_insight_snapshots`, `marketing_ai_cache`). Chi tiết endpoint: [`danhsach_API.md`](../aimap/backend/danhsach_API.md) mục **Facebook Marketing**.
 - **Ràng buộc production với Meta Graph API:**
-  - Cần app review cho quyền `pages_show_list`, `pages_manage_posts`, `pages_read_engagement`.
+  - Cần app review cho quyền `pages_show_list`, `pages_manage_posts`, `pages_read_engagement`, `read_insights` (tùy tính năng).
   - Quota/rate limit phụ thuộc token/app/business use case; không nên giả định vô hạn.
   - Cần refresh/rotate token và log lỗi publish rõ ràng cho từng shop/page.
+  - `META_APP_ID` trên backend để nhận diện bài do app đăng (sửa bài qua API chỉ khi khớp app id).
 - **Khuyến nghị model cho text marketing:**
-  - Dùng model text riêng (OpenAI/Gemini) tách khỏi image-bot để dễ tối ưu chất lượng và chi phí.
+  - **Ollama (Qwen, v.v.) trên VPS** — chi phí token = 0, cần vận hành máy; hoặc API OpenAI/Gemini tách khỏi image-bot.
   - Chốt một model rẻ cho volume cao + một model fallback khi lỗi.
 
 **Thứ tự triển khai gợi ý:**
@@ -331,6 +333,7 @@ flowchart TB
 
 ## Tài liệu kèm theo
 
-- **Đọc nhanh (chức năng + lợi ích + điểm nổi bật):** `AIMAP-Quick-Read.md`
+- **Đọc nhanh (chức năng + lợi ích + điểm nổi bật):** `AIMAP-Quick-ReadVN.md` (và bản EN nếu có)
 - **Kiến trúc tiếng Anh (cho reviewer quốc tế):** `AIMAP-Architecture-EN.md`
+- **API backend (danh sách endpoint):** [`aimap/backend/danhsach_API.md`](../aimap/backend/danhsach_API.md)
 

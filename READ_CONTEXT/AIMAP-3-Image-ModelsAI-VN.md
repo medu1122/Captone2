@@ -137,10 +137,11 @@ Cả 3 đều **có API công khai**, **được dùng trong sản phẩm thực
 ## Ghi chú cho Support Marketing (text + publish)
 
 - Tài liệu này tập trung cho **model tạo ảnh**. Với module **Support Marketing manual**, nên dùng **model text riêng** để tạo draft nội dung (ad post/caption/hashtag), không buộc dùng chung model với image-bot.
+- **Triển khai hiện tại (backend):** phần **AI text marketing** (tóm tắt comment, đánh giá bài, gợi ý page, assist caption) gọi **Ollama** trên VPS qua HTTP (`POST /api/generate`) — cấu hình `MARKETING_AI_BASE_URL`, `MARKETING_AI_MODEL`, `MARKETING_AI_TIMEOUT_MS` (xem `READ_CONTEXT/aimap-backend-env.md`). Không gọi Ollama từ browser; chỉ backend gọi. Chi phí token ≈ **0** (chỉ tốn máy VPS + điện).
 - Chỉ dùng chung phần hạ tầng API key/config và logging, còn prompt + output schema nên tách giữa image và text.
 - Khi tính chi phí, tách 2 nhóm:
   - **Image cost** (theo ảnh/lần generate).
-  - **Text cost** (theo token input/output).
+  - **Text cost** (theo token input/output) — hoặc **0** nếu dùng Ollama self-host.
 
 ### Chi phí tham khảo (cần kiểm tra lại trước khi chạy production)
 
