@@ -1,9 +1,23 @@
 import { useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useLocale } from '../../contexts/LocaleContext'
+import aiActionsBotIcon from '../../assets/image-bot/ai-actions-bot.png'
 
 type PageRow = { id: string; name: string; followers: number; avatarUrl?: string; category?: string }
-type PostRow = { id: string; pageId: string; title: string; text: string; image: string | null; reach: number; reactions: number; comments: number; shares: number; time: string }
+type PostRow = {
+  id: string
+  pageId: string
+  title: string
+  text: string
+  image: string | null
+  reach: number
+  reactions: number
+  comments: number
+  shares: number
+  time: string
+  /** MOCK: true = có thể sửa qua API Pages (bài do app đăng); false = chỉ lưu local / mở FB */
+  createdByApp: boolean
+}
 type PageKpi = { reach: number; engagementRate: string; avgReactions: number; avgComments: number; followersDelta: number }
 type BestTimeSlot = { day: string; slot: string; value: number }
 type TopPostInsight = { title: string; metric: string; reason: string }
@@ -19,7 +33,126 @@ type PageDetailMock = {
 }
 
 const STORAGE_IMAGES = ['/icons/logo-aimap.png', '/icons/logo-aimap.png', '/icons/logo-aimap.png', '/icons/logo-aimap.png']
-const AI_ACTIONS_ICON = '/icons/logo-aimap.png'
+
+type PostViewExtraMock = {
+  sparkline: number[]
+  commentSummary: string
+  topics: string[]
+  botScore: number
+  botBullets: string[]
+}
+
+function formatReachShort(n: number): string {
+  if (n >= 1000) return `${(n / 1000).toFixed(n % 1000 === 0 ? 0 : 1)}k`
+  return String(n)
+}
+
+function engagementRateLabel(p: Pick<PostRow, 'reach' | 'reactions' | 'comments' | 'shares'>): string {
+  if (p.reach <= 0) return '0%'
+  const engaged = p.reactions + p.comments + p.shares
+  return `${((engaged / p.reach) * 100).toFixed(1)}%`
+}
+
+const POST_VIEW_EXTRA: Record<string, PostViewExtraMock> = {
+  p1: {
+    sparkline: [42, 55, 51, 63, 58, 61, 64],
+    commentSummary: 'Khách hỏi nhiều về thời gian áp dụng và combo; sentiment chủ yếu tích cực.',
+    topics: ['Ưu đãi', 'Combo', 'Thời gian'],
+    botScore: 84,
+    botBullets: ['Hook rõ ưu đãi ngay đầu caption', 'CTA đặt hàng ở cuối, dễ thấy', 'Nên thêm 1 ảnh sản phẩm để tăng tương tác'],
+  },
+  p2: {
+    sparkline: [30, 38, 35, 44, 40, 42, 41],
+    commentSummary: 'Hỏi giá và size; vài góp ý về topping.',
+    topics: ['Giá', 'Size'],
+    botScore: 72,
+    botBullets: ['Caption ngắn, dễ đọc', 'Thiếu CTA rõ ràng hơn', 'Khung giờ đăng hợp buổi trưa'],
+  },
+  p3: {
+    sparkline: [48, 50, 52, 49, 53, 51, 54],
+    commentSummary: 'Cảm ơn và hỏi giờ mở cửa cuối tuần.',
+    topics: ['Giờ mở cửa'],
+    botScore: 78,
+    botBullets: ['Thông tin giờ rõ ràng', 'Có thể thêm emoji nhẹ cho thân thiện'],
+  },
+  p4: {
+    sparkline: [22, 28, 26, 30, 29, 31, 30],
+    commentSummary: 'Feedback tích cực, một số hỏi địa chỉ chi nhánh.',
+    topics: ['Địa điểm', 'Feedback'],
+    botScore: 80,
+    botBullets: ['Social proof tốt', 'Nên trả lời comment địa chỉ trong 24h'],
+  },
+  p5: {
+    sparkline: [55, 62, 68, 72, 70, 74, 76],
+    commentSummary: 'Hype livestream, hỏi link xem và giờ chính xác.',
+    topics: ['Livestream', 'Link'],
+    botScore: 88,
+    botBullets: ['Giờ live rõ, engagement cao', 'Nên ghim link ở comment đầu'],
+  },
+  p6: {
+    sparkline: [35, 40, 38, 42, 41, 43, 42],
+    commentSummary: 'Hỏi món mới và giá theo tuần.',
+    topics: ['Menu', 'Giá'],
+    botScore: 76,
+    botBullets: ['Đều đặn theo tuần tốt', 'Có thể thêm CTA “đặt trước”'],
+  },
+}
+
+function getPostViewExtra(postId: string): PostViewExtraMock {
+  return (
+    POST_VIEW_EXTRA[postId] || {
+      sparkline: [40, 42, 41, 43, 42, 44, 43],
+      commentSummary: 'Tóm tắt comment (mock).',
+      topics: ['Chung'],
+      botScore: 70,
+      botBullets: ['Kiểm tra caption', 'Thử CTA rõ hơn'],
+    }
+  )
+}
+
+function PostViewModalBody({ post, t }: { post: PostRow; t: (key: string) => string }) {
+  const vx = getPostViewExtra(post.id)
+  const engaged = post.reactions + post.comments + post.shares
+  return (
+    <div className="space-y-4">
+      <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-2 py-1">{t('marketing.mockDataBadge')}</p>
+      <p className="text-sm text-slate-700 whitespace-pre-wrap break-words">{post.text}</p>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+        <div className="rounded-lg border border-slate-200 p-2"><p className="text-[11px] text-slate-500">{t('marketing.kpiReach')}</p><p className="text-sm font-semibold text-slate-900">{formatReachShort(post.reach)}</p></div>
+        <div className="rounded-lg border border-slate-200 p-2"><p className="text-[11px] text-slate-500">{t('marketing.postEngaged')}</p><p className="text-sm font-semibold text-slate-900">{engaged}</p></div>
+        <div className="rounded-lg border border-slate-200 p-2"><p className="text-[11px] text-slate-500">{t('marketing.kpiEngagementRate')}</p><p className="text-sm font-semibold text-slate-900">{engagementRateLabel(post)}</p></div>
+        <div className="rounded-lg border border-slate-200 p-2"><p className="text-[11px] text-slate-500">{t('marketing.postReactions')}</p><p className="text-sm font-semibold text-slate-900">{post.reactions}</p></div>
+      </div>
+      <div className="rounded-xl border border-slate-200 p-3">
+        <p className="text-xs font-medium text-slate-700 mb-2">{t('marketing.postSparklineTitle')}</p>
+        <div className="h-16 flex items-end gap-1">
+          {vx.sparkline.map((h, i) => (
+            <div key={i} className="flex-1 min-w-0 rounded-t bg-slate-700/80" style={{ height: `${h}%` }} />
+          ))}
+        </div>
+      </div>
+      <div className="rounded-xl border border-slate-200 p-3">
+        <div className="flex items-center gap-2 mb-1">
+          <img src={aiActionsBotIcon} alt="" className="h-5 w-5 object-contain" />
+          <p className="text-xs font-medium text-slate-700">{t('marketing.commentAiTitle')}</p>
+        </div>
+        <p className="text-sm text-slate-600">{vx.commentSummary}</p>
+        <p className="text-xs text-slate-500 mt-2">{t('marketing.commentTopics')}: {vx.topics.join(', ')}</p>
+      </div>
+      <div className="rounded-xl border border-slate-200 p-3">
+        <div className="flex items-center gap-2 mb-1">
+          <img src={aiActionsBotIcon} alt="" className="h-5 w-5 object-contain" />
+          <p className="text-xs font-medium text-slate-700">{t('marketing.botEvalTitle')}</p>
+          <span className="text-xs font-semibold text-slate-800">{vx.botScore}/100</span>
+        </div>
+        <ul className="list-disc list-inside text-sm text-slate-600 space-y-1">
+          {vx.botBullets.map((b, i) => <li key={i}>{b}</li>)}
+        </ul>
+      </div>
+      <a href={`https://www.facebook.com/${post.id}`} target="_blank" rel="noreferrer" className="inline-block text-sm text-primary hover:underline">{t('marketing.openOnFacebook')}</a>
+    </div>
+  )
+}
 
 function CenterModal({
   open,
@@ -105,12 +238,15 @@ export default function ShopMarketingFacebookWorkspacePage() {
   const [previewText, setPreviewText] = useState('')
   const [previewImage, setPreviewImage] = useState<string | null>(null)
   const [posts, setPosts] = useState<PostRow[]>([
-    { id: 'p1', pageId: '12345', title: 'Khuyến mãi cuối tuần', text: 'Ưu đãi 20% cho combo mới. Đặt ngay hôm nay.', image: null, reach: 12200, reactions: 870, comments: 123, shares: 27, time: '2h' },
-    { id: 'p2', pageId: '12345', title: 'Combo mới', text: 'Thử combo mới.', image: null, reach: 5400, reactions: 120, comments: 18, shares: 5, time: '1d' },
-    { id: 'p3', pageId: '12345', title: 'Mở cửa sớm', text: '7h sáng.', image: null, reach: 8900, reactions: 200, comments: 40, shares: 12, time: '3d' },
-    { id: 'p4', pageId: '12345', title: 'Feedback khách', text: 'Cảm ơn bạn.', image: null, reach: 3200, reactions: 90, comments: 22, shares: 3, time: '4d' },
-    { id: 'p5', pageId: '12345', title: 'Livestream tối nay', text: '20h.', image: null, reach: 15000, reactions: 400, comments: 80, shares: 30, time: '5d' },
-    { id: 'p6', pageId: '12345', title: 'Menu tuần', text: 'Cập nhật menu.', image: null, reach: 6700, reactions: 150, comments: 25, shares: 8, time: '6d' },
+    { id: 'p1', pageId: '12345', title: 'Khuyến mãi cuối tuần', text: 'Ưu đãi 20% cho combo mới. Đặt ngay hôm nay.', image: null, reach: 12200, reactions: 870, comments: 123, shares: 27, time: '2h', createdByApp: true },
+    { id: 'p2', pageId: '12345', title: 'Combo mới', text: 'Thử combo mới.', image: null, reach: 5400, reactions: 120, comments: 18, shares: 5, time: '1d', createdByApp: true },
+    { id: 'p3', pageId: '12345', title: 'Mở cửa sớm', text: '7h sáng.', image: null, reach: 8900, reactions: 200, comments: 40, shares: 12, time: '3d', createdByApp: false },
+    { id: 'p4', pageId: '12345', title: 'Feedback khách', text: 'Cảm ơn bạn.', image: null, reach: 3200, reactions: 90, comments: 22, shares: 3, time: '4d', createdByApp: false },
+    { id: 'p5', pageId: '12345', title: 'Livestream tối nay', text: '20h.', image: null, reach: 15000, reactions: 400, comments: 80, shares: 30, time: '5d', createdByApp: false },
+    { id: 'p6', pageId: '12345', title: 'Menu tuần', text: 'Cập nhật menu.', image: null, reach: 6700, reactions: 150, comments: 25, shares: 8, time: '6d', createdByApp: false },
+    { id: 'p7', pageId: '67890', title: 'Trà mới mùa hè', text: 'Trà đào cam sả.', image: null, reach: 4100, reactions: 210, comments: 34, shares: 9, time: '1d', createdByApp: true },
+    { id: 'p8', pageId: '67890', title: 'Giảm 15%', text: 'Tuần này giảm 15%.', image: null, reach: 9800, reactions: 310, comments: 52, shares: 14, time: '3d', createdByApp: false },
+    { id: 'p9', pageId: '67890', title: 'Poll vị yêu thích', text: 'Bạn thích vị nào?', image: null, reach: 7200, reactions: 540, comments: 120, shares: 22, time: '5d', createdByApp: true },
   ])
 
   const [openConnect, setOpenConnect] = useState(false)
@@ -119,7 +255,7 @@ export default function ShopMarketingFacebookWorkspacePage() {
   const [openDashboard, setOpenDashboard] = useState(false)
   const [openAiAssist, setOpenAiAssist] = useState(false)
   const [openImagePicker, setOpenImagePicker] = useState(false)
-  const [openStats, setOpenStats] = useState(false)
+  const [openPostView, setOpenPostView] = useState(false)
   const [openEdit, setOpenEdit] = useState(false)
   const [openDelete, setOpenDelete] = useState(false)
   const [activePost, setActivePost] = useState<PostRow | null>(null)
@@ -184,7 +320,25 @@ export default function ShopMarketingFacebookWorkspacePage() {
     setPages((prev) => [next, ...prev]); setSelectedPageId(next.id); setNewPageName(''); setNewPageId(''); setOpenConnect(false)
   }
   const applyAi = () => { const hint = aiGuide.trim() || 'Văn phong rõ ràng, ngắn gọn, có CTA.'; setWriteText(`${writeText.trim()}\n\n${hint}\n#aimap #marketing`.trim()); setAiGuide(''); setOpenAiAssist(false) }
-  const publishUiOnly = () => { if (!previewText.trim()) return; setPosts((prev) => [{ id: `post-${Date.now()}`, pageId: selectedPageId, title: previewText.slice(0, 36) || 'New post', text: previewText, image: previewImage, reach: 0, reactions: 0, comments: 0, shares: 0, time: 'Now' }, ...prev]) }
+  const publishUiOnly = () => {
+    if (!previewText.trim()) return
+    setPosts((prev) => [
+      {
+        id: `post-${Date.now()}`,
+        pageId: selectedPageId,
+        title: previewText.slice(0, 36) || 'New post',
+        text: previewText,
+        image: previewImage,
+        reach: 0,
+        reactions: 0,
+        comments: 0,
+        shares: 0,
+        time: 'Now',
+        createdByApp: true,
+      },
+      ...prev,
+    ])
+  }
   const editActivePost = () => { if (!activePost) return; setPosts((prev) => prev.map((item) => (item.id === activePost.id ? activePost : item))); setOpenEdit(false) }
   const deleteActivePost = () => { if (!activePost) return; setPosts((prev) => prev.filter((item) => item.id !== activePost.id)); setOpenDelete(false) }
 
@@ -270,9 +424,46 @@ export default function ShopMarketingFacebookWorkspacePage() {
       <section className="rounded-2xl border border-slate-200 bg-white p-4 overflow-hidden">
         <div className="flex items-center justify-between mb-3"><p className="text-sm font-semibold text-slate-900">{t('marketing.managerPosts')}</p><select value={selectedPageId} onChange={(e) => setSelectedPageId(e.target.value)} className="text-sm rounded-lg border border-slate-200 px-3 py-1.5">{pages.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></div>
         <div className="max-h-[12.5rem] overflow-y-auto rounded-xl border border-slate-200">
-          <table className="w-full text-sm"><thead className="bg-slate-50 sticky top-0"><tr className="text-slate-600"><th className="text-left p-2">{t('marketing.postTitle')}</th><th className="text-left p-2">Reach</th><th className="text-left p-2">React</th><th className="text-left p-2">Comments</th><th className="text-left p-2">Shares</th><th className="text-left p-2">Time</th><th className="text-left p-2">{t('marketing.actions')}</th></tr></thead>
-            <tbody>{postsByPage.map((item) => <tr key={item.id} className="border-t border-slate-100"><td className="p-2 text-slate-700">{item.title}</td><td className="p-2 text-slate-700">{item.reach}</td><td className="p-2 text-slate-700">{item.reactions}</td><td className="p-2 text-slate-700">{item.comments}</td><td className="p-2 text-slate-700">{item.shares}</td><td className="p-2 text-slate-700">{item.time}</td><td className="p-2"><div className="flex items-center gap-2"><button type="button" onClick={() => { setActivePost(item); setOpenStats(true) }} className="text-xs text-slate-700 hover:underline">View</button><button type="button" onClick={() => { setActivePost(item); setOpenEdit(true) }} className="text-xs text-slate-700 hover:underline">Edit</button><button type="button" onClick={() => { setActivePost(item); setOpenDelete(true) }} className="text-xs text-red-600 hover:underline">Delete</button></div></td></tr>)}
-              {postsByPage.length === 0 && <tr><td colSpan={7} className="p-3 text-xs text-slate-400">{t('marketing.noPosts')}</td></tr>}
+          <table className="w-full text-sm">
+            <thead className="bg-slate-50 sticky top-0 z-[1]">
+              <tr className="text-slate-600">
+                <th className="text-left p-2">{t('marketing.postTitle')}</th>
+                <th className="text-left p-2">{t('marketing.postEngagementCol')}</th>
+                <th className="text-left p-2">{t('marketing.postTimeCol')}</th>
+                <th className="text-left p-2">{t('marketing.actions')}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {postsByPage.map((item) => (
+                <tr key={item.id} className="border-t border-slate-100">
+                  <td className="p-2 text-slate-700 max-w-[10rem] truncate" title={item.title}>{item.title}</td>
+                  <td className="p-2 text-slate-600 text-xs">
+                    {formatReachShort(item.reach)} {t('marketing.reachShort')} · ER {engagementRateLabel(item)}
+                  </td>
+                  <td className="p-2 text-slate-600 whitespace-nowrap">{item.time}</td>
+                  <td className="p-2">
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setActivePost(item)
+                          setOpenPostView(true)
+                        }}
+                        className="text-xs text-slate-700 hover:underline"
+                      >
+                        {t('marketing.postViewAction')}
+                      </button>
+                      <button type="button" onClick={() => { setActivePost(item); setOpenEdit(true) }} className="text-xs text-slate-700 hover:underline">{t('marketing.editPost')}</button>
+                      <button type="button" onClick={() => { setActivePost(item); setOpenDelete(true) }} className="text-xs text-red-600 hover:underline">{t('storage.delete')}</button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+              {postsByPage.length === 0 && (
+                <tr>
+                  <td colSpan={4} className="p-3 text-xs text-slate-400">{t('marketing.noPosts')}</td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
@@ -368,7 +559,7 @@ export default function ShopMarketingFacebookWorkspacePage() {
 
             <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
               <div className="mb-2 flex items-center gap-2">
-                <img src={AI_ACTIONS_ICON} alt="AI" className="h-5 w-5 rounded object-cover" />
+                <img src={aiActionsBotIcon} alt="" className="h-6 w-6 object-contain" />
                 <p className="text-xs font-medium text-slate-700">{t('marketing.aiActionTitle')}</p>
               </div>
               <div className="space-y-1.5">
@@ -386,8 +577,33 @@ export default function ShopMarketingFacebookWorkspacePage() {
       <CenterModal open={openDashboard} title={t('marketing.pageDashboard')} onClose={() => setOpenDashboard(false)}><div className="grid grid-cols-3 gap-3"><div className="rounded-lg border border-slate-200 p-3"><p className="text-xs text-slate-500">{t('marketing.followers')}</p><p className="text-lg font-semibold text-slate-900">{selectedPage?.followers ?? 0}</p></div><div className="rounded-lg border border-slate-200 p-3"><p className="text-xs text-slate-500">{t('marketing.engagement')}</p><p className="text-lg font-semibold text-slate-900">{detailDataByPage[selectedPageId]?.kpis.engagementRate ?? '0%'}</p></div><div className="rounded-lg border border-slate-200 p-3"><p className="text-xs text-slate-500">{t('marketing.overall')}</p><p className="text-lg font-semibold text-slate-900">{(detailDataByPage[selectedPageId]?.kpis.followersDelta ?? 0) > 200 ? 'Good' : 'Average'}</p></div></div></CenterModal>
       <CenterModal open={openAiAssist} title={t('marketing.aiAssist')} onClose={() => setOpenAiAssist(false)}><div className="space-y-3"><textarea value={aiGuide} onChange={(e) => setAiGuide(e.target.value)} rows={4} placeholder={t('marketing.aiPromptPlaceholder')} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" /><div className="flex justify-end"><button type="button" onClick={applyAi} className="px-3 py-2 text-sm rounded-lg bg-slate-900 text-white hover:bg-slate-800">{t('marketing.applyAi')}</button></div></div></CenterModal>
       <CenterModal open={openImagePicker} title={t('marketing.pickImage')} onClose={() => setOpenImagePicker(false)}><div className="grid grid-cols-4 gap-2">{STORAGE_IMAGES.map((img, index) => <button key={`${img}-${index}`} type="button" onClick={() => { setPreviewImage(img); setOpenImagePicker(false) }} className="rounded-lg overflow-hidden border border-slate-200"><img src={img} alt="storage" className="h-16 w-full object-cover" /></button>)}</div><div className="mt-3 flex justify-end"><Link to={`/shops/${id}/image-bot`} className="text-sm text-primary hover:underline">{t('marketing.useImageBot')}</Link></div></CenterModal>
-      <CenterModal open={openStats} title={t('marketing.postStats')} onClose={() => setOpenStats(false)}><div className="grid grid-cols-4 gap-3"><div className="rounded-lg border border-slate-200 p-3"><p className="text-xs text-slate-500">Reach</p><p className="text-lg font-semibold">{activePost?.reach ?? 0}</p></div><div className="rounded-lg border border-slate-200 p-3"><p className="text-xs text-slate-500">Reactions</p><p className="text-lg font-semibold">{activePost?.reactions ?? 0}</p></div><div className="rounded-lg border border-slate-200 p-3"><p className="text-xs text-slate-500">Comments</p><p className="text-lg font-semibold">{activePost?.comments ?? 0}</p></div><div className="rounded-lg border border-slate-200 p-3"><p className="text-xs text-slate-500">Shares</p><p className="text-lg font-semibold">{activePost?.shares ?? 0}</p></div></div></CenterModal>
-      <CenterModal open={openEdit} title={t('marketing.editPost')} onClose={() => setOpenEdit(false)}><div className="space-y-3"><input value={activePost?.title || ''} onChange={(e) => setActivePost((prev) => (prev ? { ...prev, title: e.target.value } : prev))} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" /><textarea value={activePost?.text || ''} onChange={(e) => setActivePost((prev) => (prev ? { ...prev, text: e.target.value } : prev))} rows={4} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" /><div className="flex justify-end"><button type="button" onClick={editActivePost} className="px-3 py-2 text-sm rounded-lg bg-slate-900 text-white hover:bg-slate-800">{t('marketing.save')}</button></div></div></CenterModal>
+      <CenterModal
+        open={openPostView}
+        title={activePost ? `${t('marketing.postViewTitle')} · ${activePost.title}` : t('marketing.postViewTitle')}
+        onClose={() => { setOpenPostView(false); setActivePost(null) }}
+        size="lg"
+      >
+        {activePost ? <PostViewModalBody post={activePost} t={t} /> : null}
+      </CenterModal>
+      <CenterModal open={openEdit} title={t('marketing.editPost')} onClose={() => setOpenEdit(false)}>
+        <div className="space-y-3">
+          {activePost && !activePost.createdByApp && (
+            <p className="text-xs text-amber-800 bg-amber-50 border border-amber-100 rounded-lg px-2 py-2">{t('marketing.editPostApiNote')}</p>
+          )}
+          <div>
+            <p className="text-xs text-slate-500 mb-1">{t('marketing.postTitle')}</p>
+            <input value={activePost?.title || ''} onChange={(e) => setActivePost((prev) => (prev ? { ...prev, title: e.target.value } : prev))} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
+          </div>
+          <div>
+            <p className="text-xs text-slate-500 mb-1">{t('marketing.postBody')}</p>
+            <textarea value={activePost?.text || ''} onChange={(e) => setActivePost((prev) => (prev ? { ...prev, text: e.target.value } : prev))} rows={6} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm resize-y min-h-[8rem]" />
+          </div>
+          <div className="flex justify-end gap-2">
+            <button type="button" onClick={() => setOpenEdit(false)} className="px-3 py-2 text-sm rounded-lg border border-slate-200 bg-white">{t('shopDetail.cancelEdit')}</button>
+            <button type="button" onClick={editActivePost} className="px-3 py-2 text-sm rounded-lg bg-slate-900 text-white hover:bg-slate-800">{t('marketing.save')}</button>
+          </div>
+        </div>
+      </CenterModal>
       <CenterModal open={openDelete} title={t('marketing.deletePost')} onClose={() => setOpenDelete(false)}><p className="text-sm text-slate-700 mb-3">{t('marketing.deleteConfirm')}</p><div className="flex justify-end gap-2"><button type="button" onClick={() => setOpenDelete(false)} className="px-3 py-2 text-sm rounded-lg border border-slate-200 bg-white">{t('shopDetail.cancelEdit')}</button><button type="button" onClick={deleteActivePost} className="px-3 py-2 text-sm rounded-lg bg-red-600 text-white hover:bg-red-700">{t('storage.delete')}</button></div></CenterModal>
     </div>
   )
