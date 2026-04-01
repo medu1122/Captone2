@@ -2,10 +2,24 @@ import { useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useLocale } from '../../contexts/LocaleContext'
 
-type PageRow = { id: string; name: string; followers: number; score: number; avatarUrl?: string }
+type PageRow = { id: string; name: string; followers: number; avatarUrl?: string; category?: string }
 type PostRow = { id: string; pageId: string; title: string; text: string; image: string | null; reach: number; reactions: number; comments: number; shares: number; time: string }
+type PageKpi = { reach: number; engagementRate: string; avgReactions: number; avgComments: number; followersDelta: number }
+type BestTimeSlot = { day: string; slot: string; value: number }
+type TopPostInsight = { title: string; metric: string; reason: string }
+type AiActionItem = { action: string; impact: string }
+type PageDetailMock = {
+  period: string
+  kpis: PageKpi
+  trendBars: number[]
+  engagementMix: { label: string; value: number; color: string }[]
+  bestTimes: BestTimeSlot[]
+  topPosts: TopPostInsight[]
+  aiActions: AiActionItem[]
+}
 
 const STORAGE_IMAGES = ['/icons/logo-aimap.png', '/icons/logo-aimap.png', '/icons/logo-aimap.png', '/icons/logo-aimap.png']
+const AI_ACTIONS_ICON = '/icons/logo-aimap.png'
 
 function CenterModal({
   open,
@@ -42,17 +56,49 @@ function Avatar({ page }: { page: PageRow | null }) {
   return <div className="h-10 w-10 rounded-full bg-blue-600 text-white text-sm font-bold flex items-center justify-center">{initial}</div>
 }
 
+function InfoDot({
+  tip,
+  active,
+  onToggle,
+  onHover,
+}: {
+  tip: string
+  active: boolean
+  onToggle: () => void
+  onHover: (isHover: boolean) => void
+}) {
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onMouseEnter={() => onHover(true)}
+        onMouseLeave={() => onHover(false)}
+        onClick={onToggle}
+        className="inline-flex h-4 w-4 items-center justify-center rounded-full border border-slate-300 text-[10px] text-slate-600 hover:bg-slate-100"
+      >
+        i
+      </button>
+      <div
+        className={`pointer-events-none absolute right-0 top-5 w-56 rounded-lg border border-slate-200 bg-white p-2 text-[11px] text-slate-600 shadow-lg transition-all ${active ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-1'}`}
+      >
+        {tip}
+      </div>
+    </div>
+  )
+}
+
 export default function ShopMarketingFacebookWorkspacePage() {
   const { t } = useLocale()
   const { id } = useParams<{ id: string }>()
 
   const [pages, setPages] = useState<PageRow[]>([
-    { id: '12345', name: 'AIMAP Coffee', followers: 13200, score: 78 },
-    { id: '67890', name: 'AIMAP Tea', followers: 8300, score: 65 },
-    { id: '11111', name: 'AIMAP Bakery', followers: 4100, score: 52 },
-    { id: '22222', name: 'AIMAP Juice', followers: 9800, score: 71 },
-    { id: '33333', name: 'AIMAP Bistro', followers: 2100, score: 44 },
-    { id: '44444', name: 'AIMAP Roastery', followers: 15600, score: 82 },
+    { id: '12345', name: 'AIMAP Coffee', followers: 13200, avatarUrl: '/icons/logo-aimap.png', category: 'Cafe' },
+    { id: '67890', name: 'AIMAP Tea', followers: 8300, category: 'Tea' },
+    { id: '11111', name: 'AIMAP Bakery', followers: 4100, category: 'Bakery' },
+    { id: '22222', name: 'AIMAP Juice', followers: 9800, category: 'Juice' },
+    { id: '33333', name: 'AIMAP Bistro', followers: 2100, category: 'Food' },
+    { id: '44444', name: 'AIMAP Roastery', followers: 15600, category: 'Coffee beans' },
+    { id: '55555', name: 'AIMAP Brunch', followers: 6700, category: 'Brunch' },
   ])
   const [selectedPageId, setSelectedPageId] = useState('12345')
   const [writeText, setWriteText] = useState('')
@@ -80,15 +126,61 @@ export default function ShopMarketingFacebookWorkspacePage() {
   const [newPageName, setNewPageName] = useState('')
   const [newPageId, setNewPageId] = useState('')
   const [aiGuide, setAiGuide] = useState('')
+  const [openHelpKey, setOpenHelpKey] = useState<string | null>(null)
 
   const selectedPage = pages.find((item) => item.id === selectedPageId) || null
   const postsByPage = useMemo(() => posts.filter((item) => item.pageId === selectedPageId), [posts, selectedPageId])
+  const detailDataByPage = useMemo<Record<string, PageDetailMock>>(() => ({
+    '12345': {
+      period: '30d',
+      kpis: { reach: 128400, engagementRate: '7.3%', avgReactions: 321, avgComments: 44, followersDelta: 420 },
+      trendBars: [45, 62, 58, 66, 71, 74, 69],
+      engagementMix: [
+        { label: 'Reactions', value: 56, color: 'bg-emerald-500' },
+        { label: 'Comments', value: 27, color: 'bg-amber-500' },
+        { label: 'Shares', value: 17, color: 'bg-violet-500' },
+      ],
+      bestTimes: [{ day: 'Mon', slot: '11:00', value: 82 }, { day: 'Wed', slot: '19:30', value: 91 }, { day: 'Sat', slot: '09:30', value: 87 }],
+      topPosts: [
+        { title: 'Livestream tối nay', metric: '15k reach', reason: 'Hook rõ + khung giờ tối' },
+        { title: 'Khuyến mãi cuối tuần', metric: '870 reacts', reason: 'Ưu đãi cụ thể + CTA mạnh' },
+        { title: 'Menu tuần', metric: '6.7k reach', reason: 'Nội dung đều đặn theo tuần' },
+      ],
+      aiActions: [
+        { action: 'Đăng 3 bài/tuần vào Wed-Sat 9:30/19:30', impact: 'Giữ reach ổn định +8-12%' },
+        { action: 'Mỗi caption thêm CTA hỏi ý kiến', impact: 'Tăng bình luận 15-20%' },
+        { action: 'Ưu tiên post có ảnh thật sản phẩm', impact: 'Tăng reaction/post 10-14%' },
+      ],
+    },
+    '67890': {
+      period: '30d',
+      kpis: { reach: 84200, engagementRate: '5.8%', avgReactions: 204, avgComments: 26, followersDelta: 215 },
+      trendBars: [38, 49, 54, 52, 60, 58, 63],
+      engagementMix: [
+        { label: 'Reactions', value: 62, color: 'bg-emerald-500' },
+        { label: 'Comments', value: 22, color: 'bg-amber-500' },
+        { label: 'Shares', value: 16, color: 'bg-violet-500' },
+      ],
+      bestTimes: [{ day: 'Tue', slot: '08:30', value: 80 }, { day: 'Thu', slot: '20:00', value: 86 }, { day: 'Sun', slot: '16:00', value: 78 }],
+      topPosts: [
+        { title: 'Combo mới', metric: '5.4k reach', reason: 'Tiêu đề ngắn, ảnh rõ' },
+        { title: 'Mở cửa sớm', metric: '200 reacts', reason: 'Thông tin hữu ích, đúng giờ' },
+        { title: 'Feedback khách', metric: '22 comments', reason: 'Tạo social proof tốt' },
+      ],
+      aiActions: [
+        { action: 'A/B test 2 phiên bản caption ngắn', impact: 'Tăng CTR nội dung tốt hơn' },
+        { action: 'Đẩy format review khách hàng 1 lần/tuần', impact: 'Giữ trust và comment ổn định' },
+        { action: 'Gộp CTA đặt hàng trong 2 dòng cuối', impact: 'Tăng chuyển đổi inbox' },
+      ],
+    },
+  }), [])
+  const detailData = detailPage ? detailDataByPage[detailPage.id] || detailDataByPage['12345'] : null
 
   if (!id) return null
 
   const addPage = () => {
     if (!newPageName.trim() || !newPageId.trim()) return
-    const next: PageRow = { id: newPageId.trim(), name: newPageName.trim(), followers: 0, score: 0 }
+    const next: PageRow = { id: newPageId.trim(), name: newPageName.trim(), followers: 0 }
     setPages((prev) => [next, ...prev]); setSelectedPageId(next.id); setNewPageName(''); setNewPageId(''); setOpenConnect(false)
   }
   const applyAi = () => { const hint = aiGuide.trim() || 'Văn phong rõ ràng, ngắn gọn, có CTA.'; setWriteText(`${writeText.trim()}\n\n${hint}\n#aimap #marketing`.trim()); setAiGuide(''); setOpenAiAssist(false) }
@@ -118,7 +210,6 @@ export default function ShopMarketingFacebookWorkspacePage() {
                 <th className="text-left px-3 py-2">{t('marketing.pageName')}</th>
                 <th className="text-left px-3 py-2">{t('marketing.pageId')}</th>
                 <th className="text-left px-3 py-2">{t('marketing.followers')}</th>
-                <th className="text-left px-3 py-2">{t('marketing.pageScore')}</th>
                 <th className="text-left px-3 py-2">{t('marketing.pageDetailColumn')}</th>
                 <th className="text-left px-3 py-2">{t('marketing.pagePickColumn')}</th>
               </tr>
@@ -129,7 +220,6 @@ export default function ShopMarketingFacebookWorkspacePage() {
                   <td className="px-3 py-2 text-slate-700">{item.name}</td>
                   <td className="px-3 py-2 text-slate-500">{item.id}</td>
                   <td className="px-3 py-2 text-slate-700">{item.followers}</td>
-                  <td className="px-3 py-2 text-slate-700">{item.score}/100</td>
                   <td className="px-3 py-2">
                     <button
                       type="button"
@@ -189,39 +279,111 @@ export default function ShopMarketingFacebookWorkspacePage() {
       </section>
 
       <CenterModal open={openPageDetail} title={detailPage ? `${detailPage.name} · ${detailPage.id}` : ''} onClose={() => { setOpenPageDetail(false); setDetailPage(null) }} size="lg">
-        {detailPage && (
+        {detailPage && detailData && (
           <div className="space-y-4">
-            <p className="text-xs text-slate-500">{t('marketing.pageDetailChartsHint')}</p>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Avatar page={detailPage} />
+                <div>
+                  <p className="text-sm font-semibold text-slate-900">{detailPage.name}</p>
+                  <p className="text-xs text-slate-500">{detailPage.category || 'Business'} · {detailData.period}</p>
+                </div>
+              </div>
+              <span className="rounded-full border border-slate-200 px-2 py-1 text-xs text-slate-600">{detailData.period}</span>
+            </div>
+
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+              <div className="rounded-lg border border-slate-200 p-2"><p className="text-[11px] text-slate-500">{t('marketing.kpiReach')}</p><p className="text-sm font-semibold text-slate-900">{detailData.kpis.reach}</p></div>
+              <div className="rounded-lg border border-slate-200 p-2"><p className="text-[11px] text-slate-500">{t('marketing.kpiEngagementRate')}</p><p className="text-sm font-semibold text-slate-900">{detailData.kpis.engagementRate}</p></div>
+              <div className="rounded-lg border border-slate-200 p-2"><p className="text-[11px] text-slate-500">{t('marketing.kpiAvgReactions')}</p><p className="text-sm font-semibold text-slate-900">{detailData.kpis.avgReactions}</p></div>
+              <div className="rounded-lg border border-slate-200 p-2"><p className="text-[11px] text-slate-500">{t('marketing.kpiAvgComments')}</p><p className="text-sm font-semibold text-slate-900">{detailData.kpis.avgComments}</p></div>
+              <div className="rounded-lg border border-slate-200 p-2"><p className="text-[11px] text-slate-500">{t('marketing.kpiFollowersDelta')}</p><p className="text-sm font-semibold text-emerald-600">+{detailData.kpis.followersDelta}</p></div>
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="rounded-xl border border-slate-200 p-3">
-                <p className="text-xs font-medium text-slate-700 mb-2">{t('marketing.chartReachMock')}</p>
+                <div className="mb-2 flex items-center justify-between">
+                  <p className="text-xs font-medium text-slate-700">{t('marketing.chartReachMock')}</p>
+                  <InfoDot
+                    tip={t('marketing.chartReachTip')}
+                    active={openHelpKey === 'reach'}
+                    onToggle={() => setOpenHelpKey((prev) => (prev === 'reach' ? null : 'reach'))}
+                    onHover={(hover) => setOpenHelpKey(hover ? 'reach' : null)}
+                  />
+                </div>
                 <div className="h-28 flex items-end gap-1.5">
-                  {[42, 58, 48, 72, 55, 68, 62].map((h, i) => (
+                  {detailData.trendBars.map((h, i) => (
                     <div key={i} className="flex-1 min-w-0 rounded-t bg-blue-500/85" style={{ height: `${h}%` }} />
                   ))}
                 </div>
               </div>
               <div className="rounded-xl border border-slate-200 p-3">
-                <p className="text-xs font-medium text-slate-700 mb-2">{t('marketing.chartMixMock')}</p>
+                <div className="mb-2 flex items-center justify-between">
+                  <p className="text-xs font-medium text-slate-700">{t('marketing.chartMixMock')}</p>
+                  <InfoDot
+                    tip={t('marketing.chartMixTip')}
+                    active={openHelpKey === 'mix'}
+                    onToggle={() => setOpenHelpKey((prev) => (prev === 'mix' ? null : 'mix'))}
+                    onHover={(hover) => setOpenHelpKey(hover ? 'mix' : null)}
+                  />
+                </div>
                 <div className="space-y-2 pt-1">
-                  <div className="h-2.5 rounded-full bg-slate-100 overflow-hidden"><div className="h-full rounded-full bg-emerald-500" style={{ width: '62%' }} /></div>
-                  <div className="h-2.5 rounded-full bg-slate-100 overflow-hidden"><div className="h-full rounded-full bg-amber-500" style={{ width: '38%' }} /></div>
-                  <div className="h-2.5 rounded-full bg-slate-100 overflow-hidden"><div className="h-full rounded-full bg-violet-500" style={{ width: '24%' }} /></div>
+                  {detailData.engagementMix.map((item) => (
+                    <div key={item.label}>
+                      <div className="mb-1 flex items-center justify-between text-[11px] text-slate-500"><span>{item.label}</span><span>{item.value}%</span></div>
+                      <div className="h-2.5 rounded-full bg-slate-100 overflow-hidden"><div className={`h-full rounded-full ${item.color}`} style={{ width: `${item.value}%` }} /></div>
+                    </div>
+                  ))}
                 </div>
                 <div className="mt-3 flex justify-center">
                   <div className="h-20 w-20 rounded-full border-4 border-slate-200" style={{ background: 'conic-gradient(rgb(16 185 129) 0% 40%, rgb(245 158 11) 40% 72%, rgb(139 92 246) 72% 100%)' }} />
                 </div>
               </div>
             </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="rounded-xl border border-slate-200 p-3">
+                <p className="mb-2 text-xs font-medium text-slate-700">{t('marketing.bestTimesTitle')}</p>
+                <div className="space-y-2">
+                  {detailData.bestTimes.map((item) => (
+                    <div key={`${item.day}-${item.slot}`} className="rounded-md border border-slate-100 px-2 py-1.5">
+                      <div className="mb-1 flex items-center justify-between text-xs text-slate-600"><span>{item.day}</span><span>{item.slot}</span></div>
+                      <div className="h-2 rounded bg-slate-100"><div className="h-2 rounded bg-blue-500" style={{ width: `${item.value}%` }} /></div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="rounded-xl border border-slate-200 p-3">
+                <p className="mb-2 text-xs font-medium text-slate-700">{t('marketing.topPostsTitle')}</p>
+                <div className="space-y-2">
+                  {detailData.topPosts.map((item) => (
+                    <div key={item.title} className="rounded-md border border-slate-100 p-2">
+                      <p className="text-sm font-medium text-slate-800">{item.title}</p>
+                      <p className="text-xs text-slate-500">{item.metric} · {item.reason}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
             <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-              <p className="text-xs font-medium text-slate-700 mb-1">{t('marketing.aiInsightTitle')}</p>
-              <p className="text-sm text-slate-600">{t('marketing.aiInsightMock')}</p>
+              <div className="mb-2 flex items-center gap-2">
+                <img src={AI_ACTIONS_ICON} alt="AI" className="h-5 w-5 rounded object-cover" />
+                <p className="text-xs font-medium text-slate-700">{t('marketing.aiActionTitle')}</p>
+              </div>
+              <div className="space-y-1.5">
+                {detailData.aiActions.map((item) => (
+                  <p key={item.action} className="text-sm text-slate-700">
+                    - {item.action}. {item.impact}
+                  </p>
+                ))}
+              </div>
             </div>
           </div>
         )}
       </CenterModal>
       <CenterModal open={openConnect} title={t('marketing.connectPage')} onClose={() => setOpenConnect(false)}><div className="space-y-3"><input value={newPageName} onChange={(e) => setNewPageName(e.target.value)} placeholder={t('marketing.pageName')} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" /><input value={newPageId} onChange={(e) => setNewPageId(e.target.value)} placeholder={t('marketing.pageId')} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" /><div className="flex justify-end"><button type="button" onClick={addPage} className="px-3 py-2 text-sm rounded-lg bg-slate-900 text-white hover:bg-slate-800">{t('marketing.addPage')}</button></div></div></CenterModal>
-      <CenterModal open={openDashboard} title={t('marketing.pageDashboard')} onClose={() => setOpenDashboard(false)}><div className="grid grid-cols-3 gap-3"><div className="rounded-lg border border-slate-200 p-3"><p className="text-xs text-slate-500">{t('marketing.followers')}</p><p className="text-lg font-semibold text-slate-900">{selectedPage?.followers ?? 0}</p></div><div className="rounded-lg border border-slate-200 p-3"><p className="text-xs text-slate-500">{t('marketing.engagement')}</p><p className="text-lg font-semibold text-slate-900">{selectedPage?.score ?? 0}/100</p></div><div className="rounded-lg border border-slate-200 p-3"><p className="text-xs text-slate-500">{t('marketing.overall')}</p><p className="text-lg font-semibold text-slate-900">{(selectedPage?.score ?? 0) > 70 ? 'Good' : 'Average'}</p></div></div></CenterModal>
+      <CenterModal open={openDashboard} title={t('marketing.pageDashboard')} onClose={() => setOpenDashboard(false)}><div className="grid grid-cols-3 gap-3"><div className="rounded-lg border border-slate-200 p-3"><p className="text-xs text-slate-500">{t('marketing.followers')}</p><p className="text-lg font-semibold text-slate-900">{selectedPage?.followers ?? 0}</p></div><div className="rounded-lg border border-slate-200 p-3"><p className="text-xs text-slate-500">{t('marketing.engagement')}</p><p className="text-lg font-semibold text-slate-900">{detailDataByPage[selectedPageId]?.kpis.engagementRate ?? '0%'}</p></div><div className="rounded-lg border border-slate-200 p-3"><p className="text-xs text-slate-500">{t('marketing.overall')}</p><p className="text-lg font-semibold text-slate-900">{(detailDataByPage[selectedPageId]?.kpis.followersDelta ?? 0) > 200 ? 'Good' : 'Average'}</p></div></div></CenterModal>
       <CenterModal open={openAiAssist} title={t('marketing.aiAssist')} onClose={() => setOpenAiAssist(false)}><div className="space-y-3"><textarea value={aiGuide} onChange={(e) => setAiGuide(e.target.value)} rows={4} placeholder={t('marketing.aiPromptPlaceholder')} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" /><div className="flex justify-end"><button type="button" onClick={applyAi} className="px-3 py-2 text-sm rounded-lg bg-slate-900 text-white hover:bg-slate-800">{t('marketing.applyAi')}</button></div></div></CenterModal>
       <CenterModal open={openImagePicker} title={t('marketing.pickImage')} onClose={() => setOpenImagePicker(false)}><div className="grid grid-cols-4 gap-2">{STORAGE_IMAGES.map((img, index) => <button key={`${img}-${index}`} type="button" onClick={() => { setPreviewImage(img); setOpenImagePicker(false) }} className="rounded-lg overflow-hidden border border-slate-200"><img src={img} alt="storage" className="h-16 w-full object-cover" /></button>)}</div><div className="mt-3 flex justify-end"><Link to={`/shops/${id}/image-bot`} className="text-sm text-primary hover:underline">{t('marketing.useImageBot')}</Link></div></CenterModal>
       <CenterModal open={openStats} title={t('marketing.postStats')} onClose={() => setOpenStats(false)}><div className="grid grid-cols-4 gap-3"><div className="rounded-lg border border-slate-200 p-3"><p className="text-xs text-slate-500">Reach</p><p className="text-lg font-semibold">{activePost?.reach ?? 0}</p></div><div className="rounded-lg border border-slate-200 p-3"><p className="text-xs text-slate-500">Reactions</p><p className="text-lg font-semibold">{activePost?.reactions ?? 0}</p></div><div className="rounded-lg border border-slate-200 p-3"><p className="text-xs text-slate-500">Comments</p><p className="text-lg font-semibold">{activePost?.comments ?? 0}</p></div><div className="rounded-lg border border-slate-200 p-3"><p className="text-xs text-slate-500">Shares</p><p className="text-lg font-semibold">{activePost?.shares ?? 0}</p></div></div></CenterModal>
