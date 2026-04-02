@@ -512,6 +512,15 @@ Response: `{ "openai": true, "gemini": false }`
 
 ---
 
+**GET /config/marketing-ai** — Bot Ollama marketing (caption assist, tóm tắt comment, …) đã cấu hình chưa
+```
+Không cần auth
+```
+Response: `{ "configured": true, "model": "qwen2.5:7b", "timeoutMs": 45000 }`
+- `configured`: `true` khi đã set `MARKETING_AI_BASE_URL` (không trả URL đầy đủ trong JSON).
+
+---
+
 ## Health
 
 **GET /health** - Kiểm tra server hoạt động
@@ -781,4 +790,5 @@ Body: `{ "message": "..." }` — Lỗi `409` `POST_NOT_EDITABLE_APP_ONLY`.
 
 Body: `{ "draftMessage": "", "instruction": "", "locale": "vi" }`
 
-Response: `{ "suggestedMessage", "skipped": true nếu chưa cấu hình bot, "error" }`
+Response: `{ "suggestedMessage", "skipped": true nếu chưa cấu hình bot, "error" (optional), "cached": true|false }`
+- Kết quả trùng `draftMessage` + `instruction` + `locale` được cache trong `marketing_ai_cache` (`kind = write_assist`, TTL ~2h).

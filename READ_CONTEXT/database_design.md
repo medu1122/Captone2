@@ -562,7 +562,7 @@ erDiagram
 - **industry_tag_mappings**, **pending_registrations**, **email_verification_codes** không có FK sang bảng khác (tra cứu / đăng ký tạm); vẫn liệt kê entity để đủ schema.
 - **facebook_posts_cache**, **facebook_post_insight_snapshots**, **marketing_ai_cache** (migration 006) chỉ khóa ngoại **shops**; `page_id` / `post_id` là id Meta dạng chuỗi, không FK tới `facebook_page_tokens`.
 - **payments → credit_transactions**: mối quan hệ logic (topup sau thanh toán), không bắt buộc FK trong DB — vẽ nét gợi ý.
-- **marketing_ai_cache**: cache kết quả gọi bot Ollama (VPS), không lưu model trong DB.
+- **marketing_ai_cache**: cache kết quả gọi bot Ollama (VPS), không lưu model trong DB. Cột `kind` dùng trong code: `page_detail_actions`, `post_comment_summary`, `post_bot_review`, `write_assist` (AI assist caption).
 
 ---
 
@@ -937,7 +937,7 @@ CREATE INDEX idx_fb_tokens_shop_id ON facebook_page_tokens (shop_id);
 -- Mở rộng facebook_page_tokens: page_category, picture_url, followers_count, tasks_json (đồng bộ từ Graph).
 -- facebook_posts_cache: snapshot bài post (reach, reactions, …) theo shop_id + post_id.
 -- facebook_post_insight_snapshots: điểm insight theo ngày (sparkline).
--- marketing_ai_cache: cache kết quả gọi bot Ollama (marketing AI) theo kind + input_hash.
+-- marketing_ai_cache: cache kết quả gọi bot Ollama (marketing AI) theo kind + input_hash. kind: page_detail_actions | post_comment_summary | post_bot_review | write_assist.
 
 ALTER TABLE facebook_page_tokens ADD COLUMN IF NOT EXISTS page_category VARCHAR(255);
 ALTER TABLE facebook_page_tokens ADD COLUMN IF NOT EXISTS picture_url TEXT;

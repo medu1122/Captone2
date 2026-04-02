@@ -640,8 +640,43 @@ router.post('/:id/facebook/assist', requireAuth, async (req, res) => {
     const own = await assertShopOwner(client, shopId, profileId)
     if (own.err) return res.status(own.err).json(own.body)
 
-    const out = await aiWriteAssist(String(draftMessage), String(instruction || 'Viết rõ, có CTA'), locale)
-    res.json({ suggestedMessage: out.suggestedMessage, skipped: out.skipped, error: out.error })
+    const instructionNorm = String(instruction || 'Viết rõ, có CTA')
+    const localeNorm = String(locale || 'vi')
+    const inputKey = {
+      draftMessage: String(draftMessage),
+      instruction: instructionNorm,
+      locale: localeNorm,
+    }
+
+    const cachedPayload = await getAiCache(client, shopId, 'write_assist', inputKey)
+    if (cachedPayload?.suggestedMessage && typeof cachedPayload.suggestedMessage === 'string') {
+      return res.json({
+        suggestedMessage: cachedPayload.suggestedMessage,
+        skipped: false,
+        cached: true,
+      })
+    }
+
+    const out = await aiWriteAssist(String(draftMessage), instructionNorm, localeNorm)
+    if (!out.skipped && out.suggestedMessage && !out.error) {
+      await setAiCache(
+        client,
+        shopId,
+        'write_assist',
+        inputKey,
+        { suggestedMessage: out.suggestedMessage },
+        null,
+        null,
+        2
+      )
+    }
+
+    res.json({
+      suggestedMessage: out.suggestedMessage,
+      skipped: out.skipped,
+      error: out.error,
+      cached: false,
+    })
   } catch (err) {
     console.error('POST assist:', err)
     res.status(500).json({ code: 'INTERNAL', message: err.message })

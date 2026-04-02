@@ -12,4 +12,12 @@ router.get('/image-models', (_, res) => {
   res.json({ openai, gemini })
 })
 
+/** Ollama marketing bot — không lộ URL đầy đủ, chỉ báo đã cấu hình + model + timeout */
+router.get('/marketing-ai', (_, res) => {
+  const configured = Boolean((process.env.MARKETING_AI_BASE_URL || '').trim())
+  const model = process.env.MARKETING_AI_MODEL || 'qwen2.5:7b'
+  const timeoutMs = Math.min(120000, Math.max(5000, parseInt(process.env.MARKETING_AI_TIMEOUT_MS || '45000', 10)))
+  res.json({ configured, model, timeoutMs })
+})
+
 export default router
