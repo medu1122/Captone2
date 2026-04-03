@@ -1,14 +1,14 @@
 import { useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { useLocale } from '../../contexts/LocaleContext'
 
 export default function ShopWebsitePage() {
-  const { t } = useLocale()
   const { id } = useParams<{ id: string }>()
   const [selectedWeb, setSelectedWeb] = useState('v1')
   const [prompt, setPrompt] = useState('')
 
-  if (!id) return null
+  if (!id) {
+    return <p className="text-sm text-slate-500">Thiếu mã shop.</p>
+  }
 
   // Mock data for analytics
   const metrics = [
@@ -19,14 +19,14 @@ export default function ShopWebsitePage() {
   ]
 
   return (
-    <div className="h-full flex flex-col gap-6 animate-in fade-in duration-500">
-      <div className="flex items-center justify-between shrink-0">
-        <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Website của Shop</h1>
+    <div className="flex w-full min-w-0 flex-col gap-6">
+      <div className="flex shrink-0 items-center justify-between">
+        <h1 className="text-2xl font-bold tracking-tight text-slate-900">Website của Shop</h1>
       </div>
 
-      <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-6 min-h-0 overflow-hidden">
+      <div className="grid min-h-[min(70vh,720px)] grid-cols-1 gap-6 lg:grid-cols-2 lg:items-stretch">
         {/* LEFT: DASHBOARD ANALYTICS */}
-        <div className="flex flex-col gap-6 overflow-y-auto pr-2 custom-scrollbar">
+        <div className="flex min-h-0 flex-col gap-6 overflow-y-auto pr-1">
           <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between mb-8">
               <div>
@@ -124,7 +124,7 @@ export default function ShopWebsitePage() {
         </div>
 
         {/* RIGHT: WEBSITE PREVIEW & EDITOR */}
-        <div className="flex flex-col bg-slate-50 rounded-3xl border border-slate-200 overflow-hidden shadow-sm relative group/preview">
+        <div className="relative flex min-h-[320px] flex-col overflow-hidden rounded-3xl border border-slate-200 bg-slate-50 shadow-sm">
           {/* Browser-like Toolbar */}
           <div className="shrink-0 px-6 py-4 border-b border-slate-200 bg-white flex items-center gap-4">
             <div className="flex gap-2">
@@ -142,9 +142,9 @@ export default function ShopWebsitePage() {
           </div>
 
           {/* Preview Canvas */}
-          <div className="flex-1 p-10 flex items-center justify-center relative overflow-hidden bg-[radial-gradient(#e2e8f0_1px,transparent_1px)] [background-size:20px_20px]">
+          <div className="relative flex min-h-[280px] flex-1 items-center justify-center overflow-hidden bg-[radial-gradient(#e2e8f0_1px,transparent_1px)] p-6 sm:p-10 [background-size:20px_20px]">
             {/* Mock website content elements */}
-            <div className="w-full max-w-lg aspect-video bg-white rounded-3xl shadow-[0_32px_64px_-16px_rgba(0,0,0,0.1)] border border-slate-100 p-8 flex flex-col gap-6 relative z-10 animate-in zoom-in-95 duration-700">
+            <div className="relative z-10 flex w-full max-w-lg flex-col gap-6 rounded-3xl border border-slate-100 bg-white p-6 shadow-[0_32px_64px_-16px_rgba(0,0,0,0.1)] sm:p-8 aspect-video min-h-[200px]">
                <div className="flex justify-between items-center">
                  <div className="w-14 h-14 rounded-2xl bg-slate-50 flex items-center justify-center text-3xl shadow-inner">🏢</div>
                  <div className="flex gap-4">
@@ -176,7 +176,7 @@ export default function ShopWebsitePage() {
           </div>
 
           {/* Prompt Editor Panel (Floating) */}
-          <div className="absolute bottom-8 right-8 w-80 bg-white/90 backdrop-blur-xl rounded-[2rem] border border-white shadow-[0_24px_48px_-12px_rgba(0,0,0,0.15)] p-5 z-20 transition-all duration-300 hover:shadow-[0_32px_64px_-12px_rgba(0,0,0,0.2)]">
+          <div className="absolute bottom-4 right-4 z-20 w-[min(100%-1rem,20rem)] rounded-[2rem] border border-white bg-white/90 p-4 shadow-[0_24px_48px_-12px_rgba(0,0,0,0.15)] backdrop-blur-xl transition-all duration-300 sm:bottom-8 sm:right-8 sm:w-80 sm:p-5 hover:shadow-[0_32px_64px_-12px_rgba(0,0,0,0.2)]">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 rounded-full bg-slate-900 animate-pulse" />
