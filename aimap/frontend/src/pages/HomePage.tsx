@@ -149,11 +149,14 @@ export default function HomePage() {
 
       {/* Footer: flat */}
       <footer className="bg-white border-t border-slate-300 py-8 px-6">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-center sm:justify-start gap-3 sm:gap-6">
+        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-center sm:justify-start gap-3 sm:gap-6 flex-wrap">
           <div className="flex items-center gap-2">
             <img src="/icons/logo-aimap.png" alt="AIMAP logo" className="h-6 w-auto" />
             <span className="font-bold text-slate-900">AIMAP</span>
           </div>
+          <a href="/privacy-policy" className="text-sm text-slate-600 hover:text-slate-900 hover:underline">
+            {t('footer.privacy')}
+          </a>
           <p className="text-sm text-slate-500 text-center sm:text-left">{t('footer.copyright')}</p>
         </div>
       </footer>

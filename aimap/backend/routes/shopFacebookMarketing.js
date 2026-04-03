@@ -5,7 +5,7 @@
 import { Router } from 'express'
 import crypto from 'crypto'
 import pool from '../db/index.js'
-import { requireAuth } from '../middleware/auth.js'
+import { requireAuth, signToken } from '../middleware/auth.js'
 import { graphGet, graphDelete, graphPostForm } from '../services/facebookGraphService.js'
 import {
   aiSummarizeComments,
@@ -17,6 +17,12 @@ import { logActivity } from '../services/activityLog.js'
 
 const router = Router()
 const META_APP_ID = process.env.META_APP_ID || ''
+const FB_APP_ID_OAUTH = (process.env.FB_APP_ID || process.env.META_APP_ID || '').trim()
+const FACEBOOK_OAUTH_REDIRECT_URI = (process.env.FACEBOOK_OAUTH_REDIRECT_URI || '').trim()
+const FB_OAUTH_SCOPES = (
+  process.env.FB_OAUTH_SCOPES || 'pages_show_list,pages_read_engagement,pages_manage_posts,public_profile'
+).replace(/\s/g, '')
+const GRAPH_VER_DIALOG = process.env.FACEBOOK_GRAPH_VERSION || 'v20.0'
 
 async function assertShopOwner(client, shopId, profileId) {
   const r = await client.query('SELECT id, name, industry FROM shops WHERE id = $1 AND user_id = $2', [
@@ -92,6 +98,26 @@ function engagementRate(reach, r, c, s) {
   const e = (Number(r) || 0) + (Number(c) || 0) + (Number(s) || 0)
   return `${((e / rr) * 100).toFixed(1)}%`
 }
+
+/** GET .../facebook/oauth/url — URL dialog Facebook Login + state JWT */
+router.get('/:id/facebook/oauth/url', requireAuth, async (req, res) => {
+  if (!FB_APP_ID_OAUTH || !FACEBOOK_OAUTH_REDIRECT_URI) {
+    return res.status(503).json({
+      code: 'OAUTH_NOT_CONFIGURED',
+      message: 'Chưa cấu hình FB_APP_ID (hoặc META_APP_ID) hoặc FACEBOOK_OAUTH_REDIRECT_URI',
+    })
+  }
+  const shopId = req.params.id
+  const profileId = req.auth.profileId
+  const state = signToken({ purpose: 'fb_oauth', shopId, profileId }, '15m')
+  const url = new URL(`https://www.facebook.com/${GRAPH_VER_DIALOG}/dialog/oauth`)
+  url.searchParams.set('client_id', FB_APP_ID_OAUTH)
+  url.searchParams.set('redirect_uri', FACEBOOK_OAUTH_REDIRECT_URI)
+  url.searchParams.set('state', state)
+  url.searchParams.set('response_type', 'code')
+  url.searchParams.set('scope', FB_OAUTH_SCOPES)
+  res.json({ url: url.toString() })
+})
 
 // — GET .../facebook/pages
 router.get('/:id/facebook/pages', requireAuth, async (req, res) => {
@@ -241,6 +267,40 @@ router.post('/:id/facebook/pages/connect', requireAuth, async (req, res) => {
   } catch (err) {
     console.error('POST facebook/pages/connect:', err)
     res.status(500).json({ code: 'INTERNAL', message: err.message })
+  } finally {
+    client.release()
+  }
+})
+
+/** DELETE .../facebook/pages/:pageId — gỡ Page khỏi shop */
+router.delete('/:id/facebook/pages/:pageId', requireAuth, async (req, res) => {
+  const { id: shopId, pageId } = req.params
+  const profileId = req.auth.profileId
+  const client = await pool.connect()
+  try {
+    const own = await assertShopOwner(client, shopId, profileId)
+    if (own.err) return res.status(own.err).json(own.body)
+
+    const del = await client.query(
+      `DELETE FROM facebook_page_tokens WHERE shop_id = $1 AND user_id = $2 AND page_id = $3 RETURNING page_id`,
+      [shopId, profileId, pageId]
+    )
+    if (del.rowCount === 0) {
+      return res.status(404).json({ code: 'PAGE_NOT_FOUND', message: 'Chưa kết nối Page này' })
+    }
+
+    await logActivity(pool, {
+      userId: profileId,
+      action: 'facebook_page_disconnect',
+      entityType: 'shop',
+      entityId: shopId,
+      details: { pageId },
+    })
+
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('DELETE facebook/pages/:pageId:', err)
+    res.status(500).json({ code: 'INTERNAL', message: 'Failed to disconnect page' })
   } finally {
     client.release()
   }

@@ -724,9 +724,25 @@ Response: `{ "ok": true }`
 
 Prefix: `/api/shops/:shopId/facebook/...` — `:shopId` = UUID shop. Header: `Authorization: Bearer <token>`.
 
-**Env server:** `MARKETING_AI_BASE_URL` (Ollama, vd. `http://IP_VPS:11434`), `MARKETING_AI_MODEL` (vd. `qwen2.5:7b`), `META_APP_ID` (để biết bài nào sửa được qua API), `FACEBOOK_GRAPH_VERSION` (mặc định `v20.0`).
+**Env server:** `MARKETING_AI_BASE_URL` (Ollama, vd. `http://IP_VPS:11434`), `MARKETING_AI_MODEL` (vd. `qwen2.5:7b`), `META_APP_ID` (để biết bài nào sửa được qua API), `FACEBOOK_GRAPH_VERSION` (mặc định `v20.0`). OAuth Page: `FB_APP_ID` (hoặc `META_APP_ID`), `FB_APP_SECRET`, `FACEBOOK_OAUTH_REDIRECT_URI` (phải khớp App Meta, ví dụ `https://<host>/api/facebook/oauth/callback`), `FB_OAUTH_SCOPES` (mặc định `pages_show_list,pages_read_engagement,pages_manage_posts,public_profile`), `FRONTEND_URL` (redirect sau callback).
 
 **Migration DB:** `psql $DATABASE_URL -f aimap/backend/db/migrations/006_facebook_marketing.sql`
+
+---
+
+**GET /shops/:shopId/facebook/oauth/url** — Trả URL Facebook Login (dialog OAuth) + `state` JWT (`purpose: fb_oauth`, `shopId`, `profileId`, TTL 15 phút).
+
+- `503` + `code: OAUTH_NOT_CONFIGURED` nếu thiếu `FB_APP_ID`/`META_APP_ID` hoặc `FACEBOOK_OAUTH_REDIRECT_URI`.
+
+Response: `{ "url": "https://www.facebook.com/v20.0/dialog/oauth?..." }`
+
+**Test Postman:** `GET {{base}}/shops/<shopId>/facebook/oauth/url` + Bearer token → mở `url` trên trình duyệt (hoặc frontend `window.location = url`).
+
+---
+
+**GET /api/facebook/oauth/callback** — Meta redirect sau khi user đăng nhập (không Bearer). Query: `code`, `state` (JWT từ bước trên). Đổi `code` → user token → long-lived → `GET /me/accounts` → upsert từng Page vào `facebook_page_tokens`. Cuối cùng redirect `302` về `FRONTEND_URL/shops/:shopId/marketing/facebook?fb=connected&pages=N` hoặc `?fb_error=...`.
+
+**Cấu hình Meta Developer:** Valid OAuth Redirect URIs = đúng `FACEBOOK_OAUTH_REDIRECT_URI` (vd. `http://localhost:4111/api/facebook/oauth/callback` khi dev).
 
 ---
 
@@ -751,6 +767,12 @@ Body:
 ```
 
 Backend gọi Graph xác minh token rồi `UPSERT` vào `facebook_page_tokens`. Lỗi token: `400` + `code` từ Graph.
+
+---
+
+**DELETE /shops/:shopId/facebook/pages/:pageId** — Xóa Page khỏi shop (xóa dòng `facebook_page_tokens`).
+
+Response: `{ "ok": true }` — `404` nếu chưa có Page đó.
 
 ---
 

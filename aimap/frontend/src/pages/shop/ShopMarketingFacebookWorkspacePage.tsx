@@ -1,6 +1,8 @@
-import { useMemo, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { useLocale } from '../../contexts/LocaleContext'
+import { useAuth } from '../../contexts/AuthContext'
+import { facebookMarketingApi, type FbPageDetailResponse } from '../../api/facebookMarketing'
 import aiActionsBotIcon from '../../assets/image-bot/ai-actions-bot.png'
 
 type PageRow = { id: string; name: string; followers: number; avatarUrl?: string; category?: string }
@@ -30,6 +32,30 @@ type PageDetailMock = {
   bestTimes: BestTimeSlot[]
   topPosts: TopPostInsight[]
   aiActions: AiActionItem[]
+}
+
+const MIX_COLORS = ['bg-emerald-500', 'bg-amber-500', 'bg-violet-500']
+
+function mapFbDetailToMock(d: FbPageDetailResponse): PageDetailMock {
+  return {
+    period: d.range === '7d' ? '7d' : '30d',
+    kpis: {
+      reach: d.kpis.reach,
+      engagementRate: d.kpis.engagementRate,
+      avgReactions: d.kpis.avgReactionsPerPost,
+      avgComments: d.kpis.avgCommentsPerPost,
+      followersDelta: d.kpis.followersDelta,
+    },
+    trendBars: d.trendBars?.length ? d.trendBars : [40, 42, 41, 43, 42, 44, 43],
+    engagementMix: (d.engagementMix || []).map((m, i) => ({
+      label: m.label,
+      value: m.percent,
+      color: MIX_COLORS[i % MIX_COLORS.length],
+    })),
+    bestTimes: (d.bestTimes || []).map((b) => ({ day: b.day, slot: b.slot, value: b.value })),
+    topPosts: (d.topPosts || []).map((t) => ({ title: t.title, metric: t.metric, reason: t.reason })),
+    aiActions: (d.aiActions || []).map((a) => ({ action: a.action, impact: a.expectedImpact || '' })),
+  }
 }
 
 const STORAGE_IMAGES = ['/icons/logo-aimap.png', '/icons/logo-aimap.png', '/icons/logo-aimap.png', '/icons/logo-aimap.png']
@@ -220,34 +246,28 @@ function InfoDot({
   )
 }
 
+function shortTimeLabel(iso: string | undefined): string {
+  if (!iso) return ''
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return iso.slice(0, 10)
+  return d.toLocaleDateString()
+}
+
 export default function ShopMarketingFacebookWorkspacePage() {
   const { t } = useLocale()
   const { id } = useParams<{ id: string }>()
+  const { token } = useAuth()
+  const [searchParams, setSearchParams] = useSearchParams()
 
-  const [pages, setPages] = useState<PageRow[]>([
-    { id: '12345', name: 'AIMAP Coffee', followers: 13200, avatarUrl: '/icons/logo-aimap.png', category: 'Cafe' },
-    { id: '67890', name: 'AIMAP Tea', followers: 8300, category: 'Tea' },
-    { id: '11111', name: 'AIMAP Bakery', followers: 4100, category: 'Bakery' },
-    { id: '22222', name: 'AIMAP Juice', followers: 9800, category: 'Juice' },
-    { id: '33333', name: 'AIMAP Bistro', followers: 2100, category: 'Food' },
-    { id: '44444', name: 'AIMAP Roastery', followers: 15600, category: 'Coffee beans' },
-    { id: '55555', name: 'AIMAP Brunch', followers: 6700, category: 'Brunch' },
-  ])
-  const [selectedPageId, setSelectedPageId] = useState('12345')
+  const [pages, setPages] = useState<PageRow[]>([])
+  const [pagesLoading, setPagesLoading] = useState(false)
+  const [pagesError, setPagesError] = useState<string | null>(null)
+  const [selectedPageId, setSelectedPageId] = useState('')
   const [writeText, setWriteText] = useState('')
   const [previewText, setPreviewText] = useState('')
   const [previewImage, setPreviewImage] = useState<string | null>(null)
-  const [posts, setPosts] = useState<PostRow[]>([
-    { id: 'p1', pageId: '12345', title: 'Khuyến mãi cuối tuần', text: 'Ưu đãi 20% cho combo mới. Đặt ngay hôm nay.', image: null, reach: 12200, reactions: 870, comments: 123, shares: 27, time: '2h', createdByApp: true },
-    { id: 'p2', pageId: '12345', title: 'Combo mới', text: 'Thử combo mới.', image: null, reach: 5400, reactions: 120, comments: 18, shares: 5, time: '1d', createdByApp: true },
-    { id: 'p3', pageId: '12345', title: 'Mở cửa sớm', text: '7h sáng.', image: null, reach: 8900, reactions: 200, comments: 40, shares: 12, time: '3d', createdByApp: false },
-    { id: 'p4', pageId: '12345', title: 'Feedback khách', text: 'Cảm ơn bạn.', image: null, reach: 3200, reactions: 90, comments: 22, shares: 3, time: '4d', createdByApp: false },
-    { id: 'p5', pageId: '12345', title: 'Livestream tối nay', text: '20h.', image: null, reach: 15000, reactions: 400, comments: 80, shares: 30, time: '5d', createdByApp: false },
-    { id: 'p6', pageId: '12345', title: 'Menu tuần', text: 'Cập nhật menu.', image: null, reach: 6700, reactions: 150, comments: 25, shares: 8, time: '6d', createdByApp: false },
-    { id: 'p7', pageId: '67890', title: 'Trà mới mùa hè', text: 'Trà đào cam sả.', image: null, reach: 4100, reactions: 210, comments: 34, shares: 9, time: '1d', createdByApp: true },
-    { id: 'p8', pageId: '67890', title: 'Giảm 15%', text: 'Tuần này giảm 15%.', image: null, reach: 9800, reactions: 310, comments: 52, shares: 14, time: '3d', createdByApp: false },
-    { id: 'p9', pageId: '67890', title: 'Poll vị yêu thích', text: 'Bạn thích vị nào?', image: null, reach: 7200, reactions: 540, comments: 120, shares: 22, time: '5d', createdByApp: true },
-  ])
+  const [posts, setPosts] = useState<PostRow[]>([])
+  const [postsLoading, setPostsLoading] = useState(false)
 
   const [openConnect, setOpenConnect] = useState(false)
   const [openPageDetail, setOpenPageDetail] = useState(false)
@@ -263,61 +283,150 @@ export default function ShopMarketingFacebookWorkspacePage() {
   const [newPageId, setNewPageId] = useState('')
   const [aiGuide, setAiGuide] = useState('')
   const [openHelpKey, setOpenHelpKey] = useState<string | null>(null)
+  const [banner, setBanner] = useState<string | null>(null)
+  const [oauthLoading, setOauthLoading] = useState(false)
+  const [manualLoading, setManualLoading] = useState(false)
+  const [detailLoading, setDetailLoading] = useState(false)
+  const [detailApi, setDetailApi] = useState<PageDetailMock | null>(null)
+  const [newAccessToken, setNewAccessToken] = useState('')
 
   const selectedPage = pages.find((item) => item.id === selectedPageId) || null
   const postsByPage = useMemo(() => posts.filter((item) => item.pageId === selectedPageId), [posts, selectedPageId])
-  const detailDataByPage = useMemo<Record<string, PageDetailMock>>(() => ({
-    '12345': {
-      period: '30d',
-      kpis: { reach: 128400, engagementRate: '7.3%', avgReactions: 321, avgComments: 44, followersDelta: 420 },
-      trendBars: [45, 62, 58, 66, 71, 74, 69],
-      engagementMix: [
-        { label: 'Reactions', value: 56, color: 'bg-emerald-500' },
-        { label: 'Comments', value: 27, color: 'bg-amber-500' },
-        { label: 'Shares', value: 17, color: 'bg-violet-500' },
-      ],
-      bestTimes: [{ day: 'Mon', slot: '11:00', value: 82 }, { day: 'Wed', slot: '19:30', value: 91 }, { day: 'Sat', slot: '09:30', value: 87 }],
-      topPosts: [
-        { title: 'Livestream tối nay', metric: '15k reach', reason: 'Hook rõ + khung giờ tối' },
-        { title: 'Khuyến mãi cuối tuần', metric: '870 reacts', reason: 'Ưu đãi cụ thể + CTA mạnh' },
-        { title: 'Menu tuần', metric: '6.7k reach', reason: 'Nội dung đều đặn theo tuần' },
-      ],
-      aiActions: [
-        { action: 'Đăng 3 bài/tuần vào Wed-Sat 9:30/19:30', impact: 'Giữ reach ổn định +8-12%' },
-        { action: 'Mỗi caption thêm CTA hỏi ý kiến', impact: 'Tăng bình luận 15-20%' },
-        { action: 'Ưu tiên post có ảnh thật sản phẩm', impact: 'Tăng reaction/post 10-14%' },
-      ],
+  const detailData = detailApi
+
+  const loadPages = useCallback(
+    async (sync = false) => {
+      if (!token || !id) return
+      setPagesLoading(true)
+      setPagesError(null)
+      const { data, error, status } = await facebookMarketingApi.listPages(token, id, sync)
+      setPagesLoading(false)
+      if (error || !data?.pages) {
+        setPagesError(error || `HTTP ${status}`)
+        return
+      }
+      const mapped: PageRow[] = data.pages.map((p) => ({
+        id: p.pageId,
+        name: p.name,
+        followers: p.followers ?? 0,
+        avatarUrl: p.pictureUrl || undefined,
+        category: p.category || undefined,
+      }))
+      setPages(mapped)
+      setSelectedPageId((prev) => {
+        if (prev && mapped.some((x) => x.id === prev)) return prev
+        return mapped[0]?.id || ''
+      })
     },
-    '67890': {
-      period: '30d',
-      kpis: { reach: 84200, engagementRate: '5.8%', avgReactions: 204, avgComments: 26, followersDelta: 215 },
-      trendBars: [38, 49, 54, 52, 60, 58, 63],
-      engagementMix: [
-        { label: 'Reactions', value: 62, color: 'bg-emerald-500' },
-        { label: 'Comments', value: 22, color: 'bg-amber-500' },
-        { label: 'Shares', value: 16, color: 'bg-violet-500' },
-      ],
-      bestTimes: [{ day: 'Tue', slot: '08:30', value: 80 }, { day: 'Thu', slot: '20:00', value: 86 }, { day: 'Sun', slot: '16:00', value: 78 }],
-      topPosts: [
-        { title: 'Combo mới', metric: '5.4k reach', reason: 'Tiêu đề ngắn, ảnh rõ' },
-        { title: 'Mở cửa sớm', metric: '200 reacts', reason: 'Thông tin hữu ích, đúng giờ' },
-        { title: 'Feedback khách', metric: '22 comments', reason: 'Tạo social proof tốt' },
-      ],
-      aiActions: [
-        { action: 'A/B test 2 phiên bản caption ngắn', impact: 'Tăng CTR nội dung tốt hơn' },
-        { action: 'Đẩy format review khách hàng 1 lần/tuần', impact: 'Giữ trust và comment ổn định' },
-        { action: 'Gộp CTA đặt hàng trong 2 dòng cuối', impact: 'Tăng chuyển đổi inbox' },
-      ],
-    },
-  }), [])
-  const detailData = detailPage ? detailDataByPage[detailPage.id] || detailDataByPage['12345'] : null
+    [token, id]
+  )
+
+  const loadPosts = useCallback(async () => {
+    if (!token || !id || !selectedPageId) {
+      setPosts([])
+      return
+    }
+    setPostsLoading(true)
+    const { data, error } = await facebookMarketingApi.listPosts(token, id, selectedPageId)
+    setPostsLoading(false)
+    if (error || !data?.posts) {
+      setPosts([])
+      return
+    }
+    setPosts(
+      data.posts.map((p) => ({
+        id: p.postId,
+        pageId: selectedPageId,
+        title: p.title,
+        text: p.messagePreview || '',
+        image: null,
+        reach: p.reach,
+        reactions: p.reactions,
+        comments: p.comments,
+        shares: p.shares,
+        time: shortTimeLabel(p.createdTime || p.timeLabel),
+        createdByApp: p.canEditViaApi,
+      }))
+    )
+  }, [token, id, selectedPageId])
+
+  useEffect(() => {
+    void loadPages(false)
+  }, [loadPages])
+
+  useEffect(() => {
+    const fb = searchParams.get('fb')
+    const fbErr = searchParams.get('fb_error')
+    const n = searchParams.get('pages')
+    if (!fb && !fbErr) return
+    if (fb === 'connected') {
+      setBanner(t('marketing.fbBannerConnected').replace('{{count}}', String(n || '0')))
+      void loadPages(false)
+    } else if (fbErr === 'access_denied') {
+      setBanner(t('marketing.fbBannerDenied'))
+    } else if (fbErr) {
+      setBanner(t('marketing.fbBannerError'))
+    }
+    setSearchParams({}, { replace: true })
+  }, [searchParams, setSearchParams, loadPages, t])
+
+  useEffect(() => {
+    void loadPosts()
+  }, [loadPosts])
 
   if (!id) return null
 
-  const addPage = () => {
-    if (!newPageName.trim() || !newPageId.trim()) return
-    const next: PageRow = { id: newPageId.trim(), name: newPageName.trim(), followers: 0 }
-    setPages((prev) => [next, ...prev]); setSelectedPageId(next.id); setNewPageName(''); setNewPageId(''); setOpenConnect(false)
+  const startFacebookOAuth = async () => {
+    if (!token) return
+    setOauthLoading(true)
+    const { data, error, status } = await facebookMarketingApi.getOAuthUrl(token, id)
+    setOauthLoading(false)
+    if (error || !data?.url) {
+      setBanner(error || (status === 503 ? t('marketing.oauthNotConfigured') : t('marketing.fbBannerError')))
+      return
+    }
+    window.location.href = data.url
+  }
+
+  const connectManual = async () => {
+    if (!token || !newPageName.trim() || !newPageId.trim() || !newAccessToken.trim()) return
+    setManualLoading(true)
+    const { error } = await facebookMarketingApi.connectPage(token, id, {
+      pageId: newPageId.trim(),
+      accessToken: newAccessToken.trim(),
+      pageName: newPageName.trim(),
+    })
+    setManualLoading(false)
+    if (error) {
+      setBanner(error)
+      return
+    }
+    setNewPageName('')
+    setNewPageId('')
+    setNewAccessToken('')
+    setOpenConnect(false)
+    void loadPages(false)
+  }
+
+  const disconnectPage = async (pageId: string) => {
+    if (!token) return
+    const { error } = await facebookMarketingApi.disconnectPage(token, id, pageId)
+    if (error) {
+      setBanner(error)
+      return
+    }
+    void loadPages(false)
+  }
+
+  const openPageDetailFetch = async (item: PageRow) => {
+    setDetailPage(item)
+    setOpenPageDetail(true)
+    setDetailApi(null)
+    if (!token || !id) return
+    setDetailLoading(true)
+    const { data, error } = await facebookMarketingApi.getPageDetail(token, id, item.id)
+    setDetailLoading(false)
+    if (data && !error) setDetailApi(mapFbDetailToMock(data))
   }
   const applyAi = () => { const hint = aiGuide.trim() || 'Văn phong rõ ràng, ngắn gọn, có CTA.'; setWriteText(`${writeText.trim()}\n\n${hint}\n#aimap #marketing`.trim()); setAiGuide(''); setOpenAiAssist(false) }
   const publishUiOnly = () => {
@@ -349,12 +458,47 @@ export default function ShopMarketingFacebookWorkspacePage() {
         <Link to={`/shops/${id}/marketing`} className="text-sm text-primary hover:underline">{t('marketing.backToPlatforms')}</Link>
       </div>
 
+      {banner && (
+        <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-800 flex items-center justify-between gap-2">
+          <span>{banner}</span>
+          <button type="button" className="text-xs text-slate-600 hover:text-slate-900" onClick={() => setBanner(null)}>
+            ×
+          </button>
+        </div>
+      )}
+
       <section className="rounded-2xl border border-slate-200 bg-white p-4">
         <div className="flex items-center justify-between mb-3">
-          <div><p className="text-sm font-semibold text-slate-900">{t('marketing.facebookPages')}</p><p className="text-xs text-slate-500">{pages.length} pages</p></div>
-          <div className="flex items-center gap-2">
-            <button type="button" onClick={() => setOpenConnect(true)} className="px-3 py-1.5 text-sm rounded-lg border border-slate-200 bg-white hover:bg-slate-50">{t('marketing.connectPage')}</button>
-            <button type="button" onClick={() => setOpenDashboard(true)} className="px-3 py-1.5 text-sm rounded-lg bg-slate-900 text-white hover:bg-slate-800">{t('marketing.viewPageDashboard')}</button>
+          <div>
+            <p className="text-sm font-semibold text-slate-900">{t('marketing.facebookPages')}</p>
+            <p className="text-xs text-slate-500">
+              {pagesLoading ? '…' : `${pages.length} pages`}
+              {pagesError ? ` · ${pagesError}` : ''}
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              disabled={pagesLoading}
+              onClick={() => void loadPages(true)}
+              className="px-3 py-1.5 text-sm rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-50"
+            >
+              {t('marketing.syncPages')}
+            </button>
+            <button
+              type="button"
+              onClick={() => void startFacebookOAuth()}
+              disabled={oauthLoading}
+              className="px-3 py-1.5 text-sm rounded-lg bg-[#1877f2] text-white hover:bg-[#166fe5] disabled:opacity-50"
+            >
+              {oauthLoading ? '…' : t('marketing.connectFacebookOAuth')}
+            </button>
+            <button type="button" onClick={() => setOpenConnect(true)} className="px-3 py-1.5 text-sm rounded-lg border border-slate-200 bg-white hover:bg-slate-50">
+              {t('marketing.connectPageManual')}
+            </button>
+            <button type="button" onClick={() => setOpenDashboard(true)} className="px-3 py-1.5 text-sm rounded-lg bg-slate-900 text-white hover:bg-slate-800">
+              {t('marketing.viewPageDashboard')}
+            </button>
           </div>
         </div>
         <div className="max-h-[12.5rem] overflow-y-auto rounded-xl border border-slate-200">
@@ -366,9 +510,17 @@ export default function ShopMarketingFacebookWorkspacePage() {
                 <th className="text-left px-3 py-2">{t('marketing.followers')}</th>
                 <th className="text-left px-3 py-2">{t('marketing.pageDetailColumn')}</th>
                 <th className="text-left px-3 py-2">{t('marketing.pagePickColumn')}</th>
+                <th className="text-left px-3 py-2">{t('marketing.disconnectPage')}</th>
               </tr>
             </thead>
             <tbody>
+              {pages.length === 0 && !pagesLoading && (
+                <tr>
+                  <td colSpan={6} className="px-3 py-4 text-xs text-slate-500">
+                    {t('marketing.noPagesConnected')}
+                  </td>
+                </tr>
+              )}
               {pages.map((item) => (
                 <tr key={item.id} className="border-t border-slate-100">
                   <td className="px-3 py-2 text-slate-700">{item.name}</td>
@@ -377,10 +529,7 @@ export default function ShopMarketingFacebookWorkspacePage() {
                   <td className="px-3 py-2">
                     <button
                       type="button"
-                      onClick={() => {
-                        setDetailPage(item)
-                        setOpenPageDetail(true)
-                      }}
+                      onClick={() => void openPageDetailFetch(item)}
                       className="px-2 py-1 text-xs rounded-md border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
                     >
                       {t('marketing.pageDetailBtn')}
@@ -393,6 +542,15 @@ export default function ShopMarketingFacebookWorkspacePage() {
                       className={`px-2 py-1 text-xs rounded-md border ${selectedPageId === item.id ? 'bg-slate-900 border-slate-900 text-white' : 'bg-white border-slate-200 text-slate-700'}`}
                     >
                       {selectedPageId === item.id ? t('marketing.pageSelected') : t('marketing.pageSelect')}
+                    </button>
+                  </td>
+                  <td className="px-3 py-2">
+                    <button
+                      type="button"
+                      onClick={() => void disconnectPage(item.id)}
+                      className="text-xs text-red-600 hover:underline"
+                    >
+                      {t('marketing.disconnectPage')}
                     </button>
                   </td>
                 </tr>
@@ -422,7 +580,23 @@ export default function ShopMarketingFacebookWorkspacePage() {
       </section>
 
       <section className="rounded-2xl border border-slate-200 bg-white p-4 overflow-hidden">
-        <div className="flex items-center justify-between mb-3"><p className="text-sm font-semibold text-slate-900">{t('marketing.managerPosts')}</p><select value={selectedPageId} onChange={(e) => setSelectedPageId(e.target.value)} className="text-sm rounded-lg border border-slate-200 px-3 py-1.5">{pages.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></div>
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-sm font-semibold text-slate-900">{t('marketing.managerPosts')}</p>
+          <div className="flex items-center gap-2">
+            {postsLoading && <span className="text-xs text-slate-500">…</span>}
+            <select
+              value={selectedPageId}
+              onChange={(e) => setSelectedPageId(e.target.value)}
+              className="text-sm rounded-lg border border-slate-200 px-3 py-1.5"
+            >
+              {pages.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
         <div className="max-h-[12.5rem] overflow-y-auto rounded-xl border border-slate-200">
           <table className="w-full text-sm">
             <thead className="bg-slate-50 sticky top-0 z-[1]">
@@ -469,7 +643,20 @@ export default function ShopMarketingFacebookWorkspacePage() {
         </div>
       </section>
 
-      <CenterModal open={openPageDetail} title={detailPage ? `${detailPage.name} · ${detailPage.id}` : ''} onClose={() => { setOpenPageDetail(false); setDetailPage(null) }} size="lg">
+      <CenterModal
+        open={openPageDetail}
+        title={detailPage ? `${detailPage.name} · ${detailPage.id}` : ''}
+        onClose={() => {
+          setOpenPageDetail(false)
+          setDetailPage(null)
+          setDetailApi(null)
+        }}
+        size="lg"
+      >
+        {detailLoading && <p className="text-sm text-slate-600">{t('marketing.detailLoading')}</p>}
+        {detailPage && !detailLoading && !detailData && (
+          <p className="text-sm text-amber-800 bg-amber-50 border border-amber-100 rounded-lg px-2 py-2">{t('marketing.detailEmpty')}</p>
+        )}
         {detailPage && detailData && (
           <div className="space-y-4">
             <div className="flex items-center justify-between">
@@ -573,8 +760,56 @@ export default function ShopMarketingFacebookWorkspacePage() {
           </div>
         )}
       </CenterModal>
-      <CenterModal open={openConnect} title={t('marketing.connectPage')} onClose={() => setOpenConnect(false)}><div className="space-y-3"><input value={newPageName} onChange={(e) => setNewPageName(e.target.value)} placeholder={t('marketing.pageName')} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" /><input value={newPageId} onChange={(e) => setNewPageId(e.target.value)} placeholder={t('marketing.pageId')} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" /><div className="flex justify-end"><button type="button" onClick={addPage} className="px-3 py-2 text-sm rounded-lg bg-slate-900 text-white hover:bg-slate-800">{t('marketing.addPage')}</button></div></div></CenterModal>
-      <CenterModal open={openDashboard} title={t('marketing.pageDashboard')} onClose={() => setOpenDashboard(false)}><div className="grid grid-cols-3 gap-3"><div className="rounded-lg border border-slate-200 p-3"><p className="text-xs text-slate-500">{t('marketing.followers')}</p><p className="text-lg font-semibold text-slate-900">{selectedPage?.followers ?? 0}</p></div><div className="rounded-lg border border-slate-200 p-3"><p className="text-xs text-slate-500">{t('marketing.engagement')}</p><p className="text-lg font-semibold text-slate-900">{detailDataByPage[selectedPageId]?.kpis.engagementRate ?? '0%'}</p></div><div className="rounded-lg border border-slate-200 p-3"><p className="text-xs text-slate-500">{t('marketing.overall')}</p><p className="text-lg font-semibold text-slate-900">{(detailDataByPage[selectedPageId]?.kpis.followersDelta ?? 0) > 200 ? 'Good' : 'Average'}</p></div></div></CenterModal>
+      <CenterModal open={openConnect} title={t('marketing.connectPageManual')} onClose={() => setOpenConnect(false)}>
+        <div className="space-y-3">
+          <input
+            value={newPageName}
+            onChange={(e) => setNewPageName(e.target.value)}
+            placeholder={t('marketing.pageName')}
+            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+          />
+          <input
+            value={newPageId}
+            onChange={(e) => setNewPageId(e.target.value)}
+            placeholder={t('marketing.pageId')}
+            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+          />
+          <input
+            value={newAccessToken}
+            onChange={(e) => setNewAccessToken(e.target.value)}
+            placeholder={t('marketing.pageAccessToken')}
+            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm font-mono text-xs"
+          />
+          <div className="flex justify-end">
+            <button
+              type="button"
+              disabled={manualLoading}
+              onClick={() => void connectManual()}
+              className="px-3 py-2 text-sm rounded-lg bg-slate-900 text-white hover:bg-slate-800 disabled:opacity-50"
+            >
+              {manualLoading ? '…' : t('marketing.addPage')}
+            </button>
+          </div>
+        </div>
+      </CenterModal>
+      <CenterModal open={openDashboard} title={t('marketing.pageDashboard')} onClose={() => setOpenDashboard(false)}>
+        <div className="grid grid-cols-3 gap-3">
+          <div className="rounded-lg border border-slate-200 p-3">
+            <p className="text-xs text-slate-500">{t('marketing.followers')}</p>
+            <p className="text-lg font-semibold text-slate-900">{selectedPage?.followers ?? 0}</p>
+          </div>
+          <div className="rounded-lg border border-slate-200 p-3">
+            <p className="text-xs text-slate-500">{t('marketing.engagement')}</p>
+            <p className="text-lg font-semibold text-slate-900">{detailApi?.kpis.engagementRate ?? '—'}</p>
+          </div>
+          <div className="rounded-lg border border-slate-200 p-3">
+            <p className="text-xs text-slate-500">{t('marketing.overall')}</p>
+            <p className="text-lg font-semibold text-slate-900">
+              {(detailApi?.kpis.followersDelta ?? 0) > 0 ? '+' + detailApi?.kpis.followersDelta : '—'}
+            </p>
+          </div>
+        </div>
+      </CenterModal>
       <CenterModal open={openAiAssist} title={t('marketing.aiAssist')} onClose={() => setOpenAiAssist(false)}><div className="space-y-3"><textarea value={aiGuide} onChange={(e) => setAiGuide(e.target.value)} rows={4} placeholder={t('marketing.aiPromptPlaceholder')} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" /><div className="flex justify-end"><button type="button" onClick={applyAi} className="px-3 py-2 text-sm rounded-lg bg-slate-900 text-white hover:bg-slate-800">{t('marketing.applyAi')}</button></div></div></CenterModal>
       <CenterModal open={openImagePicker} title={t('marketing.pickImage')} onClose={() => setOpenImagePicker(false)}><div className="grid grid-cols-4 gap-2">{STORAGE_IMAGES.map((img, index) => <button key={`${img}-${index}`} type="button" onClick={() => { setPreviewImage(img); setOpenImagePicker(false) }} className="rounded-lg overflow-hidden border border-slate-200"><img src={img} alt="storage" className="h-16 w-full object-cover" /></button>)}</div><div className="mt-3 flex justify-end"><Link to={`/shops/${id}/image-bot`} className="text-sm text-primary hover:underline">{t('marketing.useImageBot')}</Link></div></CenterModal>
       <CenterModal

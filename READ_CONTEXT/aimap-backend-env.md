@@ -47,6 +47,7 @@ Compose sẽ inject biến vào container backend (không dùng `aimap/backend/.
 | `FACEBOOK_GRAPH_VERSION` | Version Graph API khi gọi từ backend (mặc định `v20.0`) — biến dùng trong `facebookGraphService.js` |
 | `FB_GRAPH_VERSION` | (Tuỳ chọn) Alias / tài liệu cũ; ưu tiên `FACEBOOK_GRAPH_VERSION` trong code hiện tại |
 | `FB_OAUTH_SCOPES` | Scope OAuth cho page flow (vd. `pages_show_list,pages_manage_posts,pages_read_engagement`) |
+| `FACEBOOK_OAUTH_REDIRECT_URI` | URL callback **đầy đủ** backend (vd. `https://captone2.site/api/facebook/oauth/callback` hoặc `http://localhost:4111/api/facebook/oauth/callback`) — phải khai báo y hệt trong Meta App → Facebook Login → Valid OAuth Redirect URIs |
 | `MARKETING_AI_BASE_URL` | URL Ollama trên VPS (vd. `http://IP:11434`) — tóm tắt comment / đánh giá bài / AI assist; không set → API vẫn chạy, phần AI trả placeholder |
 | `MARKETING_AI_MODEL` | Tên model Ollama (mặc định `qwen2.5:7b`) |
 | `MARKETING_AI_TIMEOUT_MS` | Timeout gọi Ollama (mặc định `45000`) |

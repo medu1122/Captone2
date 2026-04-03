@@ -23,6 +23,7 @@ import ShopWebsitePage from './pages/shop/ShopWebsitePage'
 import ShopProductsPage from './pages/shop/ShopProductsPage'
 import AdminContainersPage from './pages/admin/AdminContainersPage'
 import CreditsTopUpPage from './pages/CreditsTopUpPage'
+import PrivacyPolicyPage from './pages/PrivacyPolicyPage'
 
 function App() {
   return (
@@ -35,6 +36,7 @@ function App() {
         <Route path="/verify" element={<VerifyPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
+        <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
         <Route
           path="/change-password"
           element={
