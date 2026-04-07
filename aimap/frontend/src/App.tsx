@@ -20,6 +20,7 @@ import ShopMarketingPage from './pages/shop/ShopMarketingPage'
 import ShopMarketingFacebookWorkspacePage from './pages/shop/ShopMarketingFacebookWorkspacePage'
 import ShopPipelinePage from './pages/shop/ShopPipelinePage'
 import ShopWebsitePage from './pages/shop/ShopWebsitePage'
+import ShopWebsiteBuilderPage from './pages/shop/ShopWebsiteBuilderPage'
 import ShopProductsPage from './pages/shop/ShopProductsPage'
 import AdminContainersPage from './pages/admin/AdminContainersPage'
 import CreditsTopUpPage from './pages/CreditsTopUpPage'
@@ -101,6 +102,7 @@ function App() {
           <Route path="marketing/facebook" element={<ShopMarketingFacebookWorkspacePage />} />
           <Route path="pipeline" element={<ShopPipelinePage />} />
           <Route path="website" element={<ShopWebsitePage />} />
+          <Route path="website/builder" element={<ShopWebsiteBuilderPage />} />
           {/* Chỉnh sửa shop nằm trên dashboard (index); giữ redirect cho bookmark /shops/:id/edit */}
           <Route path="edit" element={<Navigate to=".." replace />} />
           <Route path="products" element={<ShopProductsPage />} />
