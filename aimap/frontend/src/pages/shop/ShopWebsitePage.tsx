@@ -1,15 +1,11 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
+import { useAuth } from '../../contexts/AuthContext'
 import { useLocale } from '../../contexts/LocaleContext'
+import { shopsApi } from '../../api/shops'
+import { shopWebsiteApi, type WebsiteHistoryItem, type WebsiteOverview } from '../../api/shopWebsite'
 
 type ActivityType = 'all' | 'prompt' | 'deploy'
-
-const EVENTS = [
-  { id: 'e1', type: 'prompt', titleKey: 'website.dashboard.event.e1.title', timeKey: 'website.dashboard.event.e1.time' },
-  { id: 'e2', type: 'prompt', titleKey: 'website.dashboard.event.e2.title', timeKey: 'website.dashboard.event.e2.time' },
-  { id: 'e3', type: 'deploy', titleKey: 'website.dashboard.event.e3.title', timeKey: 'website.dashboard.event.e3.time' },
-  { id: 'e4', type: 'deploy', titleKey: 'website.dashboard.event.e4.title', timeKey: 'website.dashboard.event.e4.time' },
-]
 
 function EmptyMetricCard({ label, t }: { label: string; t: (key: string) => string }) {
   return (
@@ -23,22 +19,74 @@ function EmptyMetricCard({ label, t }: { label: string; t: (key: string) => stri
 
 export default function ShopWebsitePage() {
   const { t } = useLocale()
+  const { token } = useAuth()
   const { id } = useParams<{ id: string }>()
-  const [websiteVariant, setWebsiteVariant] = useState('v1')
   const [activityFilter, setActivityFilter] = useState<ActivityType>('all')
   const [copyDone, setCopyDone] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [overview, setOverview] = useState<WebsiteOverview | null>(null)
+  const [history, setHistory] = useState<WebsiteHistoryItem[]>([])
 
   if (!id) return <p className="text-sm text-slate-500">{t('website.common.missingShopId')}</p>
-
-  const slug = `shop-${id}`
-  const publicUrl = `https://${slug}.aimap.app`
-  const previewUrl = `https://preview.aimap.app/sites/${id}`
-  const isDeployed = false
+  if (!token) return null
 
   const filteredEvents = useMemo(() => {
-    if (activityFilter === 'all') return EVENTS
-    return EVENTS.filter((item) => item.type === activityFilter)
-  }, [activityFilter])
+    if (activityFilter === 'all') return history
+    return history.filter((item) => item.type === activityFilter)
+  }, [activityFilter, history])
+
+  useEffect(() => {
+    let cancelled = false
+    const load = async () => {
+      setLoading(true)
+      const [shopRes, containerRes, websiteRes] = await Promise.all([
+        shopsApi.get(token, id),
+        shopsApi.getShopContainer(token, id),
+        shopWebsiteApi.getOverview(token, id),
+      ])
+
+      if (cancelled) return
+
+      if (websiteRes.data?.overview) {
+        setOverview(websiteRes.data.overview)
+        setHistory(websiteRes.data.history || [])
+        setLoading(false)
+        return
+      }
+
+      const shop = shopRes.data
+      const deploy = containerRes.data?.deployment
+      const slug = String(shop?.slug || `shop-${id}`)
+      const subdomain = deploy?.subdomain || `${slug}.captone2.site`
+      const publicUrl = `https://${subdomain}`
+      const previewUrl = `https://preview.captone2.site/sites/${id}`
+      const status = deploy?.status === 'running' ? 'deployed' : deploy?.status === 'building' ? 'building' : 'draft'
+
+      setOverview({
+        siteId: null,
+        slug,
+        status,
+        versionCount: 1,
+        publicUrl,
+        previewUrl,
+        updatedAt: deploy?.updated_at || null,
+        promptCount: null,
+        promptSuccessRate: null,
+        creditsUsed: null,
+        lastPrompt: null,
+        viewsToday: null,
+        views7d: null,
+        mobileDesktopRatio: null,
+        coreWebVitals: null,
+      })
+      setHistory([])
+      setLoading(false)
+    }
+    void load()
+    return () => {
+      cancelled = true
+    }
+  }, [id, token])
 
   const copyUrl = async (value: string) => {
     try {
@@ -49,6 +97,18 @@ export default function ShopWebsitePage() {
       console.error('Copy failed', error)
     }
   }
+
+  const statusLabel =
+    overview?.status === 'deployed'
+      ? t('website.dashboard.statusDeployed')
+      : overview?.status === 'building'
+        ? t('website.dashboard.statusBuilding')
+        : overview?.status === 'error'
+          ? t('website.dashboard.statusError')
+          : t('website.dashboard.statusDraft')
+
+  const mainUrl = overview?.publicUrl || ''
+  const previewUrl = overview?.previewUrl || ''
 
   return (
     <div className="flex w-full min-w-0 flex-col gap-5">
@@ -73,14 +133,16 @@ export default function ShopWebsitePage() {
             <button
               type="button"
               className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
-              onClick={() => window.open(isDeployed ? publicUrl : previewUrl, '_blank', 'noopener,noreferrer')}
+              onClick={() => window.open(mainUrl || previewUrl, '_blank', 'noopener,noreferrer')}
+              disabled={!mainUrl && !previewUrl}
             >
               {t('website.dashboard.openWebsite')}
             </button>
             <button
               type="button"
               className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
-              onClick={() => void copyUrl(isDeployed ? publicUrl : previewUrl)}
+              onClick={() => void copyUrl(mainUrl || previewUrl)}
+              disabled={!mainUrl && !previewUrl}
             >
               {copyDone ? t('website.common.copied') : t('website.dashboard.copyLink')}
             </button>
@@ -93,56 +155,75 @@ export default function ShopWebsitePage() {
           <section className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div className="rounded-2xl border border-slate-200 bg-white p-4">
               <p className="text-xs font-medium text-slate-500">{t('website.dashboard.currentWebsite')}</p>
-              <p className="mt-1 text-base font-semibold text-slate-900">{slug}</p>
-              <p className="mt-3 text-xs font-medium text-slate-500">{t('website.common.publicUrl')}</p>
-              <p className="text-sm text-slate-800">{isDeployed ? publicUrl : t('website.common.notDeployed')}</p>
-              <p className="mt-3 text-xs font-medium text-slate-500">{t('website.common.previewUrl')}</p>
-              <p className="text-sm text-slate-800">{previewUrl}</p>
+              <p className="mt-1 text-base font-semibold text-slate-900">{overview?.slug || '...'}</p>
+
+              <div className="mt-3 space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <a
+                    href={mainUrl || undefined}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="truncate text-sm text-primary underline underline-offset-2"
+                  >
+                    {mainUrl || t('website.common.notDeployed')}
+                  </a>
+                  <button
+                    type="button"
+                    className="rounded-md border border-slate-200 px-2 py-1 text-xs text-slate-700 hover:bg-slate-50"
+                    onClick={() => mainUrl && window.open(mainUrl, '_blank', 'noopener,noreferrer')}
+                    disabled={!mainUrl}
+                  >
+                    {t('website.common.visit')}
+                  </button>
+                </div>
+                <div className="flex items-center justify-between gap-2">
+                  <a
+                    href={previewUrl || undefined}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="truncate text-sm text-primary underline underline-offset-2"
+                  >
+                    {previewUrl || '-'}
+                  </a>
+                  <button
+                    type="button"
+                    className="rounded-md border border-slate-200 px-2 py-1 text-xs text-slate-700 hover:bg-slate-50"
+                    onClick={() => previewUrl && window.open(previewUrl, '_blank', 'noopener,noreferrer')}
+                    disabled={!previewUrl}
+                  >
+                    {t('website.common.visit')}
+                  </button>
+                </div>
+              </div>
             </div>
             <div className="rounded-2xl border border-slate-200 bg-white p-4">
               <p className="text-xs font-medium text-slate-500">{t('website.dashboard.status')}</p>
-              <p className="mt-1 text-base font-semibold text-slate-900">
-                {isDeployed ? t('website.dashboard.statusDeployed') : t('website.dashboard.statusPreviewReady')}
-              </p>
+              <p className="mt-1 text-base font-semibold text-slate-900">{statusLabel}</p>
               <p className="mt-3 text-xs font-medium text-slate-500">{t('website.dashboard.lastUpdated')}</p>
-              <p className="text-sm text-slate-800">{t('website.dashboard.lastUpdatedValue')}</p>
+              <p className="text-sm text-slate-800">{overview?.updatedAt || '-'}</p>
               <p className="mt-3 text-xs font-medium text-slate-500">{t('website.dashboard.versionCount')}</p>
-              <p className="text-sm text-slate-800">
-                {websiteVariant === 'v1' ? t('website.dashboard.versionsV1') : t('website.dashboard.versionsV2')}
-              </p>
+              <p className="text-sm text-slate-800">{overview?.versionCount ?? '-'}</p>
             </div>
           </section>
 
           <section className="rounded-2xl border border-slate-200 bg-white p-4">
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
               <p className="text-sm font-semibold text-slate-900">{t('website.dashboard.quickPreview')}</p>
-              <div className="flex items-center gap-2">
-                <select
-                  value={websiteVariant}
-                  onChange={(event) => setWebsiteVariant(event.target.value)}
-                  className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs text-slate-700"
-                >
-                  <option value="v1">{t('website.dashboard.variantMain')}</option>
-                  <option value="v2">{t('website.dashboard.variantEvent')}</option>
-                </select>
-                <Link
-                  to={`/shops/${id}/website/builder`}
-                  className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs text-slate-700 hover:bg-slate-50"
-                >
-                  {t('website.dashboard.goToEditor')}
-                </Link>
-              </div>
+              <Link
+                to={`/shops/${id}/website/builder`}
+                className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs text-slate-700 hover:bg-slate-50"
+              >
+                {t('website.dashboard.goToEditor')}
+              </Link>
             </div>
             <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
               <div className="mb-3 rounded-lg border border-slate-200 bg-white px-3 py-1 text-xs text-slate-500">
-                {previewUrl}
+                {previewUrl || '-'}
               </div>
               <div className="flex h-44 items-center justify-center rounded-lg border border-dashed border-slate-300 bg-white">
                 <div className="text-center">
                   <p className="text-sm font-medium text-slate-700">{t('website.dashboard.mockPreview')}</p>
-                  <p className="mt-1 text-xs text-slate-500">
-                    {t('website.dashboard.versionLabel')} {websiteVariant === 'v1' ? 'v1.0' : 'v1.1'}
-                  </p>
+                  <p className="mt-1 text-xs text-slate-500">{loading ? t('website.common.loading') : t('website.dashboard.liveDataSoon')}</p>
                 </div>
               </div>
             </div>
@@ -153,26 +234,56 @@ export default function ShopWebsitePage() {
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
               <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
                 <p className="text-xs text-slate-500">{t('website.dashboard.promptsRun')}</p>
-                <p className="text-lg font-bold text-slate-900">12</p>
+                <p className="text-lg font-bold text-slate-900">{overview?.promptCount ?? '-'}</p>
               </div>
               <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
                 <p className="text-xs text-slate-500">{t('website.dashboard.successRate')}</p>
-                <p className="text-lg font-bold text-slate-900">91%</p>
+                <p className="text-lg font-bold text-slate-900">
+                  {overview?.promptSuccessRate != null ? `${overview.promptSuccessRate}%` : '-'}
+                </p>
               </div>
               <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
                 <p className="text-xs text-slate-500">{t('website.dashboard.lastPrompt')}</p>
-                <p className="text-sm font-semibold text-slate-900">{t('website.dashboard.lastPromptValue')}</p>
+                <p className="text-sm font-semibold text-slate-900">{overview?.lastPrompt || '-'}</p>
               </div>
               <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
                 <p className="text-xs text-slate-500">{t('website.dashboard.creditsUsed')}</p>
-                <p className="text-lg font-bold text-slate-900">24</p>
+                <p className="text-lg font-bold text-slate-900">{overview?.creditsUsed ?? '-'}</p>
               </div>
             </div>
             <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
-              <EmptyMetricCard label={t('website.dashboard.viewsToday')} t={t} />
-              <EmptyMetricCard label={t('website.dashboard.views7d')} t={t} />
-              <EmptyMetricCard label={t('website.dashboard.mobileDesktopRatio')} t={t} />
-              <EmptyMetricCard label={t('website.dashboard.coreWebVitals')} t={t} />
+              {overview?.viewsToday == null ? (
+                <EmptyMetricCard label={t('website.dashboard.viewsToday')} t={t} />
+              ) : (
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                  <p className="text-xs text-slate-500">{t('website.dashboard.viewsToday')}</p>
+                  <p className="text-lg font-bold text-slate-900">{overview.viewsToday}</p>
+                </div>
+              )}
+              {overview?.views7d == null ? (
+                <EmptyMetricCard label={t('website.dashboard.views7d')} t={t} />
+              ) : (
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                  <p className="text-xs text-slate-500">{t('website.dashboard.views7d')}</p>
+                  <p className="text-lg font-bold text-slate-900">{overview.views7d}</p>
+                </div>
+              )}
+              {overview?.mobileDesktopRatio == null ? (
+                <EmptyMetricCard label={t('website.dashboard.mobileDesktopRatio')} t={t} />
+              ) : (
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                  <p className="text-xs text-slate-500">{t('website.dashboard.mobileDesktopRatio')}</p>
+                  <p className="text-lg font-bold text-slate-900">{overview.mobileDesktopRatio}</p>
+                </div>
+              )}
+              {overview?.coreWebVitals == null ? (
+                <EmptyMetricCard label={t('website.dashboard.coreWebVitals')} t={t} />
+              ) : (
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                  <p className="text-xs text-slate-500">{t('website.dashboard.coreWebVitals')}</p>
+                  <p className="text-lg font-bold text-slate-900">{overview.coreWebVitals}</p>
+                </div>
+              )}
             </div>
           </section>
         </div>
@@ -192,12 +303,18 @@ export default function ShopWebsitePage() {
               </select>
             </div>
             <div className="space-y-2">
-              {filteredEvents.map((item) => (
-                <div key={item.id} className="rounded-xl border border-slate-200 p-2">
-                  <p className="text-sm font-medium text-slate-800">{t(item.titleKey)}</p>
-                  <p className="text-xs text-slate-500">{t(item.timeKey)}</p>
+              {filteredEvents.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-3 text-xs text-slate-500">
+                  {t('website.dashboard.noHistory')}
                 </div>
-              ))}
+              ) : (
+                filteredEvents.map((item) => (
+                  <div key={item.id} className="rounded-xl border border-slate-200 p-2">
+                    <p className="text-sm font-medium text-slate-800">{item.title}</p>
+                    <p className="text-xs text-slate-500">{item.createdAt}</p>
+                  </div>
+                ))
+              )}
             </div>
           </section>
 
@@ -220,7 +337,8 @@ export default function ShopWebsitePage() {
               <button
                 type="button"
                 className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
-                onClick={() => window.open(isDeployed ? publicUrl : previewUrl, '_blank', 'noopener,noreferrer')}
+                onClick={() => window.open(mainUrl || previewUrl, '_blank', 'noopener,noreferrer')}
+                disabled={!mainUrl && !previewUrl}
               >
                 {t('website.dashboard.viewWebsite')}
               </button>

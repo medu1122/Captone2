@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useLocale } from '../../contexts/LocaleContext'
+import { useAuth } from '../../contexts/AuthContext'
+import { shopsApi } from '../../api/shops'
+import { shopWebsiteApi } from '../../api/shopWebsite'
 
 type DeviceMode = 'desktop' | 'tablet' | 'mobile'
 type PromptScope = 'all' | 'selected'
@@ -27,6 +30,7 @@ const SELECTABLE_SECTIONS: SectionItem[] = [
 
 export default function ShopWebsiteBuilderPage() {
   const { t } = useLocale()
+  const { token } = useAuth()
   const { id } = useParams<{ id: string }>()
   const [deviceMode, setDeviceMode] = useState<DeviceMode>('desktop')
   const [selectMode, setSelectMode] = useState(false)
@@ -39,12 +43,11 @@ export default function ShopWebsiteBuilderPage() {
   const [undoStack, setUndoStack] = useState<string[]>([])
   const [redoStack, setRedoStack] = useState<string[]>([])
   const [statusText, setStatusText] = useState('website.builder.status.ready')
+  const [publicUrl, setPublicUrl] = useState('')
+  const [previewUrl, setPreviewUrl] = useState('')
 
   if (!id) return <p className="text-sm text-slate-500">{t('website.common.missingShopId')}</p>
-
-  const slug = `shop-${id}`
-  const publicUrl = `https://${slug}.aimap.app`
-  const previewUrl = `https://preview.aimap.app/sites/${id}`
+  if (!token) return null
   const recentKey = `aimap-web-builder-recent-${id}`
 
   useEffect(() => {
@@ -57,6 +60,31 @@ export default function ShopWebsiteBuilderPage() {
       console.error('Cannot load prompt history', error)
     }
   }, [recentKey])
+
+  useEffect(() => {
+    let cancelled = false
+    const load = async () => {
+      const [shopRes, deployRes, websiteRes] = await Promise.all([
+        shopsApi.get(token, id),
+        shopsApi.getShopContainer(token, id),
+        shopWebsiteApi.getOverview(token, id),
+      ])
+      if (cancelled) return
+      if (websiteRes.data?.overview) {
+        setPublicUrl(websiteRes.data.overview.publicUrl)
+        setPreviewUrl(websiteRes.data.overview.previewUrl)
+        return
+      }
+      const slug = String(shopRes.data?.slug || `shop-${id}`)
+      const subdomain = deployRes.data?.deployment?.subdomain || `${slug}.captone2.site`
+      setPublicUrl(`https://${subdomain}`)
+      setPreviewUrl(`https://preview.captone2.site/sites/${id}`)
+    }
+    void load()
+    return () => {
+      cancelled = true
+    }
+  }, [id, token])
 
   const previewSizeClass = useMemo(() => {
     if (deviceMode === 'mobile') return 'max-w-[320px]'
@@ -99,17 +127,51 @@ export default function ShopWebsiteBuilderPage() {
   }
 
   const handlePreview = () => {
-    if (!prompt.trim()) return
-    setStatusText('website.builder.status.previewed')
+    void (async () => {
+      if (!prompt.trim()) return
+      const body = {
+        prompt,
+        scope,
+        sectionId: selectedSection,
+        creativity,
+      } as const
+      const res = await shopWebsiteApi.previewPrompt(token, id, body)
+      if (res.data) {
+        setStatusText('website.builder.status.previewed')
+        if (res.data.previewUrl) setPreviewUrl(res.data.previewUrl)
+        return
+      }
+      // Fallback for backend not ready yet
+      if (res.status === 404 || res.status === 501) {
+        setStatusText('website.builder.status.previewed')
+        return
+      }
+      setStatusText('website.builder.status.backendError')
+    })()
   }
 
   const handleApply = () => {
-    const trimmed = prompt.trim()
-    if (!trimmed) return
-    setUndoStack((prev) => [...prev, trimmed])
-    setRedoStack([])
-    pushRecent(trimmed)
-    setStatusText('website.builder.status.applied')
+    void (async () => {
+      const trimmed = prompt.trim()
+      if (!trimmed) return
+      const body = {
+        prompt: trimmed,
+        scope,
+        sectionId: selectedSection,
+        creativity,
+      } as const
+      const res = await shopWebsiteApi.applyPrompt(token, id, body)
+      // record local history regardless; this keeps UI useful before backend done
+      setUndoStack((prev) => [...prev, trimmed])
+      setRedoStack([])
+      pushRecent(trimmed)
+      if (res.data?.ok || res.status === 404 || res.status === 501) {
+        setStatusText('website.builder.status.applied')
+        if (res.data?.previewUrl) setPreviewUrl(res.data.previewUrl)
+        return
+      }
+      setStatusText('website.builder.status.backendError')
+    })()
   }
 
   const handleUndo = () => {
@@ -216,8 +278,33 @@ export default function ShopWebsiteBuilderPage() {
           </div>
 
           <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-            <div className="mb-3 rounded-lg border border-slate-200 bg-white px-3 py-1 text-xs text-slate-500">
-              {previewUrl}
+            <div className="mb-3 space-y-2">
+              <div className="flex items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1">
+                <a href={publicUrl} target="_blank" rel="noreferrer" className="truncate text-xs text-primary underline underline-offset-2">
+                  {publicUrl || '-'}
+                </a>
+                <button
+                  type="button"
+                  className="rounded-md border border-slate-200 px-2 py-1 text-[11px] text-slate-700 hover:bg-slate-50"
+                  onClick={() => publicUrl && window.open(publicUrl, '_blank', 'noopener,noreferrer')}
+                  disabled={!publicUrl}
+                >
+                  {t('website.common.visit')}
+                </button>
+              </div>
+              <div className="flex items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1">
+                <a href={previewUrl} target="_blank" rel="noreferrer" className="truncate text-xs text-primary underline underline-offset-2">
+                  {previewUrl || '-'}
+                </a>
+                <button
+                  type="button"
+                  className="rounded-md border border-slate-200 px-2 py-1 text-[11px] text-slate-700 hover:bg-slate-50"
+                  onClick={() => previewUrl && window.open(previewUrl, '_blank', 'noopener,noreferrer')}
+                  disabled={!previewUrl}
+                >
+                  {t('website.common.visit')}
+                </button>
+              </div>
             </div>
             <div className="flex min-h-[360px] items-center justify-center rounded-lg border border-dashed border-slate-300 bg-white p-3">
               <div className={`w-full ${previewSizeClass} rounded-xl border border-slate-200 bg-slate-50 p-3`}>
