@@ -11,6 +11,7 @@ import adminRoutes from './routes/admin.js'
 import shopsRoutes from './routes/shops.js'
 import shopImageBotRoutes from './routes/shopImageBot.js'
 import shopDeployRoutes from './routes/shopDeploy.js'
+import shopWebsiteRoutes from './routes/shopWebsite.js'
 import shopFacebookMarketingRoutes from './routes/shopFacebookMarketing.js'
 import facebookOAuthRoutes from './routes/facebookOAuth.js'
 import configRoutes from './routes/config.js'
@@ -39,6 +40,7 @@ app.use('/api/admin', adminRoutes)
 app.use('/api/shops', shopsRoutes)
 app.use('/api/shops', shopImageBotRoutes)
 app.use('/api/shops', shopDeployRoutes)
+app.use('/api/shops', shopWebsiteRoutes)
 app.use('/api/shops', shopFacebookMarketingRoutes)
 app.use('/api/facebook', facebookOAuthRoutes)
 app.use('/api/config', configRoutes)

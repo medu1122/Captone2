@@ -1,0 +1,812 @@
+import { Router } from 'express'
+import pool from '../db/index.js'
+import { requireAuth } from '../middleware/auth.js'
+import { logActivity } from '../services/activityLog.js'
+import { buildPromptPatch } from '../services/websiteAiService.js'
+import {
+  appendVersion,
+  buildHistoryItems,
+  buildWebsiteOverview,
+  createBaseWebsiteConfig,
+  ensureWebsiteTables,
+  getSectionList,
+  moveSection,
+  normalizeWebsiteConfig,
+  readVersions,
+  replaceSection,
+  restoreVersion,
+  serializeConversationContent,
+  summarizeSections,
+} from '../services/shopWebsiteService.js'
+import { createShopContainer, getContainerStats } from '../services/shopDockerService.js'
+
+const router = Router()
+
+function toText(value, fallback = '') {
+  if (value == null) return fallback
+  return String(value).trim() || fallback
+}
+
+function clip(value, max = 140) {
+  const text = toText(value)
+  if (text.length <= max) return text
+  return text.slice(0, max - 1).trimEnd() + '…'
+}
+
+function normalizeSlug(value) {
+  return toText(value, 'shop')
+    .toLowerCase()
+    .replace(/[^a-z0-9-]+/g, '-')
+    .replace(/^-+|-+$/g, '') || 'shop'
+}
+
+async function getOwnedShop(client, shopId, profileId) {
+  const row = await client.query(
+    `SELECT id, user_id, name, slug, industry, description, address, city, district, country,
+            postal_code, contact_info, logo_url, cover_url, status, products
+     FROM shops WHERE id = $1 AND user_id = $2`,
+    [shopId, profileId]
+  )
+  if (row.rows.length > 0) return row.rows[0]
+  const any = await client.query('SELECT id FROM shops WHERE id = $1', [shopId])
+  return any.rows.length > 0 ? null : undefined
+}
+
+async function listAssets(client, shopId) {
+  try {
+    const result = await client.query(
+      `SELECT id, type, name, storage_path_or_url, mime_type, model_source, created_at
+       FROM assets WHERE shop_id = $1 ORDER BY created_at DESC`,
+      [shopId]
+    )
+    return result.rows
+  } catch (error) {
+    if (error.code === '42P01') return []
+    throw error
+  }
+}
+
+async function ensureDeploymentTable(client) {
+  await client.query(
+    `CREATE TABLE IF NOT EXISTS site_deployments (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      site_id UUID,
+      shop_id UUID NOT NULL REFERENCES shops(id) ON DELETE CASCADE,
+      container_id TEXT,
+      container_name TEXT,
+      subdomain TEXT UNIQUE,
+      status TEXT NOT NULL DEFAULT 'draft',
+      port INTEGER,
+      deployed_at TIMESTAMPTZ,
+      last_build_at TIMESTAMPTZ,
+      error_message TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )`
+  )
+  await client.query('ALTER TABLE site_deployments ADD COLUMN IF NOT EXISTS site_id UUID')
+  await client.query('ALTER TABLE site_deployments ADD COLUMN IF NOT EXISTS container_name TEXT')
+  await client.query('ALTER TABLE site_deployments ADD COLUMN IF NOT EXISTS subdomain TEXT')
+  await client.query('ALTER TABLE site_deployments ADD COLUMN IF NOT EXISTS port INTEGER')
+  await client.query('ALTER TABLE site_deployments ADD COLUMN IF NOT EXISTS last_build_at TIMESTAMPTZ')
+  await client.query('ALTER TABLE site_deployments ADD COLUMN IF NOT EXISTS error_message TEXT')
+  await client.query('ALTER TABLE site_deployments ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()')
+  await client.query('CREATE UNIQUE INDEX IF NOT EXISTS idx_site_deployments_shop_unique ON site_deployments (shop_id)')
+}
+
+async function getDeployment(client, shopId) {
+  try {
+    await ensureDeploymentTable(client)
+    const result = await client.query('SELECT * FROM site_deployments WHERE shop_id = $1 LIMIT 1', [shopId])
+    return result.rows[0] || null
+  } catch (error) {
+    if (error.code === '42P01') return null
+    throw error
+  }
+}
+
+async function upsertSite(client, { siteId, shopId, userId, name, slug, config, status }) {
+  if (siteId) {
+    const updated = await client.query(
+      `UPDATE sites
+       SET name = $1, slug = $2, config_json = $3::jsonb, status = $4, updated_at = NOW()
+       WHERE id = $5
+       RETURNING *`,
+      [name, slug, JSON.stringify(config), status, siteId]
+    )
+    return updated.rows[0]
+  }
+
+  const inserted = await client.query(
+    `INSERT INTO sites (shop_id, user_id, name, slug, config_json, status)
+     VALUES ($1, $2, $3, $4, $5::jsonb, $6)
+     RETURNING *`,
+    [shopId, userId, name, slug, JSON.stringify(config), status]
+  )
+  return inserted.rows[0]
+}
+
+async function ensureSite(client, shop, assets, overrides = {}) {
+  await ensureWebsiteTables(client)
+  const existing = await client.query(
+    'SELECT * FROM sites WHERE shop_id = $1 ORDER BY updated_at DESC NULLS LAST, created_at DESC LIMIT 1',
+    [shop.id]
+  )
+
+  if (existing.rows.length > 0) {
+    const site = existing.rows[0]
+    const config = normalizeWebsiteConfig(site.config_json, { shop, assets })
+    return { site, config }
+  }
+
+  const baseConfig = createBaseWebsiteConfig({
+    shop,
+    assets,
+    selectedAssetIds: overrides.selectedAssetIds || [],
+    template: overrides.template,
+    tone: overrides.tone,
+    palette: overrides.palette,
+    idea: overrides.idea || shop.description,
+  })
+  const seededConfig = appendVersion(baseConfig, {
+    title: 'Initial website draft',
+    source: 'system',
+    summary: 'Created from shop context and selected assets.',
+  })
+  const site = await upsertSite(client, {
+    siteId: null,
+    shopId: shop.id,
+    userId: shop.user_id,
+    name: `${shop.name} website`,
+    slug: normalizeSlug(shop.slug),
+    config: seededConfig,
+    status: 'draft',
+  })
+  return { site, config: seededConfig }
+}
+
+async function logWebsitePrompt(client, siteId, role, payload) {
+  await client.query(
+    `INSERT INTO conversation_messages (site_id, role, content)
+     VALUES ($1, $2, $3)`,
+    [siteId, role, serializeConversationContent(payload)]
+  )
+}
+
+function mergePromptUpdates(config, updates) {
+  const next = {
+    ...config,
+    theme: {
+      ...config.theme,
+      ...(updates.theme && typeof updates.theme === 'object' ? updates.theme : {}),
+    },
+    settings: {
+      ...config.settings,
+      ...(updates.settings && typeof updates.settings === 'object' ? updates.settings : {}),
+    },
+    sections: [...config.sections],
+  }
+
+  const entries = Array.isArray(updates.sections) ? updates.sections : []
+  const affectedSections = []
+  for (const entry of entries) {
+    if (!entry || typeof entry !== 'object') continue
+    const action = entry.action === 'append' ? 'append' : 'update'
+    if (action === 'append' && entry.id && !next.sections.some((section) => section.id === entry.id)) {
+      next.sections.push({
+        id: entry.id,
+        type: entry.type || 'content',
+        name: entry.name || 'New section',
+        editableFields: Array.isArray(entry.editableFields) ? entry.editableFields.map(String) : [],
+        props: entry.props && typeof entry.props === 'object' ? entry.props : {},
+      })
+      affectedSections.push(entry.id)
+      continue
+    }
+    const index = next.sections.findIndex((section) => section.id === entry.id)
+    if (index === -1) continue
+    next.sections[index] = {
+      ...next.sections[index],
+      props: {
+        ...(next.sections[index].props || {}),
+        ...(entry.props && typeof entry.props === 'object' ? entry.props : {}),
+      },
+    }
+    affectedSections.push(entry.id)
+  }
+  return { config: next, affectedSections: Array.from(new Set(affectedSections)) }
+}
+
+async function buildOverviewPayload(client, shop) {
+  const assets = await listAssets(client, shop.id)
+  const { site, config } = await ensureSite(client, shop, assets)
+  const deployment = await getDeployment(client, shop.id)
+  const promptResult = await client.query(
+    `SELECT COUNT(*)::int AS count
+     FROM conversation_messages
+     WHERE site_id = $1 AND role = 'user'`,
+    [site.id]
+  )
+  const promptCount = promptResult.rows[0]?.count ?? 0
+  const promptSuccessRate = promptCount > 0 ? 100 : null
+  return {
+    site,
+    config,
+    assets,
+    deployment,
+    overview: buildWebsiteOverview({
+      site,
+      config,
+      deployment,
+      promptCount,
+      promptSuccessRate,
+    }),
+    history: buildHistoryItems(config, deployment),
+  }
+}
+
+router.get('/:id/website/overview', requireAuth, async (req, res) => {
+  const client = await pool.connect()
+  try {
+    const shop = await getOwnedShop(client, req.params.id, req.auth.profileId)
+    if (shop === undefined) return res.status(404).json({ error: 'Shop not found' })
+    if (!shop) return res.status(403).json({ error: 'Access denied' })
+
+    const payload = await buildOverviewPayload(client, shop)
+    res.json({ overview: payload.overview, history: payload.history })
+  } catch (error) {
+    console.error('website overview error:', error)
+    res.status(500).json({ error: error.message || 'Failed to load website overview' })
+  } finally {
+    client.release()
+  }
+})
+
+router.get('/:id/website/builder-state', requireAuth, async (req, res) => {
+  const client = await pool.connect()
+  try {
+    const shop = await getOwnedShop(client, req.params.id, req.auth.profileId)
+    if (shop === undefined) return res.status(404).json({ error: 'Shop not found' })
+    if (!shop) return res.status(403).json({ error: 'Access denied' })
+
+    const payload = await buildOverviewPayload(client, shop)
+    res.json({
+      site: payload.site,
+      config: payload.config,
+      sections: getSectionList(payload.config),
+      assets: payload.assets,
+      theme: payload.config.theme,
+      selectedTemplate: payload.config.template,
+      draftPreviewUrl: payload.overview.previewUrl,
+      publicUrl: payload.overview.publicUrl,
+      previewUrl: payload.overview.previewUrl,
+      deploy: payload.deployment,
+      shop: {
+        id: shop.id,
+        name: shop.name,
+        industry: shop.industry,
+        description: shop.description,
+        slug: shop.slug,
+      },
+      versions: readVersions(payload.config),
+    })
+  } catch (error) {
+    console.error('website builder-state error:', error)
+    res.status(500).json({ error: error.message || 'Failed to load website builder state' })
+  } finally {
+    client.release()
+  }
+})
+
+router.post('/:id/website/create-from-idea', requireAuth, async (req, res) => {
+  const client = await pool.connect()
+  try {
+    const shop = await getOwnedShop(client, req.params.id, req.auth.profileId)
+    if (shop === undefined) return res.status(404).json({ error: 'Shop not found' })
+    if (!shop) return res.status(403).json({ error: 'Access denied' })
+
+    const assets = await listAssets(client, shop.id)
+    const { site } = await ensureSite(client, shop, assets)
+    const body = req.body && typeof req.body === 'object' ? req.body : {}
+    const nextConfig = appendVersion(
+      createBaseWebsiteConfig({
+        shop,
+        assets,
+        selectedAssetIds: Array.isArray(body.selectedAssetIds) ? body.selectedAssetIds : [],
+        template: body.template,
+        tone: body.tone,
+        palette: body.palette,
+        idea: body.idea,
+      }),
+      {
+        title: body.idea ? 'Create website from idea' : 'Rebuild website draft',
+        source: 'system',
+        summary: clip(body.idea || 'Website draft regenerated from current shop context.'),
+      }
+    )
+    nextConfig.meta.lastIdea = clip(body.idea || nextConfig.meta.lastIdea)
+
+    const savedSite = await upsertSite(client, {
+      siteId: site.id,
+      shopId: shop.id,
+      userId: shop.user_id,
+      name: `${shop.name} website`,
+      slug: normalizeSlug(shop.slug),
+      config: nextConfig,
+      status: 'draft',
+    })
+
+    try {
+      await logActivity(pool, {
+        userId: req.auth.profileId,
+        action: 'create_website_draft',
+        entityType: 'site',
+        entityId: savedSite.id,
+        details: { template: nextConfig.template, tone: nextConfig.settings.tone },
+        severity: 'info',
+        ipAddress: req.ip || req.headers['x-forwarded-for'],
+      })
+    } catch (logError) {
+      console.warn('activity log create_website_draft:', logError.message)
+    }
+
+    res.json({
+      ok: true,
+      site: savedSite,
+      config: nextConfig,
+      sections: getSectionList(nextConfig),
+      summary: 'Website draft updated from your selected inputs.',
+    })
+  } catch (error) {
+    console.error('website create-from-idea error:', error)
+    res.status(500).json({ error: error.message || 'Failed to create website from idea' })
+  } finally {
+    client.release()
+  }
+})
+
+router.post('/:id/website/sections/:sectionId/update', requireAuth, async (req, res) => {
+  const client = await pool.connect()
+  try {
+    const shop = await getOwnedShop(client, req.params.id, req.auth.profileId)
+    if (shop === undefined) return res.status(404).json({ error: 'Shop not found' })
+    if (!shop) return res.status(403).json({ error: 'Access denied' })
+
+    const assets = await listAssets(client, shop.id)
+    const { site, config } = await ensureSite(client, shop, assets)
+    const body = req.body && typeof req.body === 'object' ? req.body : {}
+    let nextConfig = config
+
+    if (body.theme && typeof body.theme === 'object') {
+      nextConfig = {
+        ...nextConfig,
+        theme: {
+          ...nextConfig.theme,
+          ...body.theme,
+        },
+      }
+    }
+    if (body.selectedAssetIds && Array.isArray(body.selectedAssetIds)) {
+      nextConfig = {
+        ...nextConfig,
+        selectedAssetIds: body.selectedAssetIds.map(String),
+      }
+    }
+    if (body.settings && typeof body.settings === 'object') {
+      nextConfig = {
+        ...nextConfig,
+        settings: {
+          ...nextConfig.settings,
+          ...body.settings,
+        },
+      }
+    }
+
+    if (body.moveDirection === 'up' || body.moveDirection === 'down') {
+      nextConfig = moveSection(nextConfig, req.params.sectionId, body.moveDirection).config
+    }
+
+    if (body.props && typeof body.props === 'object') {
+      nextConfig = replaceSection(nextConfig, req.params.sectionId, (section) => ({
+        ...section,
+        props: {
+          ...(section.props || {}),
+          ...body.props,
+        },
+      })).config
+    }
+
+    nextConfig = appendVersion({
+      ...nextConfig,
+      meta: {
+        ...nextConfig.meta,
+        updatedAt: new Date().toISOString(),
+      },
+    }, {
+      title: `Update ${req.params.sectionId}`,
+      source: 'manual',
+      summary: `Manual update on section ${req.params.sectionId}.`,
+    })
+
+    const savedSite = await upsertSite(client, {
+      siteId: site.id,
+      shopId: shop.id,
+      userId: shop.user_id,
+      name: `${shop.name} website`,
+      slug: normalizeSlug(shop.slug),
+      config: nextConfig,
+      status: 'draft',
+    })
+
+    res.json({
+      ok: true,
+      site: savedSite,
+      config: nextConfig,
+      sections: getSectionList(nextConfig),
+      summary: `Section ${req.params.sectionId} updated.`,
+    })
+  } catch (error) {
+    console.error('website section update error:', error)
+    res.status(500).json({ error: error.message || 'Failed to update website section' })
+  } finally {
+    client.release()
+  }
+})
+
+router.post('/:id/website/prompt/preview', requireAuth, async (req, res) => {
+  const client = await pool.connect()
+  try {
+    const shop = await getOwnedShop(client, req.params.id, req.auth.profileId)
+    if (shop === undefined) return res.status(404).json({ error: 'Shop not found' })
+    if (!shop) return res.status(403).json({ error: 'Access denied' })
+
+    const assets = await listAssets(client, shop.id)
+    const { config } = await ensureSite(client, shop, assets)
+    const body = req.body && typeof req.body === 'object' ? req.body : {}
+
+    const patch = await buildPromptPatch({
+      prompt: body.prompt,
+      scope: body.scope,
+      sectionId: body.sectionId,
+      config,
+      shop,
+      assets,
+      creativity: body.creativity,
+    })
+    const merged = mergePromptUpdates(config, patch.updates || {})
+    const draftConfig = {
+      ...merged.config,
+      meta: {
+        ...merged.config.meta,
+        lastPrompt: clip(body.prompt),
+        updatedAt: new Date().toISOString(),
+      },
+    }
+
+    res.json({
+      summary: patch.summary,
+      affectedSections: merged.affectedSections.length > 0 ? merged.affectedSections : patch.affectedSections,
+      draftConfig,
+      draftPreviewUrl: `https://preview.captone2.site/sites/${shop.id}`,
+    })
+  } catch (error) {
+    console.error('website prompt preview error:', error)
+    res.status(500).json({ error: error.message || 'Failed to preview prompt changes' })
+  } finally {
+    client.release()
+  }
+})
+
+router.post('/:id/website/prompt/apply', requireAuth, async (req, res) => {
+  const client = await pool.connect()
+  try {
+    const shop = await getOwnedShop(client, req.params.id, req.auth.profileId)
+    if (shop === undefined) return res.status(404).json({ error: 'Shop not found' })
+    if (!shop) return res.status(403).json({ error: 'Access denied' })
+
+    const assets = await listAssets(client, shop.id)
+    const { site, config } = await ensureSite(client, shop, assets)
+    const body = req.body && typeof req.body === 'object' ? req.body : {}
+
+    const patch = await buildPromptPatch({
+      prompt: body.prompt,
+      scope: body.scope,
+      sectionId: body.sectionId,
+      config,
+      shop,
+      assets,
+      creativity: body.creativity,
+    })
+    const merged = mergePromptUpdates(config, patch.updates || {})
+    let nextConfig = {
+      ...merged.config,
+      meta: {
+        ...merged.config.meta,
+        lastPrompt: clip(body.prompt),
+        updatedAt: new Date().toISOString(),
+      },
+    }
+    nextConfig = appendVersion(nextConfig, {
+      title: clip(body.prompt || 'Apply prompt'),
+      source: 'prompt',
+      summary: patch.summary,
+    })
+
+    const savedSite = await upsertSite(client, {
+      siteId: site.id,
+      shopId: shop.id,
+      userId: shop.user_id,
+      name: `${shop.name} website`,
+      slug: normalizeSlug(shop.slug),
+      config: nextConfig,
+      status: 'preview_ready',
+    })
+
+    await logWebsitePrompt(client, site.id, 'user', {
+      prompt: body.prompt,
+      scope: body.scope,
+      sectionId: body.sectionId,
+      creativity: body.creativity,
+    })
+    await logWebsitePrompt(client, site.id, 'assistant', {
+      summary: patch.summary,
+      affectedSections: merged.affectedSections.length > 0 ? merged.affectedSections : patch.affectedSections,
+      sections: summarizeSections(nextConfig),
+      source: patch.source,
+    })
+
+    try {
+      await logActivity(pool, {
+        userId: req.auth.profileId,
+        action: 'edit_site_prompt',
+        entityType: 'site',
+        entityId: savedSite.id,
+        details: {
+          prompt: clip(body.prompt, 120),
+          section_id: body.sectionId || null,
+          scope: body.scope || 'all',
+          source: patch.source,
+        },
+        severity: 'info',
+        ipAddress: req.ip || req.headers['x-forwarded-for'],
+      })
+    } catch (logError) {
+      console.warn('activity log edit_site_prompt:', logError.message)
+    }
+
+    res.json({
+      ok: true,
+      message: patch.summary,
+      previewUrl: `https://preview.captone2.site/sites/${shop.id}`,
+      affectedSections: merged.affectedSections.length > 0 ? merged.affectedSections : patch.affectedSections,
+      config: nextConfig,
+      site: savedSite,
+    })
+  } catch (error) {
+    console.error('website prompt apply error:', error)
+    res.status(500).json({ error: error.message || 'Failed to apply prompt changes' })
+  } finally {
+    client.release()
+  }
+})
+
+router.post('/:id/website/rebuild', requireAuth, async (req, res) => {
+  const client = await pool.connect()
+  try {
+    const shop = await getOwnedShop(client, req.params.id, req.auth.profileId)
+    if (shop === undefined) return res.status(404).json({ error: 'Shop not found' })
+    if (!shop) return res.status(403).json({ error: 'Access denied' })
+
+    const assets = await listAssets(client, shop.id)
+    const { site } = await ensureSite(client, shop, assets)
+    const body = req.body && typeof req.body === 'object' ? req.body : {}
+    const rebuilt = appendVersion(
+      createBaseWebsiteConfig({
+        shop,
+        assets,
+        selectedAssetIds: Array.isArray(body.selectedAssetIds) ? body.selectedAssetIds : [],
+        template: body.template,
+        tone: body.tone,
+        palette: body.palette,
+        idea: body.idea || body.prompt,
+      }),
+      {
+        title: 'Rebuild website draft',
+        source: 'system',
+        summary: clip(body.idea || body.prompt || 'Website draft rebuilt from current inputs.'),
+      }
+    )
+
+    const savedSite = await upsertSite(client, {
+      siteId: site.id,
+      shopId: shop.id,
+      userId: shop.user_id,
+      name: `${shop.name} website`,
+      slug: normalizeSlug(shop.slug),
+      config: rebuilt,
+      status: 'draft',
+    })
+
+    res.json({
+      ok: true,
+      site: savedSite,
+      config: rebuilt,
+      sections: getSectionList(rebuilt),
+      summary: 'Website draft rebuilt.',
+    })
+  } catch (error) {
+    console.error('website rebuild error:', error)
+    res.status(500).json({ error: error.message || 'Failed to rebuild website' })
+  } finally {
+    client.release()
+  }
+})
+
+router.get('/:id/website/versions', requireAuth, async (req, res) => {
+  const client = await pool.connect()
+  try {
+    const shop = await getOwnedShop(client, req.params.id, req.auth.profileId)
+    if (shop === undefined) return res.status(404).json({ error: 'Shop not found' })
+    if (!shop) return res.status(403).json({ error: 'Access denied' })
+
+    const assets = await listAssets(client, shop.id)
+    const { config } = await ensureSite(client, shop, assets)
+    res.json({ versions: readVersions(config) })
+  } catch (error) {
+    console.error('website versions error:', error)
+    res.status(500).json({ error: error.message || 'Failed to list website versions' })
+  } finally {
+    client.release()
+  }
+})
+
+router.post('/:id/website/versions/:versionId/restore', requireAuth, async (req, res) => {
+  const client = await pool.connect()
+  try {
+    const shop = await getOwnedShop(client, req.params.id, req.auth.profileId)
+    if (shop === undefined) return res.status(404).json({ error: 'Shop not found' })
+    if (!shop) return res.status(403).json({ error: 'Access denied' })
+
+    const assets = await listAssets(client, shop.id)
+    const { site, config } = await ensureSite(client, shop, assets)
+    const restored = restoreVersion(config, req.params.versionId)
+    if (!restored) return res.status(404).json({ error: 'Version not found' })
+
+    const nextConfig = appendVersion(restored, {
+      title: `Restore version ${req.params.versionId}`,
+      source: 'manual',
+      summary: 'Website restored from version history.',
+    })
+    const savedSite = await upsertSite(client, {
+      siteId: site.id,
+      shopId: shop.id,
+      userId: shop.user_id,
+      name: `${shop.name} website`,
+      slug: normalizeSlug(shop.slug),
+      config: nextConfig,
+      status: 'preview_ready',
+    })
+
+    res.json({
+      ok: true,
+      site: savedSite,
+      config: nextConfig,
+      sections: getSectionList(nextConfig),
+      summary: 'Version restored.',
+    })
+  } catch (error) {
+    console.error('website restore version error:', error)
+    res.status(500).json({ error: error.message || 'Failed to restore website version' })
+  } finally {
+    client.release()
+  }
+})
+
+router.get('/:id/website/deploy/status', requireAuth, async (req, res) => {
+  const client = await pool.connect()
+  try {
+    const shop = await getOwnedShop(client, req.params.id, req.auth.profileId)
+    if (shop === undefined) return res.status(404).json({ error: 'Shop not found' })
+    if (!shop) return res.status(403).json({ error: 'Access denied' })
+
+    const deployment = await getDeployment(client, shop.id)
+    let liveStats = null
+    if (deployment?.container_id) {
+      liveStats = await getContainerStats(deployment.container_id)
+    }
+    res.json({
+      deployment,
+      liveStats,
+      publicUrl: `https://${toText(deployment?.subdomain, `${normalizeSlug(shop.slug)}.captone2.site`)}`,
+      previewUrl: `https://preview.captone2.site/sites/${shop.id}`,
+    })
+  } catch (error) {
+    console.error('website deploy status error:', error)
+    res.status(500).json({ error: error.message || 'Failed to load deploy status' })
+  } finally {
+    client.release()
+  }
+})
+
+router.post('/:id/website/deploy', requireAuth, async (req, res) => {
+  const client = await pool.connect()
+  try {
+    const shop = await getOwnedShop(client, req.params.id, req.auth.profileId)
+    if (shop === undefined) return res.status(404).json({ error: 'Shop not found' })
+    if (!shop) return res.status(403).json({ error: 'Access denied' })
+
+    const assets = await listAssets(client, shop.id)
+    const { site, config } = await ensureSite(client, shop, assets)
+    let deployment = await getDeployment(client, shop.id)
+
+    await ensureDeploymentTable(client)
+    if (!deployment) {
+      const inserted = await client.query(
+        `INSERT INTO site_deployments (site_id, shop_id, subdomain, status)
+         VALUES ($1, $2, $3, 'building')
+         RETURNING *`,
+        [site.id, shop.id, `${normalizeSlug(site.slug)}.captone2.site`]
+      )
+      deployment = inserted.rows[0]
+    } else {
+      await client.query(
+        `UPDATE site_deployments
+         SET status = 'building', error_message = NULL, updated_at = NOW()
+         WHERE shop_id = $1`,
+        [shop.id]
+      )
+    }
+
+    const runtime = await createShopContainer(shop.id)
+    const updated = await client.query(
+      `UPDATE site_deployments
+       SET site_id = $1,
+           container_id = $2,
+           container_name = $3,
+           subdomain = COALESCE(subdomain, $4),
+           status = 'running',
+           port = $5,
+           deployed_at = NOW(),
+           last_build_at = NOW(),
+           updated_at = NOW()
+       WHERE shop_id = $6
+       RETURNING *`,
+      [site.id, runtime.containerId, runtime.containerName, `${normalizeSlug(site.slug)}.captone2.site`, runtime.port, shop.id]
+    )
+
+    const nextConfig = appendVersion({
+      ...config,
+      meta: {
+        ...config.meta,
+        updatedAt: new Date().toISOString(),
+      },
+    }, {
+      title: 'Deploy website',
+      source: 'deploy',
+      summary: 'Website container deployed and running.',
+    })
+    await upsertSite(client, {
+      siteId: site.id,
+      shopId: shop.id,
+      userId: shop.user_id,
+      name: `${shop.name} website`,
+      slug: normalizeSlug(shop.slug),
+      config: nextConfig,
+      status: 'deployed',
+    })
+
+    res.json({
+      ok: true,
+      deployment: updated.rows[0],
+      publicUrl: `https://${toText(updated.rows[0]?.subdomain, `${normalizeSlug(site.slug)}.captone2.site`)}`,
+      previewUrl: `https://preview.captone2.site/sites/${shop.id}`,
+    })
+  } catch (error) {
+    console.error('website deploy error:', error)
+    res.status(500).json({ error: error.message || 'Failed to deploy website' })
+  } finally {
+    client.release()
+  }
+})
+
+export default router

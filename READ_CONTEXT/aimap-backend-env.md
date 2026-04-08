@@ -51,6 +51,9 @@ Compose sẽ inject biến vào container backend (không dùng `aimap/backend/.
 | `MARKETING_AI_BASE_URL` | URL Ollama trên VPS (vd. `http://IP:11434`) — tóm tắt comment / đánh giá bài / AI assist; không set → API vẫn chạy, phần AI trả placeholder |
 | `MARKETING_AI_MODEL` | Tên model Ollama (mặc định `qwen2.5:7b`) |
 | `MARKETING_AI_TIMEOUT_MS` | Timeout gọi Ollama (mặc định `45000`) |
+| `WEBSITE_AI_BASE_URL` | URL model local/Ollama cho website builder; nếu không set thì fallback `MARKETING_AI_BASE_URL` |
+| `WEBSITE_AI_MODEL` | Model dùng cho website builder (vd. `qwen2.5:7b`, model local `ogwwen` của team); nếu không set thì fallback `MARKETING_AI_MODEL` |
+| `WEBSITE_AI_TIMEOUT_MS` | Timeout route website AI (mặc định fallback `MARKETING_AI_TIMEOUT_MS`) |
 | `MARKETING_MODEL_PROVIDER` | (Tùy module khác) Provider text marketing `openai` / `gemini` nếu có route tách |
 | `MARKETING_OPENAI_MODEL` | Model OpenAI cho draft content (vd. `gpt-4o-mini`) |
 | `MARKETING_GEMINI_MODEL` | Model Gemini cho draft content (vd. `gemini-2.5-flash`) |

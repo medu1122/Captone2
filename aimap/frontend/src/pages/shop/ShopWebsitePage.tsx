@@ -26,6 +26,11 @@ export default function ShopWebsitePage() {
   const [loading, setLoading] = useState(true)
   const [overview, setOverview] = useState<WebsiteOverview | null>(null)
   const [history, setHistory] = useState<WebsiteHistoryItem[]>([])
+  const [actionMessage, setActionMessage] = useState<string | null>(null)
+  const [deploying, setDeploying] = useState(false)
+  const [stopping, setStopping] = useState(false)
+  const [removing, setRemoving] = useState(false)
+  const [restoringId, setRestoringId] = useState<string | null>(null)
 
   if (!id) return <p className="text-sm text-slate-500">{t('website.common.missingShopId')}</p>
   if (!token) return null
@@ -50,6 +55,7 @@ export default function ShopWebsitePage() {
       if (websiteRes.data?.overview) {
         setOverview(websiteRes.data.overview)
         setHistory(websiteRes.data.history || [])
+        setActionMessage(null)
         setLoading(false)
         return
       }
@@ -88,6 +94,30 @@ export default function ShopWebsitePage() {
     }
   }, [id, token])
 
+  const reloadOverview = async () => {
+    const [containerRes, websiteRes] = await Promise.all([
+      shopsApi.getShopContainer(token, id),
+      shopWebsiteApi.getOverview(token, id),
+    ])
+    if (websiteRes.data?.overview) {
+      setOverview(websiteRes.data.overview)
+      setHistory(websiteRes.data.history || [])
+      return
+    }
+    if (containerRes.data?.deployment && overview) {
+      setOverview({
+        ...overview,
+        status: containerRes.data.deployment.status === 'running'
+          ? 'deployed'
+          : containerRes.data.deployment.status === 'building'
+            ? 'building'
+            : containerRes.data.deployment.status === 'error'
+              ? 'error'
+              : 'draft',
+      })
+    }
+  }
+
   const copyUrl = async (value: string) => {
     try {
       await navigator.clipboard.writeText(value)
@@ -98,6 +128,54 @@ export default function ShopWebsitePage() {
     }
   }
 
+  const handleDeploy = async () => {
+    setDeploying(true)
+    const res = await shopWebsiteApi.deploy(token, id)
+    setDeploying(false)
+    if (res.data?.ok) {
+      setActionMessage(t('website.dashboard.deploySuccess'))
+      await reloadOverview()
+      return
+    }
+    setActionMessage(res.error || t('website.deployFailed'))
+  }
+
+  const handleStop = async () => {
+    setStopping(true)
+    const res = await shopsApi.stopShopContainer(token, id)
+    setStopping(false)
+    if (res.data?.ok) {
+      setActionMessage(t('website.dashboard.stopSuccess'))
+      await reloadOverview()
+      return
+    }
+    setActionMessage(res.error || t('website.dashboard.actionError'))
+  }
+
+  const handleRemove = async () => {
+    setRemoving(true)
+    const res = await shopsApi.deleteShopContainer(token, id)
+    setRemoving(false)
+    if (res.data?.ok) {
+      setActionMessage(t('website.dashboard.removeSuccess'))
+      await reloadOverview()
+      return
+    }
+    setActionMessage(res.error || t('website.dashboard.actionError'))
+  }
+
+  const handleRestore = async (versionId: string) => {
+    setRestoringId(versionId)
+    const res = await shopWebsiteApi.restoreVersion(token, id, versionId)
+    setRestoringId(null)
+    if (res.data?.ok) {
+      setActionMessage(res.data.summary || t('website.dashboard.restoreSuccess'))
+      await reloadOverview()
+      return
+    }
+    setActionMessage(res.error || t('website.dashboard.actionError'))
+  }
+
   const statusLabel =
     overview?.status === 'deployed'
       ? t('website.dashboard.statusDeployed')
@@ -105,10 +183,15 @@ export default function ShopWebsitePage() {
         ? t('website.dashboard.statusBuilding')
         : overview?.status === 'error'
           ? t('website.dashboard.statusError')
+          : overview?.status === 'preview_ready'
+            ? t('website.dashboard.statusPreviewReady')
           : t('website.dashboard.statusDraft')
 
   const mainUrl = overview?.publicUrl || ''
   const previewUrl = overview?.previewUrl || ''
+  const isRunning = overview?.status === 'deployed'
+  const templateLabel = overview?.template || '-'
+  const toneLabel = overview?.tone || '-'
 
   return (
     <div className="flex w-full min-w-0 flex-col gap-5">
@@ -117,19 +200,27 @@ export default function ShopWebsitePage() {
           <div>
             <div className="mb-1 flex items-center gap-2">
               <h1 className="text-xl font-bold text-slate-900">{t('website.dashboard.title')}</h1>
-              <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs text-amber-700">
-                {t('website.common.showcaseBadge')}
+              <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs text-slate-700">
+                {statusLabel}
               </span>
             </div>
-            <p className="text-sm text-slate-600">{t('website.dashboard.showcaseDesc')}</p>
+            <p className="text-sm text-slate-600">{t('website.dashboard.controlCenterDesc')}</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <Link
               to={`/shops/${id}/website/builder`}
               className="rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-800"
             >
-              {t('website.dashboard.openPromptBuilder')}
+              {t('website.dashboard.openBuilder')}
             </Link>
+            <button
+              type="button"
+              className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
+              onClick={() => void reloadOverview()}
+              disabled={loading}
+            >
+              {t('website.dashboard.refresh')}
+            </button>
             <button
               type="button"
               className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
@@ -148,6 +239,7 @@ export default function ShopWebsitePage() {
             </button>
           </div>
         </div>
+        {actionMessage ? <p className="mt-3 text-sm text-slate-600">{actionMessage}</p> : null}
       </section>
 
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
@@ -195,6 +287,16 @@ export default function ShopWebsitePage() {
                   </button>
                 </div>
               </div>
+              <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                <div>
+                  <p className="text-xs text-slate-500">{t('website.dashboard.template')}</p>
+                  <p className="font-semibold text-slate-900">{templateLabel}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-slate-500">{t('website.dashboard.tone')}</p>
+                  <p className="font-semibold text-slate-900">{toneLabel}</p>
+                </div>
+              </div>
             </div>
             <div className="rounded-2xl border border-slate-200 bg-white p-4">
               <p className="text-xs font-medium text-slate-500">{t('website.dashboard.status')}</p>
@@ -203,6 +305,32 @@ export default function ShopWebsitePage() {
               <p className="text-sm text-slate-800">{overview?.updatedAt || '-'}</p>
               <p className="mt-3 text-xs font-medium text-slate-500">{t('website.dashboard.versionCount')}</p>
               <p className="text-sm text-slate-800">{overview?.versionCount ?? '-'}</p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={handleDeploy}
+                  disabled={deploying}
+                  className="rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
+                >
+                  {deploying ? t('website.dashboard.deploying') : t('website.dashboard.deployNow')}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleStop}
+                  disabled={stopping || !isRunning}
+                  className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                >
+                  {stopping ? t('website.dashboard.stopping') : t('website.stopBtn')}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleRemove}
+                  disabled={removing}
+                  className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                >
+                  {removing ? t('website.dashboard.removing') : t('website.deleteContainerBtn')}
+                </button>
+              </div>
             </div>
           </section>
 
@@ -220,10 +348,24 @@ export default function ShopWebsitePage() {
               <div className="mb-3 rounded-lg border border-slate-200 bg-white px-3 py-1 text-xs text-slate-500">
                 {previewUrl || '-'}
               </div>
-              <div className="flex h-44 items-center justify-center rounded-lg border border-dashed border-slate-300 bg-white">
-                <div className="text-center">
-                  <p className="text-sm font-medium text-slate-700">{t('website.dashboard.mockPreview')}</p>
-                  <p className="mt-1 text-xs text-slate-500">{loading ? t('website.common.loading') : t('website.dashboard.liveDataSoon')}</p>
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                <div className="rounded-lg border border-slate-200 bg-white p-3">
+                  <p className="text-xs text-slate-500">{t('website.dashboard.manualFirst')}</p>
+                  <p className="mt-1 text-sm font-semibold text-slate-900">
+                    {loading ? t('website.common.loading') : t('website.dashboard.manualFirstValue')}
+                  </p>
+                </div>
+                <div className="rounded-lg border border-slate-200 bg-white p-3">
+                  <p className="text-xs text-slate-500">{t('website.dashboard.selectedAssets')}</p>
+                  <p className="mt-1 text-sm font-semibold text-slate-900">
+                    {overview?.selectedAssetIds?.length ?? 0}
+                  </p>
+                </div>
+                <div className="rounded-lg border border-slate-200 bg-white p-3">
+                  <p className="text-xs text-slate-500">{t('website.dashboard.nextStep')}</p>
+                  <p className="mt-1 text-sm font-semibold text-slate-900">
+                    {isRunning ? t('website.dashboard.nextStepRefine') : t('website.dashboard.nextStepDeploy')}
+                  </p>
                 </div>
               </div>
             </div>
@@ -312,6 +454,17 @@ export default function ShopWebsitePage() {
                   <div key={item.id} className="rounded-xl border border-slate-200 p-2">
                     <p className="text-sm font-medium text-slate-800">{item.title}</p>
                     <p className="text-xs text-slate-500">{item.createdAt}</p>
+                    {item.summary ? <p className="mt-1 text-xs text-slate-500">{item.summary}</p> : null}
+                    {item.restorable ? (
+                      <button
+                        type="button"
+                        onClick={() => void handleRestore(item.id)}
+                        disabled={restoringId === item.id}
+                        className="mt-2 rounded-md border border-slate-200 px-2 py-1 text-xs text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                      >
+                        {restoringId === item.id ? t('website.dashboard.restoring') : t('website.dashboard.restoreVersion')}
+                      </button>
+                    ) : null}
                   </div>
                 ))
               )}
@@ -325,14 +478,15 @@ export default function ShopWebsitePage() {
                 to={`/shops/${id}/website/builder`}
                 className="block rounded-lg bg-slate-900 px-3 py-2 text-center text-sm font-semibold text-white hover:bg-slate-800"
               >
-                {t('website.dashboard.editWithPrompt')}
+                {t('website.dashboard.openBuilder')}
               </Link>
               <button
                 type="button"
-                disabled
-                className="w-full rounded-lg border border-slate-200 bg-slate-100 px-3 py-2 text-sm text-slate-500"
+                className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                onClick={() => void handleDeploy()}
+                disabled={deploying}
               >
-                {t('website.dashboard.publishSoon')}
+                {deploying ? t('website.dashboard.deploying') : t('website.dashboard.deployNow')}
               </button>
               <button
                 type="button"

@@ -386,6 +386,171 @@ Trừ credit tương tự generate.
 
 ---
 
+## Website Builder (shop website)
+
+Prefix: `/api/shops/:shopId/website/...` — `:shopId` = UUID shop. Header: `Authorization: Bearer <token>`.
+
+**GET /shops/:shopId/website/overview** — Tổng quan website cho trang `/website`
+
+Response:
+```json
+{
+  "overview": {
+    "siteId": "uuid",
+    "slug": "my-shop",
+    "status": "draft",
+    "versionCount": 3,
+    "publicUrl": "https://my-shop.captone2.site",
+    "previewUrl": "https://preview.captone2.site/sites/<shopId>",
+    "updatedAt": "2026-04-08T...",
+    "promptCount": 2,
+    "promptSuccessRate": 100,
+    "creditsUsed": null,
+    "lastPrompt": "Rút gọn hero",
+    "template": "catalog",
+    "tone": "balanced",
+    "selectedAssetIds": ["asset-id-1"]
+  },
+  "history": [
+    {
+      "id": "uuid",
+      "type": "prompt",
+      "title": "Rút gọn hero",
+      "createdAt": "2026-04-08T...",
+      "summary": "Updated hero content.",
+      "restorable": true
+    }
+  ]
+}
+```
+
+---
+
+**GET /shops/:shopId/website/builder-state** — State đầy đủ cho builder
+
+Response: `site`, `config`, `sections`, `assets`, `theme`, `selectedTemplate`, `draftPreviewUrl`, `publicUrl`, `previewUrl`, `deploy`, `shop`, `versions`.
+
+---
+
+**POST /shops/:shopId/website/create-from-idea** — Tạo / cập nhật bản nháp website từ ý tưởng + cấu hình tay
+
+```json
+{
+  "idea": "Website giới thiệu quán theo tone thân thiện, ưu tiên gọi điện nhanh",
+  "template": "catalog",
+  "tone": "friendly",
+  "palette": {
+    "primary": "#14532d",
+    "accent": "#16a34a",
+    "background": "#f6fef9",
+    "surface": "#ffffff"
+  },
+  "selectedAssetIds": ["uuid-1", "uuid-2"]
+}
+```
+
+Response: `{ ok, site, config, sections, summary }`
+
+---
+
+**POST /shops/:shopId/website/sections/:sectionId/update** — Chỉnh tay một section hoặc theme/settings
+
+```json
+{
+  "props": {
+    "title": "Headline mới",
+    "subtitle": "Mô tả mới"
+  },
+  "theme": {
+    "primary": "#0f172a",
+    "accent": "#2563eb"
+  },
+  "settings": {
+    "tone": "balanced"
+  },
+  "selectedAssetIds": ["uuid-1"],
+  "moveDirection": "up"
+}
+```
+
+`moveDirection` optional: `up | down`
+
+---
+
+**POST /shops/:shopId/website/prompt/preview** — AI preview thay đổi, chưa lưu DB
+
+```json
+{
+  "prompt": "Sửa @section:hero cho ngắn hơn và CTA rõ hơn",
+  "scope": "selected",
+  "sectionId": "hero",
+  "creativity": "balanced"
+}
+```
+
+Response:
+```json
+{
+  "summary": "Updated hero.",
+  "affectedSections": ["hero"],
+  "draftConfig": { "...": "config_json preview" },
+  "draftPreviewUrl": "https://preview.captone2.site/sites/<shopId>"
+}
+```
+
+---
+
+**POST /shops/:shopId/website/prompt/apply** — Áp dụng prompt vào config thật + ghi history
+
+Body giống `/prompt/preview`
+
+Response: `{ ok, message, previewUrl, affectedSections, config, site }`
+
+---
+
+**POST /shops/:shopId/website/rebuild** — Làm lại website draft từ input hiện tại
+
+Body gần giống `/create-from-idea`; có thể truyền `idea` hoặc `prompt` để reset toàn bộ config.
+
+---
+
+**GET /shops/:shopId/website/versions** — Danh sách version để restore
+
+Response:
+```json
+{
+  "versions": [
+    {
+      "id": "uuid",
+      "title": "Rút gọn hero",
+      "source": "prompt",
+      "summary": "Updated hero content.",
+      "createdAt": "2026-04-08T..."
+    }
+  ]
+}
+```
+
+---
+
+**POST /shops/:shopId/website/versions/:versionId/restore** — Khôi phục một version cũ
+
+Response: `{ ok, site, config, sections, summary }`
+
+---
+
+**GET /shops/:shopId/website/deploy/status** — Trạng thái deploy hiện tại + live stats
+
+Response: `{ deployment, liveStats, publicUrl, previewUrl }`
+
+---
+
+**POST /shops/:shopId/website/deploy** — Deploy website từ module website
+
+Response: `{ ok, deployment, publicUrl, previewUrl }`
+
+---
+
 ## Shops — Docker Deploy (per-shop container)
 
 **POST /shops/:id/deploy** - Tạo và start container Nginx cho shop

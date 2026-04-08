@@ -109,6 +109,17 @@ flowchart TB
 
 **Mục tiêu:** chỉ cần `docker compose up -d --build` là chạy được.
 
+**Hạ tầng thật (Production):**
+
+| Máy chủ | IP | Vai trò |
+|---------|-----|---------|
+| **Main Server** | `103.77.215.133` | Frontend (Nginx), Backend (Node.js), PostgreSQL, Docker shop containers, Reverse Proxy |
+| **AI VPS** | `103.116.38.145` | Ollama + model Qwen2.5:7b (Marketing AI text) |
+
+- **Main Server** chạy toàn bộ stack ứng dụng: frontend serve static, backend API, DB và các container nginx per-shop.
+- **AI VPS** chỉ chạy Ollama, backend gọi qua `MARKETING_AI_BASE_URL=http://103.116.38.145:11434`. Không expose trực tiếp ra internet; chỉ backend (103.77.215.133) gọi vào.
+- **Website công khai:** [captone2.site](https://captone2.site) — trỏ về `103.77.215.133`.
+
 **Services chính:**
 - **frontend**: Nginx serve static (Vite build) + proxy `/api/` và `/uploads/` qua backend.
 - **backend**: Node/Express (API `/api/*`) + serve `/uploads`.
@@ -314,7 +325,7 @@ flowchart TB
   - Cần refresh/rotate token và log lỗi publish rõ ràng cho từng shop/page.
   - `META_APP_ID` trên backend để nhận diện bài do app đăng (sửa bài qua API chỉ khi khớp app id).
 - **Khuyến nghị model cho text marketing:**
-  - **Ollama (Qwen, v.v.) trên VPS** — chi phí token = 0, cần vận hành máy; hoặc API OpenAI/Gemini tách khỏi image-bot.
+  - **Ollama (Qwen2.5:7b) trên VPS `103.116.38.145`** — chi phí token = 0, cần vận hành máy; hoặc API OpenAI/Gemini tách khỏi image-bot.
   - Chốt một model rẻ cho volume cao + một model fallback khi lỗi.
 
 **Thứ tự triển khai gợi ý:**
@@ -331,9 +342,479 @@ flowchart TB
 
 ---
 
+## IX. Phân tích Context Diagram
+
+Context Diagram (Figure 2) trong Proposal mô tả hệ thống AIMAP như một hộp đen trung tâm tương tác với các tác nhân bên ngoài. Nhìn chung sơ đồ đúng hướng, nhưng cần bổ sung và điều chỉnh ở một số điểm sau:
+
+### Điểm chính xác trong hình hiện tại
+
+| Tác nhân | Tương tác | Đánh giá |
+|----------|-----------|-----------|
+| Shop Owner → Platform | Manage store information, Generate branding/content/visual assets, Manage credits & request top-up, Build/edit/preview/deploy website | Đủ, đúng |
+| Admin → Platform | Monitor users, transactions, logs, performance | Đúng |
+| Platform → Payment Gateway | Process credit top-up payment | Đúng |
+| Platform → Facebook API | Publish generated content to Facebook Page | Đúng |
+| Platform → Website Visitor | Access deployed shop website | Đúng hướng |
+| Platform → AI Service Provider | Request AI generation for branding, content, website | Đúng |
+
+### Điểm cần sửa / bổ sung
+
+1. **Thiếu Ollama VPS như một External System riêng.** Trong thực tế, hệ thống sử dụng **2 loại AI** với 2 nguồn khác nhau:
+   - **Cloud AI** (OpenAI / Google Gemini): dùng cho tạo ảnh (image bot).
+   - **Self-hosted Ollama VPS** (`103.116.38.145`, model Qwen2.5:7b): dùng riêng cho Marketing AI text (caption, tóm tắt comment, gợi ý bài). Đây là một external node riêng, không phải cùng nhóm "AI Service Provider" với OpenAI/Gemini.
+   → **Sửa:** Tách "AI Service Provider" thành hai hộp: **Cloud AI (OpenAI / Gemini)** và **Marketing AI (Ollama VPS)**.
+
+2. **Mũi tên Payment Gateway nên hai chiều.** Hiện tại chỉ có một chiều "Process credit top-up payment". Thực tế Payment Gateway (VietQR) gửi **webhook callback** về platform để xác nhận giao dịch. → **Sửa:** Thêm mũi tên ngược từ Payment Gateway về Platform: *"Confirm payment via webhook"*.
+
+3. **Website Visitor nên có mũi tên request rõ hơn.** Hiện hình cho thấy Platform → Website Visitor ("Access deployed shop website"). Chiều đúng hơn là **Website Visitor → Platform** (request) và **Platform → Website Visitor** (serve website). → **Sửa:** Đổi thành mũi tên hai chiều hoặc ghi rõ chiều request/response.
+
+4. **Thiếu tác nhân "Shop Website Visitor" tách biệt với "User/Shop Owner".** Người truy cập website shop (khách hàng cuối) khác hoàn toàn với Shop Owner. Hình hiện tại đã có hộp "Website Visitor" riêng — giữ nguyên, chỉ cần làm rõ đây là **khách hàng của shop**, không phải người dùng AIMAP.
+
+### Context Diagram cập nhật (mermaid tham chiếu)
+
+```mermaid
+flowchart TD
+    ShopOwner([Shop Owner])
+    Admin([Admin])
+    Visitor([Website Visitor])
+
+    subgraph External
+        PayGW[Payment Gateway\nVietQR]
+        FBAPI[Facebook API\nMeta Graph]
+        CloudAI[Cloud AI\nOpenAI / Gemini]
+        OllamaVPS[Marketing AI\nOllama VPS\n103.116.38.145]
+    end
+
+    subgraph AIMAP [AI-Powered Marketing Automation Platform\n103.77.215.133]
+        Core((AIMAP Core))
+    end
+
+    ShopOwner -- "Manage store info\nGenerate branding/content/images\nBuild, edit, preview, deploy website\nManage credits & top-up" --> Core
+    Core -- "Confirm actions / results" --> ShopOwner
+
+    Admin -- "Monitor users, transactions,\nlogs, performance" --> Core
+
+    Core -- "Request image generation" --> CloudAI
+    CloudAI -- "Return generated images" --> Core
+
+    Core -- "Request AI text\n(caption, summary, assist)" --> OllamaVPS
+    OllamaVPS -- "Return text suggestions" --> Core
+
+    Core -- "Create payment intent" --> PayGW
+    PayGW -- "Webhook: confirm payment" --> Core
+
+    Core -- "Publish content to Page" --> FBAPI
+    FBAPI -- "Return publish result" --> Core
+
+    Visitor -- "Access shop website" --> Core
+    Core -- "Serve deployed website" --> Visitor
+```
+
+---
+
+## X. Phân tích Component Diagram
+
+Hệ thống AIMAP nên có **3 component diagram chính**, mỗi hình tập trung vào một tầng kiến trúc khác nhau. Không cần vẽ thêm, vì các tầng còn lại (DB, Docker nội bộ) đã được mô tả trong Allocation View.
+
+### Component Diagram 1 — Frontend (React Dashboard)
+
+Mô tả các module giao diện người dùng theo nhóm tính năng.
+
+```mermaid
+flowchart LR
+    subgraph Frontend [Frontend — React / Vite]
+        Auth[Auth Module\nLogin · Register · Verify\nForgot · Reset Password]
+        Dashboard[Dashboard Module\nTổng quan · Activity log\nAccess log]
+        ShopMgmt[Shop Module\nDanh sách shop · Tạo shop\nChỉnh sửa shop · Storage]
+        ImageBot[Image Bot Module\nInput panel · Output grid\nGallery assets]
+        Marketing[Marketing Module\nFacebook workspace\nContent draft · Publish composer]
+        WebBuilder[Website Builder Module\nPrompt panel · Preview iframe\nDeploy panel]
+        CreditUI[Credit Module\nSố dư · Nạp credit\nLịch sử giao dịch]
+        AdminUI[Admin Module\nDanh sách user · Logs\nRevenue · Containers]
+    end
+
+    Auth --> Dashboard
+    Dashboard --> ShopMgmt
+    ShopMgmt --> ImageBot
+    ShopMgmt --> Marketing
+    ShopMgmt --> WebBuilder
+    Dashboard --> CreditUI
+    Dashboard --> AdminUI
+```
+
+### Component Diagram 2 — Backend (Node.js / Express)
+
+Mô tả các tầng xử lý phía server theo trách nhiệm.
+
+```mermaid
+flowchart TB
+    subgraph Routes [Routes Layer — Định tuyến API]
+        R_Auth[auth.js\nĐăng ký · Login · Verify\nProfile · Password]
+        R_Shops[shops.js\nCRUD shop · Products\nAssets · Image bot]
+        R_Facebook[shopFacebookMarketing.js\nPages · Posts · Assist\nOAuth callback]
+        R_Website[shopWebsite.js\nOverview · Prompt edit\nDeploy · Container status]
+        R_Credits[credits.js\nBalance · Top-up · History]
+        R_Admin[admin.js\nUsers · Credits · Containers\nLogs]
+        R_Webhooks[webhooks.js\nVietQR payment callback]
+    end
+
+    subgraph Services [Services Layer — Logic nghiệp vụ]
+        S_Image[imageGeneration.js\nGọi OpenAI / Gemini image]
+        S_Prompt[imagePromptBuilder.js\nGhép prompt theo tag ngành]
+        S_Assets[assetStorage.js\nLưu / lấy assets per shop]
+        S_Facebook[facebookGraphService.js\nGọi Meta Graph API]
+        S_MarketingAI[marketingAiBot.js\nGọi Ollama VPS]
+        S_Activity[activityLog.js\nGhi nhật ký hành động]
+        S_Email[email.js\nGửi email verify / reset]
+        S_Website[websiteService.js\nRender config → HTML\nQuản lý website state]
+    end
+
+    subgraph Lib [Lib Layer — Công cụ dùng chung]
+        L_LLM[llmClient.js\nOpenAI / Gemini text]
+        L_Docker[docker.js\nDockerode — quản lý container]
+        L_DB[db/index.js\nPostgreSQL connection pool]
+    end
+
+    subgraph Templates [Templates — Handlebars / EJS]
+        T_Web[Partials website\nhero · features · cta · footer]
+    end
+
+    Routes --> Services
+    Services --> Lib
+    Services --> Templates
+    Lib --> L_DB
+```
+
+### Component Diagram 3 — External Services & AI Layer
+
+Mô tả các dịch vụ ngoài hệ thống mà backend kết nối đến.
+
+```mermaid
+flowchart LR
+    BE[AIMAP Backend\n103.77.215.133]
+
+    subgraph CloudAI [Cloud AI — trả phí theo lần dùng]
+        OpenAI[OpenAI API\nDALL-E 3 / GPT image\nGPT-4o text]
+        Gemini[Google Gemini API\nGemini image · Imagen\nGemini text]
+    end
+
+    subgraph SelfHost [Self-hosted AI — chi phí gần 0]
+        Ollama[Ollama VPS\n103.116.38.145:11434\nQwen2.5:7b]
+    end
+
+    subgraph Social [Social Media]
+        MetaGraph[Meta Graph API\nPage tokens · Posts\nInsights · Publish]
+    end
+
+    subgraph Payment [Payment]
+        VietQR[VietQR API Service\nQR tạo đơn\nWebhook xác nhận]
+    end
+
+    BE -- "POST /images/generate\n(DALL-E 3)" --> OpenAI
+    BE -- "POST /images/generate\n(Imagen / Gemini)" --> Gemini
+    BE -- "POST /api/generate\n(marketing text)" --> Ollama
+    BE -- "Graph API calls\n(server-side token)" --> MetaGraph
+    BE -- "Tạo intent / Verify webhook" --> VietQR
+```
+
+### Tóm tắt: Bao nhiêu Component Diagram là đủ?
+
+| # | Tên | Mục tiêu |
+|---|-----|-----------|
+| 1 | Frontend Components | Cho thấy cấu trúc module UI |
+| 2 | Backend Components | Cho thấy cách backend tổ chức theo Routes → Services → Lib |
+| 3 | External Services | Cho thấy phụ thuộc bên ngoài (AI, Facebook, Payment) |
+
+**3 hình là đủ** cho báo cáo / thuyết trình. Không cần tách thêm DB, Docker nội bộ hay template engine thành diagram riêng — những phần đó thuộc Allocation View.
+
+---
+
+## XI. Allocation View — Ánh xạ phần mềm lên hạ tầng
+
+Allocation View cho thấy **component nào chạy trên máy nào** trong hệ thống production thật.
+
+```mermaid
+flowchart TB
+    subgraph Internet [Internet / End Users]
+        ShopOwner([Shop Owner\nBrowser])
+        Visitor([Website Visitor\nBrowser])
+        AdminUser([Admin\nBrowser])
+    end
+
+    subgraph MainServer ["Main Server — 103.77.215.133 (captone2.site)"]
+        direction TB
+        subgraph DockerCompose [Docker Compose Stack]
+            FE_Container["frontend container\nNginx — serve React build\n:80 / :443"]
+            BE_Container["backend container\nNode.js Express\n:4111"]
+            DB_Container["database\nPostgreSQL\n:5432"]
+        end
+
+        subgraph ShopContainers [Per-shop Docker Containers]
+            Shop1["shop-container-1\nNginx static\nHTML + assets shop A"]
+            Shop2["shop-container-2\nNginx static\nHTML + assets shop B"]
+            ShopN["shop-container-N\n..."]
+        end
+
+        ReverseProxy["Reverse Proxy — Nginx\nRoute *.captone2.site\n→ shop container tương ứng"]
+    end
+
+    subgraph AIServer ["AI VPS — 103.116.38.145"]
+        Ollama["Ollama\n:11434\nQwen2.5:7b\n(Marketing AI text)"]
+    end
+
+    subgraph CloudServices [External Cloud Services]
+        OpenAI_Cloud["OpenAI API\nDALL-E 3 / GPT"]
+        Gemini_Cloud["Google Gemini API\nImagen / Gemini image"]
+        MetaAPI["Meta Graph API\nFacebook"]
+        VietQR_Cloud["VietQR API Service\nPayment webhook"]
+    end
+
+    ShopOwner -- "HTTPS" --> FE_Container
+    AdminUser -- "HTTPS" --> FE_Container
+    Visitor -- "HTTPS *.captone2.site" --> ReverseProxy
+
+    FE_Container -- "Proxy /api/" --> BE_Container
+    BE_Container -- "TCP :5432" --> DB_Container
+    BE_Container -- "HTTP :11434" --> Ollama
+    BE_Container -- "HTTPS" --> OpenAI_Cloud
+    BE_Container -- "HTTPS" --> Gemini_Cloud
+    BE_Container -- "HTTPS Graph API" --> MetaAPI
+    BE_Container -- "HTTPS Webhook" --> VietQR_Cloud
+
+    BE_Container -- "Docker API\ncreate/start/stop container" --> ShopContainers
+    ReverseProxy -- "Route by Host header" --> Shop1
+    ReverseProxy -- "Route by Host header" --> Shop2
+    ReverseProxy -- "Route by Host header" --> ShopN
+```
+
+### Bảng phân bổ chi tiết
+
+| Component | Máy chủ | Địa chỉ | Ghi chú |
+|-----------|---------|---------|---------|
+| React Frontend (Nginx) | Main Server | `103.77.215.133:80/443` | Serve static build |
+| Node.js Backend API | Main Server | `103.77.215.133:4111` | Expose qua proxy |
+| PostgreSQL | Main Server | `103.77.215.133:5432` | Nội bộ, không expose |
+| Reverse Proxy (Nginx) | Main Server | `103.77.215.133:80` | Route `*.captone2.site` |
+| Shop Docker Containers | Main Server | Port ngẫu nhiên (nội bộ) | 1 container/shop |
+| Ollama + Qwen2.5:7b | AI VPS | `103.116.38.145:11434` | Marketing AI text |
+| OpenAI API | Cloud (OpenAI) | `api.openai.com` | DALL-E 3 / GPT |
+| Google Gemini API | Cloud (Google) | `generativelanguage.googleapis.com` | Imagen / Gemini image |
+| Meta Graph API | Cloud (Meta) | `graph.facebook.com` | Facebook publish |
+| VietQR API Service | Cloud (VietQR) | `api.vietqr.io` | Payment webhook |
+
+### Luồng request tổng hợp qua hạ tầng
+
+```
+[Shop Owner browser]
+    → HTTPS → Nginx (103.77.215.133)
+        → React app (static)
+        → /api/* → Node.js backend (:4111)
+            → PostgreSQL (nội bộ)
+            → Ollama (103.116.38.145:11434) [marketing text]
+            → OpenAI / Gemini (cloud) [image generation]
+            → Meta Graph API (cloud) [Facebook]
+            → VietQR API (cloud) [payment]
+            → Docker API → tạo/cập nhật shop containers
+
+[Website Visitor browser]
+    → HTTPS → *.captone2.site
+        → Reverse Proxy (Nginx, 103.77.215.133)
+            → Shop container tương ứng (nginx static)
+                → Serve HTML + ảnh của shop đó (no backend call)
+```
+
+---
+
+## XII. Sequence Diagrams
+
+> Phần này gộp từ `sequenceDiagram.md` (đã xóa file riêng). Bộ 6 sequence diagram chính của AIMAP — bỏ qua login/logout vì đó là luồng chuẩn.
+
+### SD-1. Luồng tổng quan toàn hệ thống
+
+Dùng khi cần giải thích hệ thống chỉ trong một hình duy nhất.
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant UI as AIMAP Dashboard
+    participant BE as AIMAP Backend
+    participant AI as AI Services
+    participant Store as System Storage
+    participant Deploy as Deploy Service
+    participant FB as Facebook Page
+
+    User->>UI: Nhập thông tin shop
+    UI->>BE: Gửi dữ liệu shop
+    BE->>Store: Lưu hồ sơ shop
+    Store-->>BE: Xác nhận đã lưu
+
+    User->>UI: Yêu cầu tạo branding / content / website
+    UI->>BE: Gửi yêu cầu AI
+    BE->>AI: Tạo nội dung và hình ảnh theo ngữ cảnh shop
+    AI-->>BE: Trả kết quả
+    BE->>Store: Lưu assets, content, website config
+    Store-->>BE: Đã lưu thành công
+    BE-->>UI: Trả kết quả để preview
+
+    User->>UI: Chọn deploy website hoặc đăng Facebook
+    UI->>BE: Gửi lệnh publish
+    BE->>Deploy: Cập nhật website lên môi trường chạy
+    Deploy-->>BE: Trả public URL
+    BE->>FB: Đăng nội dung lên Page (nếu user chọn)
+    FB-->>BE: Xác nhận publish
+    BE-->>UI: Trả kết quả cuối cùng
+```
+
+### SD-2. Quản lý shop
+
+Gộp tạo shop, sửa shop và cập nhật sản phẩm vào một sequence.
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant UI as AIMAP Dashboard
+    participant BE as AIMAP Backend
+    participant Store as System Data
+
+    User->>UI: Tạo mới hoặc chỉnh sửa thông tin shop
+    UI->>BE: Gửi dữ liệu shop
+    BE->>Store: Lưu thông tin shop
+    Store-->>BE: Shop đã được cập nhật
+    BE-->>UI: Trả thông tin shop mới nhất
+
+    User->>UI: Bổ sung hoặc sửa sản phẩm
+    UI->>BE: Gửi danh sách sản phẩm
+    BE->>Store: Cập nhật dữ liệu sản phẩm của shop
+    Store-->>BE: Dữ liệu đã lưu
+    BE-->>UI: Trả danh sách sản phẩm mới
+```
+
+### SD-3. Tạo branding và ảnh marketing
+
+Luồng bot tạo ảnh: logo, banner, cover hoặc ảnh bài đăng.
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant UI as AIMAP Dashboard
+    participant BE as AIMAP Backend
+    participant AI as Image AI
+    participant Store as Asset Storage
+
+    User->>UI: Chọn loại ảnh và nhập yêu cầu thêm
+    UI->>BE: Gửi yêu cầu tạo ảnh theo ngữ cảnh shop
+    BE->>AI: Tạo nhiều phương án ảnh
+    AI-->>BE: Trả danh sách ảnh đã tạo
+    BE->>Store: Lưu ảnh và metadata
+    Store-->>BE: Xác nhận đã lưu
+    BE-->>UI: Hiển thị ảnh để user chọn hoặc lưu tiếp
+```
+
+### SD-4. Quản lý thư viện tài sản
+
+User xem, lưu, xóa và tái sử dụng assets của shop.
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant UI as AIMAP Dashboard
+    participant BE as AIMAP Backend
+    participant Store as Asset Storage
+
+    User->>UI: Xem thư viện ảnh của shop
+    UI->>BE: Yêu cầu danh sách assets
+    BE->>Store: Đọc dữ liệu assets
+    Store-->>BE: Trả danh sách assets
+    BE-->>UI: Hiển thị thư viện ảnh
+
+    User->>UI: Lưu mới hoặc xóa một asset
+    UI->>BE: Gửi thao tác asset
+    BE->>Store: Cập nhật thư viện
+    Store-->>BE: Đã cập nhật
+    BE-->>UI: Trả trạng thái mới nhất
+```
+
+### SD-5. Support marketing và Facebook
+
+User làm marketing thủ công với hỗ trợ AI và kết nối Facebook.
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant UI as AIMAP Dashboard
+    participant BE as AIMAP Backend
+    participant AI as Marketing AI
+    participant FB as Facebook
+    participant Store as System Data
+
+    User->>UI: Kết nối Page hoặc chọn Page đã có
+    UI->>BE: Yêu cầu lấy thông tin Page và bài viết
+    BE->>FB: Lấy dữ liệu Page và posts
+    FB-->>BE: Trả dữ liệu Facebook
+    BE->>Store: Lưu cache và trạng thái kết nối
+    Store-->>BE: Xác nhận lưu
+    BE-->>UI: Hiển thị workspace marketing
+
+    User->>UI: Yêu cầu AI gợi ý caption hoặc nội dung
+    UI->>BE: Gửi yêu cầu hỗ trợ viết
+    BE->>AI: Tạo nội dung marketing
+    AI-->>BE: Trả nội dung gợi ý
+    BE-->>UI: Hiển thị bản nháp cho user chỉnh
+
+    User->>UI: Chọn nội dung và bấm đăng
+    UI->>BE: Gửi yêu cầu publish
+    BE->>FB: Đăng bài lên Facebook Page
+    FB-->>BE: Trả kết quả publish
+    BE-->>UI: Báo thành công hoặc lỗi
+```
+
+### SD-6. Tạo, chỉnh sửa và deploy website
+
+Luồng quan trọng nhất của module Website Builder.
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant UI as AIMAP Dashboard
+    participant BE as AIMAP Backend
+    participant AI as Website AI
+    participant Store as Config Storage
+    participant Deploy as Shop Container
+
+    User->>UI: Yêu cầu tạo website từ dữ liệu shop
+    UI->>BE: Gửi yêu cầu tạo website
+    BE->>Store: Tạo website config ban đầu
+    Store-->>BE: Trả config hiện tại
+    BE->>Deploy: Render và cập nhật bản preview
+    Deploy-->>BE: Preview sẵn sàng
+    BE-->>UI: Trả preview URL
+
+    User->>UI: Nhập prompt để chỉnh website
+    UI->>BE: Gửi prompt chỉnh sửa
+    BE->>Store: Lấy config hiện tại và lịch sử chỉnh sửa
+    Store-->>BE: Trả context website
+    BE->>AI: Tạo config website mới
+    AI-->>BE: Trả config đã cập nhật
+    BE->>Store: Lưu config mới
+    Store-->>BE: Đã lưu thành công
+    BE->>Deploy: Render lại website
+    Deploy-->>BE: Bản preview mới sẵn sàng
+    BE-->>UI: Cập nhật preview cho user
+
+    User->>UI: Bấm deploy website
+    UI->>BE: Gửi yêu cầu deploy
+    BE->>Deploy: Xuất bản website lên domain của shop
+    Deploy-->>BE: Trả public URL
+    BE-->>UI: Hiển thị website đã live
+```
+
+---
+
 ## Tài liệu kèm theo
 
-- **Đọc nhanh (chức năng + lợi ích + điểm nổi bật):** `AIMAP-Quick-ReadVN.md` (và bản EN nếu có)
+- **Đọc nhanh (chức năng + lợi ích + điểm nổi bật):** `AIMAP-Quick-ReadVN.md`
 - **Kiến trúc tiếng Anh (cho reviewer quốc tế):** `AIMAP-Architecture-EN.md`
 - **API backend (danh sách endpoint):** [`aimap/backend/danhsach_API.md`](../aimap/backend/danhsach_API.md)
+- **Thiết kế Database:** [`READ_CONTEXT/database_design.md`](database_design.md)
+- **Cấu trúc folder:** [`READ_CONTEXT/Cau_truc_folder.md`](Cau_truc_folder.md)
 
