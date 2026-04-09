@@ -390,6 +390,10 @@ Trừ credit tương tự generate.
 
 Prefix: `/api/shops/:shopId/website/...` — `:shopId` = UUID shop. Header: `Authorization: Bearer <token>`.
 
+Quy ước URL:
+- Public URL mặc định: `https://{slug}.{WEBSITE_PUBLIC_BASE_DOMAIN}` (mặc định `captone2.site`).
+- Preview URL mặc định: `{WEBSITE_PREVIEW_BASE_URL}/sites/{shopId}` (mặc định `https://preview.captone2.site`).
+
 **GET /shops/:shopId/website/overview** — Tổng quan website cho trang `/website`
 
 Response:
@@ -548,6 +552,16 @@ Response: `{ deployment, liveStats, publicUrl, previewUrl }`
 **POST /shops/:shopId/website/deploy** — Deploy website từ module website
 
 Response: `{ ok, deployment, publicUrl, previewUrl }`
+
+---
+
+**GET /shops/preview/sites/:shopId** — Public preview runtime (không cần token)
+
+- Trả trực tiếp file `index.html` đã publish ở `ASSET_STORAGE_PATH/shops/:shopId/index.html`.
+- Dùng cho reverse proxy hoặc link preview runtime thật (không phải `iframe srcDoc`).
+- Response:
+  - `200 text/html` nếu có bản preview đã publish.
+  - `404 Preview not ready` nếu shop chưa có static publish.
 
 ---
 

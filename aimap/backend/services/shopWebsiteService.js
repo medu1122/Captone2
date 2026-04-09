@@ -30,6 +30,14 @@ function sanitizeSlug(value) {
     .replace(/^-+|-+$/g, '') || 'shop'
 }
 
+function previewBaseUrl() {
+  return toText(process.env.WEBSITE_PREVIEW_BASE_URL, 'https://preview.captone2.site').replace(/\/$/, '')
+}
+
+function publicBaseDomain() {
+  return toText(process.env.WEBSITE_PUBLIC_BASE_DOMAIN, 'captone2.site')
+}
+
 function uniqueStrings(values) {
   return Array.from(new Set((Array.isArray(values) ? values : []).map((item) => String(item)).filter(Boolean)))
 }
@@ -340,8 +348,8 @@ export function buildHistoryItems(config, deployment) {
 }
 
 export function buildWebsiteOverview({ site, config, deployment, promptCount, promptSuccessRate }) {
-  const previewUrl = `https://preview.captone2.site/sites/${site.shop_id}`
-  const publicHost = toText(deployment?.subdomain, `${sanitizeSlug(site.slug || site.shop_slug || 'shop')}.captone2.site`)
+  const previewUrl = `${previewBaseUrl()}/sites/${site.shop_id}`
+  const publicHost = toText(deployment?.subdomain, `${sanitizeSlug(site.slug || site.shop_slug || 'shop')}.${publicBaseDomain()}`)
   const publicUrl = `https://${publicHost}`
   const versions = Array.isArray(config.meta?.versions) ? config.meta.versions : []
   const draftStatuses = new Set(['draft', 'preview_ready', 'deployed', 'building', 'error'])

@@ -1,0 +1,203 @@
+import fs from 'fs/promises'
+import path from 'path'
+import { getUploadRoot } from './assetStorage.js'
+
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[<>&"]/g, (char) => ({
+    '<': '&lt;',
+    '>': '&gt;',
+    '&': '&amp;',
+    '"': '&quot;',
+  })[char] || char)
+}
+
+function toText(value, fallback = '') {
+  if (value == null) return fallback
+  const text = String(value).trim()
+  return text || fallback
+}
+
+function isObject(value) {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
+}
+
+function toLocalAssetPath(url, shopId) {
+  const text = toText(url)
+  const marker = `/uploads/shops/${shopId}/`
+  if (!text.startsWith(marker)) return text
+  return `./${text.slice(marker.length)}`
+}
+
+function renderHero(section, shopId) {
+  const props = isObject(section.props) ? section.props : {}
+  const imageUrl = toLocalAssetPath(props.imageUrl, shopId)
+  return `
+    <section class="section hero">
+      <div class="hero-copy">
+        <p class="eyebrow">${escapeHtml(props.eyebrow || '')}</p>
+        <h1>${escapeHtml(props.title || section.name || 'Hero')}</h1>
+        <p class="muted">${escapeHtml(props.subtitle || '')}</p>
+        <div class="actions">
+          <a href="${escapeHtml(props.primaryButtonHref || '#contact')}" class="button primary">${escapeHtml(props.primaryButtonText || 'Contact')}</a>
+          <a href="${escapeHtml(props.secondaryButtonHref || '#highlights')}" class="button secondary">${escapeHtml(props.secondaryButtonText || 'Learn more')}</a>
+        </div>
+      </div>
+      <div class="hero-media">
+        ${imageUrl ? `<img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(props.title || section.name || 'Hero')}" />` : '<div class="image-placeholder">No image selected</div>'}
+      </div>
+    </section>
+  `
+}
+
+function renderFeatures(section) {
+  const props = isObject(section.props) ? section.props : {}
+  const items = Array.isArray(props.items) ? props.items : []
+  const cards = items.length > 0
+    ? items.map((item) => {
+      const normalized = isObject(item) ? item : {}
+      return `
+        <article class="card">
+          <h3>${escapeHtml(normalized.title || 'Item')}</h3>
+          <p>${escapeHtml(normalized.body || '')}</p>
+        </article>
+      `
+    }).join('')
+    : '<article class="card"><h3>Add items</h3><p>This section is ready for your content.</p></article>'
+
+  return `
+    <section class="section stack">
+      <h2>${escapeHtml(props.title || section.name || 'Highlights')}</h2>
+      <div class="grid columns-3">${cards}</div>
+    </section>
+  `
+}
+
+function renderGallery(section, shopId) {
+  const props = isObject(section.props) ? section.props : {}
+  const imageUrls = Array.isArray(props.imageUrls) ? props.imageUrls : []
+  const items = imageUrls.length > 0
+    ? imageUrls.map((url) => `<div class="gallery-item"><img src="${escapeHtml(toLocalAssetPath(url, shopId))}" alt="Gallery" /></div>`).join('')
+    : '<div class="gallery-item empty">Choose images from storage</div>'
+  return `
+    <section class="section stack">
+      <h2>${escapeHtml(props.title || section.name || 'Gallery')}</h2>
+      <div class="gallery">${items}</div>
+    </section>
+  `
+}
+
+function renderCta(section) {
+  const props = isObject(section.props) ? section.props : {}
+  return `
+    <section class="section cta">
+      <div>
+        <h2>${escapeHtml(props.title || section.name || 'Contact')}</h2>
+        <p>${escapeHtml(props.body || '')}</p>
+      </div>
+      <a href="${escapeHtml(props.buttonHref || '#contact')}" class="button primary">${escapeHtml(props.buttonText || 'Contact')}</a>
+    </section>
+  `
+}
+
+function renderFooter(section) {
+  const props = isObject(section.props) ? section.props : {}
+  return `
+    <footer class="section footer">
+      <div>
+        <strong>${escapeHtml(props.title || section.name || 'Footer')}</strong>
+        <p>${escapeHtml(props.body || '')}</p>
+      </div>
+      <p class="muted">${escapeHtml(props.contactLine || '')}</p>
+    </footer>
+  `
+}
+
+function renderSection(section, shopId) {
+  const type = toText(section?.type)
+  if (type === 'hero') return renderHero(section, shopId)
+  if (type === 'features') return renderFeatures(section)
+  if (type === 'gallery') return renderGallery(section, shopId)
+  if (type === 'cta') return renderCta(section)
+  if (type === 'footer') return renderFooter(section)
+  return `
+    <section class="section stack">
+      <h2>${escapeHtml(section?.name || 'Section')}</h2>
+      <pre>${escapeHtml(JSON.stringify(section?.props || {}, null, 2))}</pre>
+    </section>
+  `
+}
+
+function buildHtml(config, shopId) {
+  const theme = isObject(config?.theme) ? config.theme : {}
+  const sections = Array.isArray(config?.sections) ? config.sections : []
+  const seoTitle = toText(config?.settings?.seoTitle, 'Shop website')
+  const seoDescription = toText(config?.settings?.seoDescription, 'Website generated by AIMAP.')
+
+  return `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>${escapeHtml(seoTitle)}</title>
+    <meta name="description" content="${escapeHtml(seoDescription)}" />
+    <style>
+      :root {
+        --primary: ${escapeHtml(theme.primary || '#0f172a')};
+        --accent: ${escapeHtml(theme.accent || '#2563eb')};
+        --background: ${escapeHtml(theme.background || '#f8fafc')};
+        --surface: ${escapeHtml(theme.surface || '#ffffff')};
+        --text: #0f172a;
+        --muted: #475569;
+      }
+      * { box-sizing: border-box; }
+      html, body { margin: 0; padding: 0; font-family: Inter, Arial, sans-serif; background: var(--background); color: var(--text); }
+      body { padding: 24px; }
+      a { color: inherit; text-decoration: none; }
+      .page { display: flex; flex-direction: column; gap: 18px; }
+      .section { background: var(--surface); border: 1px solid rgba(15, 23, 42, 0.08); padding: 24px; }
+      .hero { display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 20px; align-items: center; }
+      .hero-copy h1, .stack h2, .cta h2 { margin: 0 0 12px; line-height: 1.1; }
+      .hero-copy h1 { font-size: 2rem; }
+      .eyebrow { margin: 0 0 8px; color: var(--accent); font-weight: 700; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.08em; }
+      .muted { color: var(--muted); margin: 0; }
+      .actions { display: flex; gap: 10px; margin-top: 18px; flex-wrap: wrap; }
+      .button { display: inline-flex; align-items: center; justify-content: center; min-height: 40px; padding: 0 16px; font-weight: 600; border: 1px solid rgba(15, 23, 42, 0.12); }
+      .button.primary { background: var(--accent); color: white; border-color: transparent; }
+      .button.secondary { background: white; color: var(--text); }
+      .hero-media img, .gallery-item img { width: 100%; height: 100%; object-fit: cover; display: block; }
+      .hero-media { min-height: 280px; }
+      .image-placeholder, .gallery-item.empty { min-height: 220px; border: 1px dashed rgba(15, 23, 42, 0.15); display: flex; align-items: center; justify-content: center; color: var(--muted); text-align: center; padding: 20px; background: rgba(255,255,255,0.65); }
+      .stack { display: flex; flex-direction: column; gap: 16px; }
+      .grid { display: grid; gap: 16px; }
+      .columns-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      .card { background: rgba(248, 250, 252, 0.9); border: 1px solid rgba(15, 23, 42, 0.06); padding: 16px; }
+      .card h3, .card p { margin: 0; }
+      .card p { margin-top: 8px; color: var(--muted); }
+      .gallery { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+      .gallery-item { aspect-ratio: 4 / 3; overflow: hidden; background: rgba(248,250,252,0.9); }
+      .cta { display: flex; align-items: center; justify-content: space-between; gap: 18px; background: linear-gradient(135deg, rgba(255,255,255,0.98), rgba(37,99,235,0.06)); }
+      .footer { display: flex; justify-content: space-between; align-items: center; gap: 16px; background: #0f172a; color: white; }
+      .footer .muted { color: rgba(255,255,255,0.8); }
+      pre { margin: 0; white-space: pre-wrap; font-family: ui-monospace, SFMono-Regular, monospace; font-size: 12px; color: var(--muted); }
+      @media (max-width: 820px) {
+        body { padding: 14px; }
+        .hero, .cta, .footer { grid-template-columns: 1fr; display: flex; flex-direction: column; align-items: stretch; }
+        .columns-3, .gallery { grid-template-columns: 1fr; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">${sections.map((section) => renderSection(section, shopId)).join('')}</div>
+  </body>
+</html>`
+}
+
+export async function publishWebsiteStatic({ shopId, config }) {
+  const root = getUploadRoot()
+  const shopDir = path.join(root, 'shops', String(shopId))
+  await fs.mkdir(shopDir, { recursive: true })
+  const html = buildHtml(config, String(shopId))
+  const indexPath = path.join(shopDir, 'index.html')
+  await fs.writeFile(indexPath, html, 'utf8')
+  return { indexPath, shopDir }
+}

@@ -1,5 +1,7 @@
 import { Router } from 'express'
 import bcrypt from 'bcrypt'
+import fs from 'fs/promises'
+import path from 'path'
 import pool from '../db/index.js'
 import { requireAuth } from '../middleware/auth.js'
 import { logActivity } from '../services/activityLog.js'
@@ -20,6 +22,8 @@ import {
   summarizeSections,
 } from '../services/shopWebsiteService.js'
 import { createShopContainer, getContainerStats, removeContainer } from '../services/shopDockerService.js'
+import { publishWebsiteStatic } from '../services/websiteStaticPublishService.js'
+import { getUploadRoot } from '../services/assetStorage.js'
 
 const router = Router()
 
@@ -39,6 +43,22 @@ function normalizeSlug(value) {
     .toLowerCase()
     .replace(/[^a-z0-9-]+/g, '-')
     .replace(/^-+|-+$/g, '') || 'shop'
+}
+
+function previewBaseUrl() {
+  return toText(process.env.WEBSITE_PREVIEW_BASE_URL, 'https://preview.captone2.site').replace(/\/$/, '')
+}
+
+function publicBaseDomain() {
+  return toText(process.env.WEBSITE_PUBLIC_BASE_DOMAIN, 'captone2.site')
+}
+
+function buildDefaultSubdomain(slug) {
+  return `${normalizeSlug(slug)}.${publicBaseDomain()}`
+}
+
+function buildPreviewUrl(shopId) {
+  return `${previewBaseUrl()}/sites/${shopId}`
 }
 
 async function getOwnedShop(client, shopId, profileId) {
@@ -280,8 +300,8 @@ router.get('/:id/website/entry', requireAuth, async (req, res) => {
       sites: [{
         id: site.id,
         name: site.name || `${shop.name} website`,
-        link: `https://${toText(deployment?.subdomain, `${normalizeSlug(site.slug)}.captone2.site`)}`,
-        previewUrl: `https://preview.captone2.site/sites/${shop.id}`,
+        link: `https://${toText(deployment?.subdomain, buildDefaultSubdomain(site.slug))}`,
+        previewUrl: buildPreviewUrl(shop.id),
         status: deployment?.status || site.status || 'draft',
         createdAt: site.created_at || null,
         launchedAt: deployment?.deployed_at || null,
@@ -385,6 +405,7 @@ router.post('/:id/website/create-from-idea', requireAuth, async (req, res) => {
       config: nextConfig,
       status: 'draft',
     })
+    await publishWebsiteStatic({ shopId: shop.id, config: nextConfig })
 
     try {
       await logActivity(pool, {
@@ -487,6 +508,7 @@ router.post('/:id/website/sections/:sectionId/update', requireAuth, async (req, 
       config: nextConfig,
       status: 'draft',
     })
+    await publishWebsiteStatic({ shopId: shop.id, config: nextConfig })
 
     res.json({
       ok: true,
@@ -537,7 +559,7 @@ router.post('/:id/website/prompt/preview', requireAuth, async (req, res) => {
       summary: patch.summary,
       affectedSections: merged.affectedSections.length > 0 ? merged.affectedSections : patch.affectedSections,
       draftConfig,
-      draftPreviewUrl: `https://preview.captone2.site/sites/${shop.id}`,
+      draftPreviewUrl: buildPreviewUrl(shop.id),
     })
   } catch (error) {
     console.error('website prompt preview error:', error)
@@ -591,6 +613,7 @@ router.post('/:id/website/prompt/apply', requireAuth, async (req, res) => {
       config: nextConfig,
       status: 'preview_ready',
     })
+    await publishWebsiteStatic({ shopId: shop.id, config: nextConfig })
 
     await logWebsitePrompt(client, site.id, 'user', {
       prompt: body.prompt,
@@ -627,7 +650,7 @@ router.post('/:id/website/prompt/apply', requireAuth, async (req, res) => {
     res.json({
       ok: true,
       message: patch.summary,
-      previewUrl: `https://preview.captone2.site/sites/${shop.id}`,
+      previewUrl: buildPreviewUrl(shop.id),
       affectedSections: merged.affectedSections.length > 0 ? merged.affectedSections : patch.affectedSections,
       config: nextConfig,
       site: savedSite,
@@ -676,6 +699,7 @@ router.post('/:id/website/rebuild', requireAuth, async (req, res) => {
       config: rebuilt,
       status: 'draft',
     })
+    await publishWebsiteStatic({ shopId: shop.id, config: rebuilt })
 
     res.json({
       ok: true,
@@ -736,6 +760,7 @@ router.post('/:id/website/versions/:versionId/restore', requireAuth, async (req,
       config: nextConfig,
       status: 'preview_ready',
     })
+    await publishWebsiteStatic({ shopId: shop.id, config: nextConfig })
 
     res.json({
       ok: true,
@@ -767,8 +792,8 @@ router.get('/:id/website/deploy/status', requireAuth, async (req, res) => {
     res.json({
       deployment,
       liveStats,
-      publicUrl: `https://${toText(deployment?.subdomain, `${normalizeSlug(shop.slug)}.captone2.site`)}`,
-      previewUrl: `https://preview.captone2.site/sites/${shop.id}`,
+      publicUrl: `https://${toText(deployment?.subdomain, buildDefaultSubdomain(shop.slug))}`,
+      previewUrl: buildPreviewUrl(shop.id),
     })
   } catch (error) {
     console.error('website deploy status error:', error)
@@ -857,7 +882,7 @@ router.post('/:id/website/deploy', requireAuth, async (req, res) => {
         `INSERT INTO site_deployments (site_id, shop_id, subdomain, status)
          VALUES ($1, $2, $3, 'building')
          RETURNING *`,
-        [site.id, shop.id, `${normalizeSlug(site.slug)}.captone2.site`]
+        [site.id, shop.id, buildDefaultSubdomain(site.slug)]
       )
       deployment = inserted.rows[0]
     } else {
@@ -877,13 +902,13 @@ router.post('/:id/website/deploy', requireAuth, async (req, res) => {
            container_name = $3,
            subdomain = COALESCE(subdomain, $4),
            status = 'running',
-           port = $5,
+           port = COALESCE($5, port),
            deployed_at = NOW(),
            last_build_at = NOW(),
            updated_at = NOW()
        WHERE shop_id = $6
        RETURNING *`,
-      [site.id, runtime.containerId, runtime.containerName, `${normalizeSlug(site.slug)}.captone2.site`, runtime.port, shop.id]
+      [site.id, runtime.containerId, runtime.containerName, buildDefaultSubdomain(site.slug), runtime.port, shop.id]
     )
 
     const nextConfig = appendVersion({
@@ -897,6 +922,7 @@ router.post('/:id/website/deploy', requireAuth, async (req, res) => {
       source: 'deploy',
       summary: 'Website container deployed and running.',
     })
+    await publishWebsiteStatic({ shopId: shop.id, config: nextConfig })
     await upsertSite(client, {
       siteId: site.id,
       shopId: shop.id,
@@ -910,14 +936,27 @@ router.post('/:id/website/deploy', requireAuth, async (req, res) => {
     res.json({
       ok: true,
       deployment: updated.rows[0],
-      publicUrl: `https://${toText(updated.rows[0]?.subdomain, `${normalizeSlug(site.slug)}.captone2.site`)}`,
-      previewUrl: `https://preview.captone2.site/sites/${shop.id}`,
+      publicUrl: `https://${toText(updated.rows[0]?.subdomain, buildDefaultSubdomain(site.slug))}`,
+      previewUrl: buildPreviewUrl(shop.id),
     })
   } catch (error) {
     console.error('website deploy error:', error)
     res.status(500).json({ error: error.message || 'Failed to deploy website' })
   } finally {
     client.release()
+  }
+})
+
+router.get('/preview/sites/:shopId', async (req, res) => {
+  const shopId = toText(req.params.shopId)
+  if (!shopId) return res.status(400).send('Invalid shop id')
+  const indexPath = path.join(getUploadRoot(), 'shops', shopId, 'index.html')
+  try {
+    await fs.access(indexPath)
+    res.setHeader('Cache-Control', 'no-store')
+    return res.sendFile(indexPath)
+  } catch {
+    return res.status(404).send('Preview not ready')
   }
 })
 

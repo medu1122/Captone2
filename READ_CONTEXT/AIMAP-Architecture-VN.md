@@ -307,6 +307,10 @@ flowchart TB
 - **Subdomain:** `shopname.aimap.app` → Reverse proxy (Nginx/Traefik/Caddy) route theo host → container tương ứng (mapping shopname ↔ containerId).
 - **Preview:** Có thể dùng `preview.aimap.app/sites/:siteId` (proxy tới container) hoặc port riêng per container; dashboard iframe trỏ URL đó.
 - **Custom domain sau:** Proxy nhận request theo Host header; map custom domain → shopId → cùng container.
+- **Backend URL config (đã có trong module website):**
+  - `WEBSITE_PUBLIC_BASE_DOMAIN` (default `captone2.site`) để build public host `slug.domain`.
+  - `WEBSITE_PREVIEW_BASE_URL` (default `https://preview.captone2.site`) để build preview URL.
+  - Fallback runtime preview endpoint: `GET /api/shops/preview/sites/:shopId` trả `index.html` đã publish (dùng khi cần verify runtime không qua srcDoc).
 
 ---
 

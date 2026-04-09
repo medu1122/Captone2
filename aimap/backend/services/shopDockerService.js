@@ -4,6 +4,7 @@
  * The container mounts the shop's storage folder read-only so Nginx can serve assets.
  */
 import Dockerode from 'dockerode'
+import fs from 'fs/promises'
 import { getUploadRoot } from './assetStorage.js'
 import path from 'path'
 
@@ -72,14 +73,32 @@ export async function createShopContainer(shopId) {
   const containerName = `aimap-shop-${shopId}`
   const storageRoot = getUploadRoot()
   const shopDir = path.join(storageRoot, 'shops', shopId)
-  const port = await findFreePort()
+  await fs.mkdir(shopDir, { recursive: true })
 
+  const existing = await d.listContainers({
+    all: true,
+    filters: JSON.stringify({ name: [containerName] }),
+  })
+  if (existing[0]?.Id) {
+    const existingContainerId = existing[0].Id
+    const existingPort = existing[0].Ports?.find((portMap) => portMap.PrivatePort === 80)?.PublicPort
+    const runningState = String(existing[0].State || '').toLowerCase()
+    if (!runningState.includes('running')) {
+      await startContainer(existingContainerId)
+    }
+    return {
+      containerId: existingContainerId,
+      containerName,
+      port: existingPort || null,
+    }
+  }
+
+  const port = await findFreePort()
   try {
     await d.pull(SHOP_CONTAINER_IMAGE)
   } catch (_) {
     /* image may already be cached */
   }
-
   const container = await d.createContainer({
     Image: SHOP_CONTAINER_IMAGE,
     name: containerName,
@@ -92,7 +111,7 @@ export async function createShopContainer(shopId) {
         '80/tcp': [{ HostPort: String(port) }],
       },
       Binds: [
-        `${shopDir}:/usr/share/nginx/html/uploads/shops/${shopId}:ro`,
+        `${shopDir}:/usr/share/nginx/html`,
       ],
       RestartPolicy: { Name: 'unless-stopped' },
     },
