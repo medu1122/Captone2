@@ -23,13 +23,13 @@ export default function ShopMarketingPage() {
         {platforms.map((p) => {
           const content = (
             <div
-              className={`rounded-2xl border p-5 flex flex-col items-center gap-2 transition ${
+              className={`rounded-none border p-5 flex flex-col items-center gap-2 transition ${
                 p.enabled
                   ? 'border-slate-300 bg-white hover:border-slate-500 hover:shadow-sm'
                   : 'border-slate-200 bg-slate-100 opacity-60'
               }`}
             >
-              <div className="h-12 w-12 rounded-full bg-slate-900 text-white flex items-center justify-center text-xl font-semibold">
+              <div className="h-12 w-12 rounded-none bg-slate-900 text-white flex items-center justify-center text-xl font-semibold">
                 {p.icon}
               </div>
               <p className="text-sm font-medium text-slate-800">{t(`marketing.platform.${p.key}`)}</p>

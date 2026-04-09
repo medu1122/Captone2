@@ -34,16 +34,16 @@ export default function ForgotPasswordPage() {
   return (
     <AuthLayout>
       <div className="w-full max-w-md">
-        <div className="bg-white border border-slate-300 rounded-lg p-8">
+        <div className="bg-white border border-slate-300 rounded-none p-8">
           <div className="mb-6">
             <h1 className="text-xl font-bold text-slate-900">{t('auth.forgot.title')}</h1>
             <p className="text-sm text-slate-600">{t('auth.forgot.subtitle')}</p>
           </div>
           {error && (
-            <p className="mb-4 text-sm text-red-400 bg-red-400/10 rounded-lg px-3 py-2">{error}</p>
+            <p className="mb-4 text-sm text-red-400 bg-red-400/10 rounded-none px-3 py-2">{error}</p>
           )}
           {success && (
-            <p className="mb-4 text-sm text-green-400 bg-green-400/10 rounded-lg px-3 py-2">{success}</p>
+            <p className="mb-4 text-sm text-green-400 bg-green-400/10 rounded-none px-3 py-2">{success}</p>
           )}
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
@@ -56,7 +56,7 @@ export default function ForgotPasswordPage() {
                 name="email"
                 required
                 autoComplete="email"
-                className="w-full px-4 py-3 rounded-lg bg-white border border-slate-300 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:border-slate-400"
+                className="w-full px-4 py-3 rounded-none bg-white border border-slate-300 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:border-slate-400"
                 placeholder="nguoidung@example.com"
               />
             </div>
@@ -68,7 +68,7 @@ export default function ForgotPasswordPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-primary hover:bg-primary/90 disabled:opacity-50 text-white font-semibold py-3 px-6 rounded-lg transition-colors"
+              className="w-full bg-primary hover:bg-primary/90 disabled:opacity-50 text-white font-semibold py-3 px-6 rounded-none transition-colors"
             >
               {loading ? '...' : t('auth.forgot.submit')}
             </button>

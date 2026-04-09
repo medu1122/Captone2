@@ -62,7 +62,7 @@ export default function ImageBotResultCard({
   }
 
   return (
-    <div className="flex flex-col overflow-hidden rounded-lg border border-slate-300 bg-white">
+    <div className="flex flex-col overflow-hidden rounded-none border border-slate-300 bg-white">
       <div
         role={onSlotClick ? 'button' : undefined}
         tabIndex={onSlotClick ? 0 : undefined}
@@ -81,7 +81,7 @@ export default function ImageBotResultCard({
       >
         {slot.loading ? (
           <div className="flex flex-col items-center gap-2 text-slate-500">
-            <div className="w-8 h-8 border-2 border-slate-300 border-t-primary rounded-full animate-spin" />
+            <div className="w-8 h-8 border-2 border-slate-300 border-t-primary rounded-none animate-spin" />
             <span className="text-xs">{t('imageBot.generatingSlot')}</span>
           </div>
         ) : slot.imageUrl ? (
@@ -122,7 +122,7 @@ export default function ImageBotResultCard({
             onChange={(e) => setEditPrompt(e.target.value)}
             rows={2}
             placeholder={t('imageBot.panelEditPrompt')}
-            className="w-full text-xs border border-slate-300 rounded px-2 py-1"
+            className="w-full text-xs border border-slate-300 rounded-none px-2 py-1"
           />
           <input
             ref={editFileRef}
@@ -160,7 +160,7 @@ export default function ImageBotResultCard({
               setEditFiles([])
               setPanel('none')
             }}
-            className="w-full py-1.5 rounded bg-slate-800 text-white text-xs font-medium"
+            className="w-full py-1.5 rounded-none bg-slate-800 text-white text-xs font-medium"
           >
             {t('imageBot.apply')}
           </button>
@@ -175,7 +175,7 @@ export default function ImageBotResultCard({
             onChange={(e) => setRebuildPrompt(e.target.value)}
             rows={2}
             placeholder={t('imageBot.panelRebuildPrompt')}
-            className="w-full text-xs border border-slate-300 rounded px-2 py-1"
+            className="w-full text-xs border border-slate-300 rounded-none px-2 py-1"
           />
           <input
             ref={rebuildFileRef}
@@ -209,7 +209,7 @@ export default function ImageBotResultCard({
             <select
               value={rebuildAspect}
               onChange={(e) => setRebuildAspect(e.target.value as AspectRatio | '')}
-              className="w-full text-xs border border-slate-300 rounded px-2 py-1"
+              className="w-full text-xs border border-slate-300 rounded-none px-2 py-1"
             >
               <option value="">{t('imageBot.sameAsMain')}</option>
               {aspects.map((a) => (
@@ -233,7 +233,7 @@ export default function ImageBotResultCard({
               setRebuildAspect('')
               setPanel('none')
             }}
-            className="w-full py-1.5 rounded bg-slate-800 text-white text-xs font-medium"
+            className="w-full py-1.5 rounded-none bg-slate-800 text-white text-xs font-medium"
           >
             {t('imageBot.rebuildAction')}
           </button>

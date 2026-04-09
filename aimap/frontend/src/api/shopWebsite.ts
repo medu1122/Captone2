@@ -325,5 +325,12 @@ export const shopWebsiteApi = {
       method: 'POST',
       headers: auth(token),
     }),
+
+  deleteWebsite: (token: string, shopId: string, body: { password: string }) =>
+    apiFetch<{ ok: boolean }>(`${SHOPS_PREFIX}/${shopId}/website/delete`, {
+      method: 'POST',
+      headers: auth(token),
+      body: body as unknown as Record<string, unknown>,
+    }),
 }
 

@@ -27,6 +27,11 @@ function statusClass(status: string): string {
   return 'border-slate-200 bg-slate-100 text-slate-700'
 }
 
+function formatDateShort(value: string | null): string {
+  if (!value) return '-'
+  return value.slice(0, 10)
+}
+
 export default function ShopWebsitePage() {
   const { t } = useLocale()
   const { token } = useAuth()
@@ -38,6 +43,7 @@ export default function ShopWebsitePage() {
   const [assets, setAssets] = useState<ShopAsset[]>([])
   const [creating, setCreating] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
+  const [showCreateForm, setShowCreateForm] = useState(false)
   const [idea, setIdea] = useState('')
   const [promptNote, setPromptNote] = useState('')
   const [template, setTemplate] = useState<WebsiteTemplate>('catalog')
@@ -47,8 +53,6 @@ export default function ShopWebsitePage() {
   if (!id) return <p className="text-sm text-slate-500">{t('website.common.missingShopId')}</p>
   if (!token) return null
 
-  const hasSite = sites.length > 0
-
   const load = async () => {
     setLoading(true)
     const [entryRes, assetsRes] = await Promise.all([
@@ -57,6 +61,7 @@ export default function ShopWebsitePage() {
     ])
     setSites(entryRes.data?.sites || [])
     setAssets(assetsRes.data?.assets || [])
+    setShowCreateForm(!(entryRes.data?.sites?.length))
     setLoading(false)
   }
 
@@ -96,48 +101,10 @@ export default function ShopWebsitePage() {
 
   return (
     <div className="flex w-full min-w-0 flex-col gap-6">
-      <section className="overflow-hidden rounded-[28px] border border-slate-200 bg-white">
-        <div className="grid gap-0 lg:grid-cols-[minmax(0,1.3fr)_360px]">
-          <div className="border-b border-slate-100 p-6 lg:border-b-0 lg:border-r">
-            <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs text-slate-600">
-              Website entry
-            </span>
-            <h1 className="mt-4 text-3xl font-bold tracking-tight text-slate-950">Quản lý website của shop từ một trang trung gian</h1>
-            <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">
-              Khi bấm vào mục Website, user sẽ đi qua trang này trước. Nếu chưa có website thì nhập mong muốn, prompt khởi tạo và bấm
-              tạo ngay. Nếu đã có website thì xem danh sách dạng bảng và mở chi tiết.
-            </p>
-          </div>
-          <div className="p-6">
-            <p className="text-sm font-semibold text-slate-900">Trạng thái hiện tại</p>
-            <div className="mt-4 space-y-3">
-              <div className="rounded-2xl border border-slate-200 p-4">
-                <p className="text-xs text-slate-500">Số website</p>
-                <p className="mt-1 text-2xl font-bold text-slate-950">{sites.length}</p>
-              </div>
-              <div className="rounded-2xl border border-slate-200 p-4">
-                <p className="text-xs text-slate-500">Assets khả dụng</p>
-                <p className="mt-1 text-2xl font-bold text-slate-950">{assets.length}</p>
-              </div>
-              <div className="rounded-2xl border border-slate-200 p-4">
-                <p className="text-xs text-slate-500">Hướng flow</p>
-                <p className="mt-1 text-sm font-semibold text-slate-950">
-                  {hasSite ? 'Xem bảng rồi vào chi tiết' : 'Chưa có web, hiển thị form tạo ngay tại đây'}
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {!hasSite ? (
-        <section className="rounded-[28px] border border-slate-200 bg-white p-6">
-          <div className="mb-5">
-            <h2 className="text-xl font-semibold text-slate-950">Tạo website đầu tiên</h2>
-            <p className="mt-1 text-sm text-slate-600">
-              Form này chỉ xuất hiện khi shop chưa có website. User nhập mong muốn, prompt ban đầu và chọn assets trước khi bấm tạo.
-            </p>
-          </div>
+      {showCreateForm ? (
+        <section className="rounded-none border border-slate-200 bg-white p-6">
+          <h2 className="mb-2 text-xl font-semibold text-slate-950">Tạo website cho shop</h2>
+          <p className="mb-5 text-sm text-slate-600">Mỗi shop chỉ có một website. Sau khi tạo, bạn chỉnh sửa hoặc xoá để tạo lại từ trang chỉnh sửa.</p>
 
           <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
             <div className="space-y-5">
@@ -147,7 +114,7 @@ export default function ShopWebsitePage() {
                   value={idea}
                   onChange={(event) => setIdea(event.target.value)}
                   rows={5}
-                  className="w-full resize-none rounded-2xl border border-slate-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  className="w-full resize-none rounded-none border border-slate-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
                   placeholder="Ví dụ: website sạch, hiện đại, tập trung giới thiệu shop, sản phẩm nổi bật và thông tin liên hệ."
                 />
               </div>
@@ -158,7 +125,7 @@ export default function ShopWebsitePage() {
                   value={promptNote}
                   onChange={(event) => setPromptNote(event.target.value)}
                   rows={4}
-                  className="w-full resize-none rounded-2xl border border-slate-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  className="w-full resize-none rounded-none border border-slate-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
                   placeholder="Ví dụ: tạo hero ngắn gọn, CTA rõ, ưu tiên ảnh sản phẩm thật, tone thân thiện."
                 />
               </div>
@@ -169,7 +136,7 @@ export default function ShopWebsitePage() {
                   <select
                     value={template}
                     onChange={(event) => setTemplate(event.target.value as WebsiteTemplate)}
-                    className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm"
+                    className="w-full rounded-none border border-slate-200 px-4 py-3 text-sm"
                   >
                     <option value="catalog">Catalog</option>
                     <option value="story">Story</option>
@@ -181,7 +148,7 @@ export default function ShopWebsitePage() {
                   <select
                     value={tone}
                     onChange={(event) => setTone(event.target.value as WebsiteTone)}
-                    className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm"
+                    className="w-full rounded-none border border-slate-200 px-4 py-3 text-sm"
                   >
                     <option value="balanced">Balanced</option>
                     <option value="friendly">Friendly</option>
@@ -194,13 +161,13 @@ export default function ShopWebsitePage() {
               <div>
                 <div className="mb-3 flex items-center justify-between">
                   <label className="block text-sm font-medium text-slate-700">Chọn ảnh từ storage</label>
-                  <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] text-slate-600">
+                  <span className="rounded-none border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] text-slate-600">
                     {selectedAssetIds.length} ảnh
                   </span>
                 </div>
                 <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
                   {assets.length === 0 ? (
-                    <div className="col-span-full rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-500">
+                    <div className="col-span-full rounded-none border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-500">
                       Shop chưa có ảnh trong storage.
                     </div>
                   ) : (
@@ -215,7 +182,7 @@ export default function ShopWebsitePage() {
                               ? prev.filter((item) => item !== asset.id)
                               : [...prev, asset.id]
                           ))}
-                          className={`overflow-hidden rounded-2xl border text-left transition ${
+                          className={`overflow-hidden rounded-none border text-left transition ${
                             active ? 'border-slate-900 ring-2 ring-slate-900/10' : 'border-slate-200'
                           }`}
                         >
@@ -243,7 +210,7 @@ export default function ShopWebsitePage() {
                   type="button"
                   onClick={() => void handleCreate()}
                   disabled={creating || loading}
-                  className="rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
+                  className="rounded-none bg-slate-950 px-5 py-3 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
                 >
                   {creating ? 'Đang tạo...' : 'Tạo ngay'}
                 </button>
@@ -252,22 +219,22 @@ export default function ShopWebsitePage() {
             </div>
 
             <div className="space-y-4">
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <div className="rounded-none border border-slate-200 bg-slate-50 p-4">
                 <p className="text-xs text-slate-500">Preview dữ liệu đầu vào</p>
                 <p className="mt-2 text-sm font-semibold text-slate-900">{idea || 'Chưa có mô tả mong muốn.'}</p>
               </div>
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <div className="rounded-none border border-slate-200 bg-slate-50 p-4">
                 <p className="text-xs text-slate-500">Prompt ban đầu</p>
                 <p className="mt-2 text-sm font-semibold text-slate-900">{promptNote || 'Chưa có prompt khởi tạo.'}</p>
               </div>
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <div className="rounded-none border border-slate-200 bg-slate-50 p-4">
                 <p className="text-xs text-slate-500">Ảnh đã chọn</p>
                 <div className="mt-3 flex flex-wrap gap-2">
                   {selectedAssetsPreview.length === 0 ? (
                     <span className="text-sm text-slate-500">Chưa chọn ảnh.</span>
                   ) : (
                     selectedAssetsPreview.map((asset) => (
-                      <span key={asset.id} className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs text-slate-700">
+                      <span key={asset.id} className="rounded-none border border-slate-200 bg-white px-3 py-1 text-xs text-slate-700">
                         {asset.name || asset.type || asset.id}
                       </span>
                     ))
@@ -279,23 +246,11 @@ export default function ShopWebsitePage() {
         </section>
       ) : null}
 
-      <section className="rounded-[28px] border border-slate-200 bg-white p-6">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <h2 className="text-xl font-semibold text-slate-950">Danh sách website</h2>
-            <p className="mt-1 text-sm text-slate-600">Trang trung gian này chỉ cần hiển thị dạng bảng, đủ thông tin cơ bản và nút xem chi tiết.</p>
-          </div>
-          <button
-            type="button"
-            onClick={() => void load()}
-            disabled={loading}
-            className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
-          >
-            Tải lại
-          </button>
-        </div>
+      <section className="rounded-none border border-slate-200 bg-white p-6">
+        <h2 className="text-xl font-semibold text-slate-950">Website của shop</h2>
+        <p className="mt-2 text-sm text-slate-600">Một shop — một website. Muốn tạo lại từ đầu, vào Website edit và dùng Xoá web.</p>
 
-        <div className="mt-5 overflow-hidden rounded-2xl border border-slate-200">
+        <div className="mt-5 overflow-hidden rounded-none border border-slate-200">
           <table className="min-w-full divide-y divide-slate-200">
             <thead className="bg-slate-50">
               <tr className="text-left text-sm text-slate-600">
@@ -315,30 +270,34 @@ export default function ShopWebsitePage() {
               ) : sites.length === 0 ? (
                 <tr>
                   <td className="px-4 py-6 text-sm text-slate-500" colSpan={6}>
-                    Chưa có website nào. Hãy dùng form phía trên để tạo website đầu tiên.
+                    Shop chưa có website. Dùng form phía trên để tạo (mỗi shop chỉ một website).
                   </td>
                 </tr>
               ) : (
-                sites.map((site) => (
+                sites.slice(0, 1).map((site) => (
                   <tr key={site.id} className="text-sm text-slate-700">
                     <td className="px-4 py-4 font-semibold text-slate-950">{site.name}</td>
                     <td className="px-4 py-4">
                       <div className="space-y-1">
-                        <p className="max-w-[260px] truncate">{site.link}</p>
-                        <p className="max-w-[260px] truncate text-xs text-slate-500">{site.previewUrl}</p>
+                        <a href={site.link} target="_blank" rel="noreferrer" className="block max-w-[260px] truncate text-blue-600 underline">
+                          {site.link}
+                        </a>
+                        <a href={site.previewUrl} target="_blank" rel="noreferrer" className="block max-w-[260px] truncate text-xs text-blue-600 underline">
+                          {site.previewUrl}
+                        </a>
                       </div>
                     </td>
                     <td className="px-4 py-4">
-                      <span className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${statusClass(site.status)}`}>
+                      <span className={`rounded-none border px-2.5 py-1 text-xs font-semibold ${statusClass(site.status)}`}>
                         {site.status}
                       </span>
                     </td>
-                    <td className="px-4 py-4">{site.createdAt || '-'}</td>
-                    <td className="px-4 py-4">{site.launchedAt || '-'}</td>
+                    <td className="px-4 py-4">{formatDateShort(site.createdAt)}</td>
+                    <td className="px-4 py-4">{formatDateShort(site.launchedAt)}</td>
                     <td className="px-4 py-4">
                       <Link
                         to={`/shops/${id}/website/dashboard`}
-                        className="inline-flex rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                        className="inline-flex rounded-none border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
                       >
                         Xem chi tiết
                       </Link>

@@ -349,7 +349,7 @@ export default function WebsitePreviewFrame({
       <iframe
         title="Website preview"
         srcDoc={srcDoc}
-        className="h-[760px] w-full rounded-2xl border border-slate-200 bg-white shadow-sm"
+        className="h-[760px] w-full rounded-none border border-slate-200 bg-white shadow-sm"
       />
     </div>
   )

@@ -92,20 +92,20 @@ export default function ImageBotResultModal({
       aria-modal="true"
       aria-label="Image preview"
     >
-      <div className="flex h-full max-h-[90vh] w-full max-w-6xl flex-col overflow-hidden rounded-lg bg-white shadow-xl">
+      <div className="flex h-full max-h-[90vh] w-full max-w-6xl flex-col overflow-hidden rounded-none bg-white shadow-xl">
         <div className="flex shrink-0 items-center justify-between border-b border-slate-200 px-4 py-2">
           <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={() => setScale((s) => Math.min(3, s + 0.25))}
-              className="rounded border border-slate-300 px-2 py-1 text-sm hover:bg-slate-50"
+              className="rounded-none border border-slate-300 px-2 py-1 text-sm hover:bg-slate-50"
             >
               +
             </button>
             <button
               type="button"
               onClick={() => setScale((s) => Math.max(0.5, s - 0.25))}
-              className="rounded border border-slate-300 px-2 py-1 text-sm hover:bg-slate-50"
+              className="rounded-none border border-slate-300 px-2 py-1 text-sm hover:bg-slate-50"
             >
               −
             </button>
@@ -114,7 +114,7 @@ export default function ImageBotResultModal({
           <button
             type="button"
             onClick={onClose}
-            className="rounded border border-slate-300 px-3 py-1 text-sm hover:bg-slate-100"
+            className="rounded-none border border-slate-300 px-3 py-1 text-sm hover:bg-slate-100"
           >
             {t('imageBot.modalClose')}
           </button>
@@ -130,7 +130,7 @@ export default function ImageBotResultModal({
           >
             {slot.loading ? (
               <div className="flex flex-col items-center gap-2 text-white">
-                <div className="h-10 w-10 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                <div className="h-10 w-10 animate-spin rounded-none border-2 border-white border-t-transparent" />
                 <span className="text-sm">{t('imageBot.generatingSlot')}</span>
               </div>
             ) : imageError || !slot.imageUrl ? (
@@ -173,21 +173,21 @@ export default function ImageBotResultModal({
                 type="button"
                 onClick={() => onSave(slot.id)}
                 disabled={!slot.imageUrl || slot.loading}
-                className="w-full rounded-lg bg-primary py-2 text-sm font-medium text-white hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
+                className="w-full rounded-none bg-primary py-2 text-sm font-medium text-white hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {t('imageBot.save')}
               </button>
               <button
                 type="button"
                 onClick={openEdit}
-                className="w-full rounded-lg border border-slate-300 py-2 text-sm text-slate-700 hover:bg-slate-100"
+                className="w-full rounded-none border border-slate-300 py-2 text-sm text-slate-700 hover:bg-slate-100"
               >
                 {t('imageBot.edit')}
               </button>
               <button
                 type="button"
                 onClick={openRebuild}
-                className="w-full rounded-lg border border-slate-300 py-2 text-sm text-slate-700 hover:bg-slate-100"
+                className="w-full rounded-none border border-slate-300 py-2 text-sm text-slate-700 hover:bg-slate-100"
               >
                 {t('imageBot.rebuild')}
               </button>
@@ -201,7 +201,7 @@ export default function ImageBotResultModal({
                   onChange={(e) => setEditPrompt(e.target.value)}
                   rows={2}
                   placeholder={t('imageBot.panelEditPrompt')}
-                  className="w-full rounded border border-slate-300 px-2 py-1 text-xs"
+                  className="w-full rounded-none border border-slate-300 px-2 py-1 text-xs"
                 />
                 <input
                   ref={editFileRef}
@@ -239,7 +239,7 @@ export default function ImageBotResultModal({
                     setEditFiles([])
                     setPanel('none')
                   }}
-                  className="w-full rounded bg-slate-800 py-1.5 text-xs font-medium text-white"
+                  className="w-full rounded-none bg-slate-800 py-1.5 text-xs font-medium text-white"
                 >
                   {t('imageBot.apply')}
                 </button>
@@ -254,7 +254,7 @@ export default function ImageBotResultModal({
                   onChange={(e) => setRebuildPrompt(e.target.value)}
                   rows={2}
                   placeholder={t('imageBot.panelRebuildPrompt')}
-                  className="w-full rounded border border-slate-300 px-2 py-1 text-xs"
+                  className="w-full rounded-none border border-slate-300 px-2 py-1 text-xs"
                 />
                 <input
                   ref={rebuildFileRef}
@@ -291,7 +291,7 @@ export default function ImageBotResultModal({
                   <select
                     value={rebuildAspect}
                     onChange={(e) => setRebuildAspect(e.target.value as AspectRatio | '')}
-                    className="w-full rounded border border-slate-300 px-2 py-1 text-xs"
+                    className="w-full rounded-none border border-slate-300 px-2 py-1 text-xs"
                   >
                     <option value="">{t('imageBot.sameAsMain')}</option>
                     {aspects.map((a) => (
@@ -315,7 +315,7 @@ export default function ImageBotResultModal({
                     setRebuildAspect('')
                     setPanel('none')
                   }}
-                  className="w-full rounded bg-slate-800 py-1.5 text-xs font-medium text-white"
+                  className="w-full rounded-none bg-slate-800 py-1.5 text-xs font-medium text-white"
                 >
                   {t('imageBot.rebuildAction')}
                 </button>

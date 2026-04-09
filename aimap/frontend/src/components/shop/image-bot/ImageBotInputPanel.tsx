@@ -130,7 +130,7 @@ export default function ImageBotInputPanel({
                 key={a}
                 type="button"
                 onClick={() => setAspect(a)}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors ${
+                className={`px-3 py-1.5 rounded-none text-sm font-medium border transition-colors ${
                   aspect === a
                     ? 'bg-primary text-white border-primary'
                     : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
@@ -150,7 +150,7 @@ export default function ImageBotInputPanel({
             id="image-bot-style"
             value={style}
             onChange={(e) => setStyle(e.target.value as ImageStyle)}
-            className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white"
+            className="w-full border border-slate-300 rounded-none px-3 py-2 text-sm bg-white"
           >
             {STYLES.map((s) => (
               <option key={s.value} value={s.value}>
@@ -169,7 +169,7 @@ export default function ImageBotInputPanel({
                 setShopOnly(e.target.checked)
                 if (e.target.checked) setSelectedProductKeys([])
               }}
-              className="rounded border-slate-300"
+              className="rounded-none border-slate-300"
             />
             <span className="text-sm text-slate-700">{t('imageBot.shopOnlyAd')}</span>
           </label>
@@ -178,7 +178,7 @@ export default function ImageBotInputPanel({
         {showProducts && (
           <div>
             <p className="text-xs font-medium text-slate-500 mb-2">{t('imageBot.pickProducts')}</p>
-            <div className="max-h-28 overflow-y-auto border border-slate-200 rounded-lg p-2 space-y-1">
+            <div className="max-h-28 overflow-y-auto border border-slate-200 rounded-none p-2 space-y-1">
               {products.map((p, i) => {
                 const key = productKey(p, i)
                 const label = p.name != null ? String(p.name) : `Product ${i + 1}`
@@ -188,7 +188,7 @@ export default function ImageBotInputPanel({
                       type="checkbox"
                       checked={selectedProductKeys.includes(key)}
                       onChange={() => toggleProduct(key)}
-                      className="rounded border-slate-300"
+                      className="rounded-none border-slate-300"
                     />
                     <span className="truncate text-slate-700">{label}</span>
                   </label>
@@ -199,7 +199,7 @@ export default function ImageBotInputPanel({
         )}
 
         {!shopOnly && products.length === 0 && (
-          <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+          <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-none px-3 py-2">
             {t('imageBot.noProductsHint')}
           </p>
         )}
@@ -214,7 +214,7 @@ export default function ImageBotInputPanel({
             onChange={(e) => setUserPrompt(e.target.value)}
             rows={3}
             placeholder={t('imageBot.extraPromptPlaceholder')}
-            className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm resize-none"
+            className="w-full border border-slate-300 rounded-none px-3 py-2 text-sm resize-none"
           />
         </div>
 
@@ -222,7 +222,7 @@ export default function ImageBotInputPanel({
           <p className="text-xs font-medium text-slate-500 mb-2">{t('imageBot.refImages')}</p>
 
           {/* Tab bar */}
-          <div className="flex gap-0 rounded-lg border border-slate-200 overflow-hidden mb-2 w-fit">
+          <div className="flex gap-0 rounded-none border border-slate-200 overflow-hidden mb-2 w-fit">
             {(['upload', 'storage', 'url'] as RefTab[]).map((tab) => {
               const labels: Record<RefTab, string> = {
                 upload: t('imageBot.refTabUpload'),
@@ -260,7 +260,7 @@ export default function ImageBotInputPanel({
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="text-xs px-3 py-1.5 border border-slate-300 rounded-lg hover:bg-slate-50"
+                className="text-xs px-3 py-1.5 border border-slate-300 rounded-none hover:bg-slate-50"
               >
                 {t('imageBot.addRefImages')}
               </button>
@@ -269,7 +269,7 @@ export default function ImageBotInputPanel({
                   {referenceFiles.map((f, i) => (
                     <li
                       key={`${f.name}-${i}`}
-                      className="flex items-center gap-1 text-xs bg-slate-100 px-2 py-1 rounded border border-slate-200"
+                      className="flex items-center gap-1 text-xs bg-slate-100 px-2 py-1 rounded-none border border-slate-200"
                     >
                       <span className="truncate max-w-[120px]">{f.name}</span>
                       <button type="button" onClick={() => removeRef(i)} className="text-red-500 hover:text-red-700 ml-0.5">×</button>
@@ -295,7 +295,7 @@ export default function ImageBotInputPanel({
                         key={a.id}
                         type="button"
                         onClick={() => src && toggleStorageUrl(src)}
-                        className={`aspect-square rounded-lg border-2 overflow-hidden bg-slate-100 transition-all ${
+                        className={`aspect-square rounded-none border-2 overflow-hidden bg-slate-100 transition-all ${
                           selected ? 'border-blue-500 ring-2 ring-blue-200' : 'border-transparent hover:border-slate-300'
                         }`}
                       >
@@ -321,12 +321,12 @@ export default function ImageBotInputPanel({
                   onChange={(e) => setRefUrlInput(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && addRefUrl()}
                   placeholder="https://..."
-                  className="flex-1 text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"
+                  className="flex-1 text-xs border border-slate-300 rounded-none px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"
                 />
                 <button
                   type="button"
                   onClick={addRefUrl}
-                  className="text-xs px-3 py-1.5 bg-slate-800 text-white rounded-lg hover:bg-slate-700"
+                  className="text-xs px-3 py-1.5 bg-slate-800 text-white rounded-none hover:bg-slate-700"
                 >
                   {t('imageBot.refAddUrl')}
                 </button>
@@ -334,7 +334,7 @@ export default function ImageBotInputPanel({
               {referenceUrls.length > 0 && (
                 <ul className="mt-2 flex flex-wrap gap-1.5">
                   {referenceUrls.map((url) => (
-                    <li key={url} className="flex items-center gap-1 text-xs bg-slate-100 px-2 py-1 rounded border border-slate-200 max-w-full">
+                    <li key={url} className="flex items-center gap-1 text-xs bg-slate-100 px-2 py-1 rounded-none border border-slate-200 max-w-full">
                       <span className="truncate max-w-[160px]">{url.split('/').pop() ?? url}</span>
                       <button type="button" onClick={() => removeRefUrl(url)} className="text-red-500 hover:text-red-700 ml-0.5">×</button>
                     </li>
@@ -361,7 +361,7 @@ export default function ImageBotInputPanel({
           type="button"
           onClick={handleGenerate}
           disabled={generating}
-          className="w-full sm:w-auto px-6 py-2.5 rounded-lg bg-primary text-white font-semibold text-sm hover:bg-primary/90 disabled:opacity-50"
+          className="w-full sm:w-auto px-6 py-2.5 rounded-none bg-primary text-white font-semibold text-sm hover:bg-primary/90 disabled:opacity-50"
         >
           {generating ? '...' : t('imageBot.generate')}
         </button>

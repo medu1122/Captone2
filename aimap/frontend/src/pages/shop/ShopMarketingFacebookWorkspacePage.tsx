@@ -141,23 +141,23 @@ function PostViewModalBody({ post, t }: { post: PostRow; t: (key: string) => str
   const engaged = post.reactions + post.comments + post.shares
   return (
     <div className="space-y-4">
-      <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-2 py-1">{t('marketing.mockDataBadge')}</p>
+      <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-100 rounded-none px-2 py-1">{t('marketing.mockDataBadge')}</p>
       <p className="text-sm text-slate-700 whitespace-pre-wrap break-words">{post.text}</p>
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-        <div className="rounded-lg border border-slate-200 p-2"><p className="text-[11px] text-slate-500">{t('marketing.kpiReach')}</p><p className="text-sm font-semibold text-slate-900">{formatReachShort(post.reach)}</p></div>
-        <div className="rounded-lg border border-slate-200 p-2"><p className="text-[11px] text-slate-500">{t('marketing.postEngaged')}</p><p className="text-sm font-semibold text-slate-900">{engaged}</p></div>
-        <div className="rounded-lg border border-slate-200 p-2"><p className="text-[11px] text-slate-500">{t('marketing.kpiEngagementRate')}</p><p className="text-sm font-semibold text-slate-900">{engagementRateLabel(post)}</p></div>
-        <div className="rounded-lg border border-slate-200 p-2"><p className="text-[11px] text-slate-500">{t('marketing.postReactions')}</p><p className="text-sm font-semibold text-slate-900">{post.reactions}</p></div>
+        <div className="rounded-none border border-slate-200 p-2"><p className="text-[11px] text-slate-500">{t('marketing.kpiReach')}</p><p className="text-sm font-semibold text-slate-900">{formatReachShort(post.reach)}</p></div>
+        <div className="rounded-none border border-slate-200 p-2"><p className="text-[11px] text-slate-500">{t('marketing.postEngaged')}</p><p className="text-sm font-semibold text-slate-900">{engaged}</p></div>
+        <div className="rounded-none border border-slate-200 p-2"><p className="text-[11px] text-slate-500">{t('marketing.kpiEngagementRate')}</p><p className="text-sm font-semibold text-slate-900">{engagementRateLabel(post)}</p></div>
+        <div className="rounded-none border border-slate-200 p-2"><p className="text-[11px] text-slate-500">{t('marketing.postReactions')}</p><p className="text-sm font-semibold text-slate-900">{post.reactions}</p></div>
       </div>
-      <div className="rounded-xl border border-slate-200 p-3">
+      <div className="rounded-none border border-slate-200 p-3">
         <p className="text-xs font-medium text-slate-700 mb-2">{t('marketing.postSparklineTitle')}</p>
         <div className="h-16 flex items-end gap-1">
           {vx.sparkline.map((h, i) => (
-            <div key={i} className="flex-1 min-w-0 rounded-t bg-slate-700/80" style={{ height: `${h}%` }} />
+            <div key={i} className="flex-1 min-w-0 rounded-none bg-slate-700/80" style={{ height: `${h}%` }} />
           ))}
         </div>
       </div>
-      <div className="rounded-xl border border-slate-200 p-3">
+      <div className="rounded-none border border-slate-200 p-3">
         <div className="flex items-center gap-2 mb-1">
           <img src={aiActionsBotIcon} alt="" className="h-5 w-5 object-contain" />
           <p className="text-xs font-medium text-slate-700">{t('marketing.commentAiTitle')}</p>
@@ -165,7 +165,7 @@ function PostViewModalBody({ post, t }: { post: PostRow; t: (key: string) => str
         <p className="text-sm text-slate-600">{vx.commentSummary}</p>
         <p className="text-xs text-slate-500 mt-2">{t('marketing.commentTopics')}: {vx.topics.join(', ')}</p>
       </div>
-      <div className="rounded-xl border border-slate-200 p-3">
+      <div className="rounded-none border border-slate-200 p-3">
         <div className="flex items-center gap-2 mb-1">
           <img src={aiActionsBotIcon} alt="" className="h-5 w-5 object-contain" />
           <p className="text-xs font-medium text-slate-700">{t('marketing.botEvalTitle')}</p>
@@ -197,7 +197,7 @@ function CenterModal({
   const maxW = size === 'lg' ? 'max-w-4xl' : 'max-w-3xl'
   return (
     <div className="fixed inset-0 z-50 bg-black/45 p-4 flex items-center justify-center">
-      <div className={`w-full ${maxW} bg-white border border-slate-200 rounded-2xl shadow-xl max-h-[90vh] flex flex-col`}>
+      <div className={`w-full ${maxW} bg-white border border-slate-200 rounded-none shadow-xl max-h-[90vh] flex flex-col`}>
         <div className="shrink-0 px-4 py-3 border-b border-slate-200 flex items-center justify-between">
           <p className="text-base font-semibold text-slate-900">{title}</p>
           <button type="button" onClick={onClose} className="text-sm text-slate-600 hover:text-slate-900">Close</button>
@@ -209,10 +209,10 @@ function CenterModal({
 }
 
 function Avatar({ page }: { page: PageRow | null }) {
-  if (!page) return <div className="h-10 w-10 rounded-full bg-slate-300" />
-  if (page.avatarUrl) return <img src={page.avatarUrl} alt={page.name} className="h-10 w-10 rounded-full object-cover" />
+  if (!page) return <div className="h-10 w-10 rounded-none bg-slate-300" />
+  if (page.avatarUrl) return <img src={page.avatarUrl} alt={page.name} className="h-10 w-10 rounded-none object-cover" />
   const initial = page.name.trim().charAt(0).toUpperCase() || 'F'
-  return <div className="h-10 w-10 rounded-full bg-blue-600 text-white text-sm font-bold flex items-center justify-center">{initial}</div>
+  return <div className="h-10 w-10 rounded-none bg-blue-600 text-white text-sm font-bold flex items-center justify-center">{initial}</div>
 }
 
 function InfoDot({
@@ -233,12 +233,12 @@ function InfoDot({
         onMouseEnter={() => onHover(true)}
         onMouseLeave={() => onHover(false)}
         onClick={onToggle}
-        className="inline-flex h-4 w-4 items-center justify-center rounded-full border border-slate-300 text-[10px] text-slate-600 hover:bg-slate-100"
+        className="inline-flex h-4 w-4 items-center justify-center rounded-none border border-slate-300 text-[10px] text-slate-600 hover:bg-slate-100"
       >
         i
       </button>
       <div
-        className={`pointer-events-none absolute right-0 top-5 w-56 rounded-lg border border-slate-200 bg-white p-2 text-[11px] text-slate-600 shadow-lg transition-all ${active ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-1'}`}
+        className={`pointer-events-none absolute right-0 top-5 w-56 rounded-none border border-slate-200 bg-white p-2 text-[11px] text-slate-600 shadow-lg transition-all ${active ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-1'}`}
       >
         {tip}
       </div>
@@ -459,7 +459,7 @@ export default function ShopMarketingFacebookWorkspacePage() {
       </div>
 
       {banner && (
-        <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-800 flex items-center justify-between gap-2">
+        <div className="rounded-none border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-800 flex items-center justify-between gap-2">
           <span>{banner}</span>
           <button type="button" className="text-xs text-slate-600 hover:text-slate-900" onClick={() => setBanner(null)}>
             ×
@@ -467,7 +467,7 @@ export default function ShopMarketingFacebookWorkspacePage() {
         </div>
       )}
 
-      <section className="rounded-2xl border border-slate-200 bg-white p-4">
+      <section className="rounded-none border border-slate-200 bg-white p-4">
         <div className="flex items-center justify-between mb-3">
           <div>
             <p className="text-sm font-semibold text-slate-900">{t('marketing.facebookPages')}</p>
@@ -481,7 +481,7 @@ export default function ShopMarketingFacebookWorkspacePage() {
               type="button"
               disabled={pagesLoading}
               onClick={() => void loadPages(true)}
-              className="px-3 py-1.5 text-sm rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-50"
+              className="px-3 py-1.5 text-sm rounded-none border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-50"
             >
               {t('marketing.syncPages')}
             </button>
@@ -489,19 +489,19 @@ export default function ShopMarketingFacebookWorkspacePage() {
               type="button"
               onClick={() => void startFacebookOAuth()}
               disabled={oauthLoading}
-              className="px-3 py-1.5 text-sm rounded-lg bg-[#1877f2] text-white hover:bg-[#166fe5] disabled:opacity-50"
+              className="px-3 py-1.5 text-sm rounded-none bg-[#1877f2] text-white hover:bg-[#166fe5] disabled:opacity-50"
             >
               {oauthLoading ? '…' : t('marketing.connectFacebookOAuth')}
             </button>
-            <button type="button" onClick={() => setOpenConnect(true)} className="px-3 py-1.5 text-sm rounded-lg border border-slate-200 bg-white hover:bg-slate-50">
+            <button type="button" onClick={() => setOpenConnect(true)} className="px-3 py-1.5 text-sm rounded-none border border-slate-200 bg-white hover:bg-slate-50">
               {t('marketing.connectPageManual')}
             </button>
-            <button type="button" onClick={() => setOpenDashboard(true)} className="px-3 py-1.5 text-sm rounded-lg bg-slate-900 text-white hover:bg-slate-800">
+            <button type="button" onClick={() => setOpenDashboard(true)} className="px-3 py-1.5 text-sm rounded-none bg-slate-900 text-white hover:bg-slate-800">
               {t('marketing.viewPageDashboard')}
             </button>
           </div>
         </div>
-        <div className="max-h-[12.5rem] overflow-y-auto rounded-xl border border-slate-200">
+        <div className="max-h-[12.5rem] overflow-y-auto rounded-none border border-slate-200">
           <table className="w-full text-sm">
             <thead className="bg-slate-50 sticky top-0 z-10 shadow-[0_1px_0_0_rgb(226_232_240)]">
               <tr className="text-slate-600">
@@ -530,7 +530,7 @@ export default function ShopMarketingFacebookWorkspacePage() {
                     <button
                       type="button"
                       onClick={() => void openPageDetailFetch(item)}
-                      className="px-2 py-1 text-xs rounded-md border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                      className="px-2 py-1 text-xs rounded-none border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
                     >
                       {t('marketing.pageDetailBtn')}
                     </button>
@@ -539,7 +539,7 @@ export default function ShopMarketingFacebookWorkspacePage() {
                     <button
                       type="button"
                       onClick={() => setSelectedPageId(item.id)}
-                      className={`px-2 py-1 text-xs rounded-md border ${selectedPageId === item.id ? 'bg-slate-900 border-slate-900 text-white' : 'bg-white border-slate-200 text-slate-700'}`}
+                      className={`px-2 py-1 text-xs rounded-none border ${selectedPageId === item.id ? 'bg-slate-900 border-slate-900 text-white' : 'bg-white border-slate-200 text-slate-700'}`}
                     >
                       {selectedPageId === item.id ? t('marketing.pageSelected') : t('marketing.pageSelect')}
                     </button>
@@ -561,25 +561,25 @@ export default function ShopMarketingFacebookWorkspacePage() {
       </section>
 
       <section className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_60px_minmax(0,1fr)] gap-4 items-stretch">
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 max-h-[420px] min-h-0 overflow-hidden flex flex-col">
-          <div className="shrink-0 flex items-center justify-between mb-2"><p className="text-sm font-semibold text-slate-900">{t('marketing.writeContent')}</p><button type="button" onClick={() => setOpenAiAssist(true)} className="px-3 py-1.5 text-xs rounded-lg border border-slate-200 bg-white hover:bg-slate-50">{t('marketing.aiAssist')}</button></div>
-          <textarea value={writeText} onChange={(e) => setWriteText(e.target.value)} placeholder={t('marketing.writePlaceholder')} rows={8} className="w-full flex-1 min-h-0 max-h-full rounded-xl border border-slate-200 px-3 py-3 text-sm resize-none overflow-y-auto focus:outline-none focus:ring-2 focus:ring-primary/30" />
+        <div className="rounded-none border border-slate-200 bg-white p-4 max-h-[420px] min-h-0 overflow-hidden flex flex-col">
+          <div className="shrink-0 flex items-center justify-between mb-2"><p className="text-sm font-semibold text-slate-900">{t('marketing.writeContent')}</p><button type="button" onClick={() => setOpenAiAssist(true)} className="px-3 py-1.5 text-xs rounded-none border border-slate-200 bg-white hover:bg-slate-50">{t('marketing.aiAssist')}</button></div>
+          <textarea value={writeText} onChange={(e) => setWriteText(e.target.value)} placeholder={t('marketing.writePlaceholder')} rows={8} className="w-full flex-1 min-h-0 max-h-full rounded-none border border-slate-200 px-3 py-3 text-sm resize-none overflow-y-auto focus:outline-none focus:ring-2 focus:ring-primary/30" />
         </div>
-        <div className="hidden lg:flex items-center justify-center"><button type="button" onClick={() => setPreviewText(writeText)} title={t('marketing.sendToOverview')} className="h-11 w-11 rounded-full bg-slate-900 text-white text-lg hover:bg-slate-800">→</button></div>
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 min-h-[420px] overflow-hidden flex flex-col">
-          <div className="flex items-center justify-between mb-2"><p className="text-sm font-semibold text-slate-900">{t('marketing.overviewPost')}</p><button type="button" onClick={() => setPreviewText(writeText)} className="lg:hidden px-3 py-1.5 text-xs rounded-lg bg-slate-900 text-white">{t('marketing.sendToOverview')}</button></div>
-          <div className="rounded-xl border border-slate-300 bg-white min-h-0 h-full overflow-hidden flex flex-col">
+        <div className="hidden lg:flex items-center justify-center"><button type="button" onClick={() => setPreviewText(writeText)} title={t('marketing.sendToOverview')} className="h-11 w-11 rounded-none bg-slate-900 text-white text-lg hover:bg-slate-800">→</button></div>
+        <div className="rounded-none border border-slate-200 bg-white p-4 min-h-[420px] overflow-hidden flex flex-col">
+          <div className="flex items-center justify-between mb-2"><p className="text-sm font-semibold text-slate-900">{t('marketing.overviewPost')}</p><button type="button" onClick={() => setPreviewText(writeText)} className="lg:hidden px-3 py-1.5 text-xs rounded-none bg-slate-900 text-white">{t('marketing.sendToOverview')}</button></div>
+          <div className="rounded-none border border-slate-300 bg-white min-h-0 h-full overflow-hidden flex flex-col">
             <div className="px-3 py-2 border-b border-slate-100 flex items-center justify-between"><div className="flex items-center gap-2"><Avatar page={selectedPage} /><div><p className="text-sm font-semibold text-slate-800">{selectedPage?.name || 'Facebook Page'}</p><p className="text-[11px] text-slate-500">Right now · Public</p></div></div><p className="text-slate-500">•••</p></div>
             <div className="px-3 py-2 max-h-40 overflow-auto"><p className="text-sm text-slate-700 whitespace-pre-wrap break-words leading-5">{previewText || t('marketing.overviewEmpty')}</p></div>
-            <div className="px-3 pb-2">{previewImage ? <img src={previewImage} alt="preview" className="w-full h-44 object-cover rounded-lg border border-slate-200" /> : <button type="button" onClick={() => setOpenImagePicker(true)} className="w-full h-44 rounded-lg border-2 border-dashed border-slate-300 text-3xl text-slate-500 hover:bg-slate-100">+</button>}</div>
+            <div className="px-3 pb-2">{previewImage ? <img src={previewImage} alt="preview" className="w-full h-44 object-cover rounded-none border border-slate-200" /> : <button type="button" onClick={() => setOpenImagePicker(true)} className="w-full h-44 rounded-none border-2 border-dashed border-slate-300 text-3xl text-slate-500 hover:bg-slate-100">+</button>}</div>
             <div className="px-3 py-2 border-t border-slate-100 text-xs text-slate-500 flex items-center justify-between"><span>0 reactions</span><span>0 comments · 0 shares</span></div>
             <div className="grid grid-cols-3 border-t border-slate-100"><button type="button" className="py-2 text-xs text-slate-600 hover:bg-slate-50">Like</button><button type="button" className="py-2 text-xs text-slate-600 border-x border-slate-100 hover:bg-slate-50">Comment</button><button type="button" className="py-2 text-xs text-slate-600 hover:bg-slate-50">Share</button></div>
-            <div className="px-3 py-2 border-t border-slate-100 flex justify-end"><button type="button" onClick={publishUiOnly} className="px-3 py-1.5 text-xs rounded-lg bg-slate-900 text-white hover:bg-slate-800">Publish (UI only)</button></div>
+            <div className="px-3 py-2 border-t border-slate-100 flex justify-end"><button type="button" onClick={publishUiOnly} className="px-3 py-1.5 text-xs rounded-none bg-slate-900 text-white hover:bg-slate-800">Publish (UI only)</button></div>
           </div>
         </div>
       </section>
 
-      <section className="rounded-2xl border border-slate-200 bg-white p-4 overflow-hidden">
+      <section className="rounded-none border border-slate-200 bg-white p-4 overflow-hidden">
         <div className="flex items-center justify-between mb-3">
           <p className="text-sm font-semibold text-slate-900">{t('marketing.managerPosts')}</p>
           <div className="flex items-center gap-2">
@@ -587,7 +587,7 @@ export default function ShopMarketingFacebookWorkspacePage() {
             <select
               value={selectedPageId}
               onChange={(e) => setSelectedPageId(e.target.value)}
-              className="text-sm rounded-lg border border-slate-200 px-3 py-1.5"
+              className="text-sm rounded-none border border-slate-200 px-3 py-1.5"
             >
               {pages.map((item) => (
                 <option key={item.id} value={item.id}>
@@ -597,7 +597,7 @@ export default function ShopMarketingFacebookWorkspacePage() {
             </select>
           </div>
         </div>
-        <div className="max-h-[12.5rem] overflow-y-auto rounded-xl border border-slate-200">
+        <div className="max-h-[12.5rem] overflow-y-auto rounded-none border border-slate-200">
           <table className="w-full text-sm">
             <thead className="bg-slate-50 sticky top-0 z-[1]">
               <tr className="text-slate-600">
@@ -655,7 +655,7 @@ export default function ShopMarketingFacebookWorkspacePage() {
       >
         {detailLoading && <p className="text-sm text-slate-600">{t('marketing.detailLoading')}</p>}
         {detailPage && !detailLoading && !detailData && (
-          <p className="text-sm text-amber-800 bg-amber-50 border border-amber-100 rounded-lg px-2 py-2">{t('marketing.detailEmpty')}</p>
+          <p className="text-sm text-amber-800 bg-amber-50 border border-amber-100 rounded-none px-2 py-2">{t('marketing.detailEmpty')}</p>
         )}
         {detailPage && detailData && (
           <div className="space-y-4">
@@ -667,19 +667,19 @@ export default function ShopMarketingFacebookWorkspacePage() {
                   <p className="text-xs text-slate-500">{detailPage.category || 'Business'} · {detailData.period}</p>
                 </div>
               </div>
-              <span className="rounded-full border border-slate-200 px-2 py-1 text-xs text-slate-600">{detailData.period}</span>
+              <span className="rounded-none border border-slate-200 px-2 py-1 text-xs text-slate-600">{detailData.period}</span>
             </div>
 
             <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
-              <div className="rounded-lg border border-slate-200 p-2"><p className="text-[11px] text-slate-500">{t('marketing.kpiReach')}</p><p className="text-sm font-semibold text-slate-900">{detailData.kpis.reach}</p></div>
-              <div className="rounded-lg border border-slate-200 p-2"><p className="text-[11px] text-slate-500">{t('marketing.kpiEngagementRate')}</p><p className="text-sm font-semibold text-slate-900">{detailData.kpis.engagementRate}</p></div>
-              <div className="rounded-lg border border-slate-200 p-2"><p className="text-[11px] text-slate-500">{t('marketing.kpiAvgReactions')}</p><p className="text-sm font-semibold text-slate-900">{detailData.kpis.avgReactions}</p></div>
-              <div className="rounded-lg border border-slate-200 p-2"><p className="text-[11px] text-slate-500">{t('marketing.kpiAvgComments')}</p><p className="text-sm font-semibold text-slate-900">{detailData.kpis.avgComments}</p></div>
-              <div className="rounded-lg border border-slate-200 p-2"><p className="text-[11px] text-slate-500">{t('marketing.kpiFollowersDelta')}</p><p className="text-sm font-semibold text-emerald-600">+{detailData.kpis.followersDelta}</p></div>
+              <div className="rounded-none border border-slate-200 p-2"><p className="text-[11px] text-slate-500">{t('marketing.kpiReach')}</p><p className="text-sm font-semibold text-slate-900">{detailData.kpis.reach}</p></div>
+              <div className="rounded-none border border-slate-200 p-2"><p className="text-[11px] text-slate-500">{t('marketing.kpiEngagementRate')}</p><p className="text-sm font-semibold text-slate-900">{detailData.kpis.engagementRate}</p></div>
+              <div className="rounded-none border border-slate-200 p-2"><p className="text-[11px] text-slate-500">{t('marketing.kpiAvgReactions')}</p><p className="text-sm font-semibold text-slate-900">{detailData.kpis.avgReactions}</p></div>
+              <div className="rounded-none border border-slate-200 p-2"><p className="text-[11px] text-slate-500">{t('marketing.kpiAvgComments')}</p><p className="text-sm font-semibold text-slate-900">{detailData.kpis.avgComments}</p></div>
+              <div className="rounded-none border border-slate-200 p-2"><p className="text-[11px] text-slate-500">{t('marketing.kpiFollowersDelta')}</p><p className="text-sm font-semibold text-emerald-600">+{detailData.kpis.followersDelta}</p></div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="rounded-xl border border-slate-200 p-3">
+              <div className="rounded-none border border-slate-200 p-3">
                 <div className="mb-2 flex items-center justify-between">
                   <p className="text-xs font-medium text-slate-700">{t('marketing.chartReachMock')}</p>
                   <InfoDot
@@ -691,11 +691,11 @@ export default function ShopMarketingFacebookWorkspacePage() {
                 </div>
                 <div className="h-28 flex items-end gap-1.5">
                   {detailData.trendBars.map((h, i) => (
-                    <div key={i} className="flex-1 min-w-0 rounded-t bg-blue-500/85" style={{ height: `${h}%` }} />
+                    <div key={i} className="flex-1 min-w-0 rounded-none bg-blue-500/85" style={{ height: `${h}%` }} />
                   ))}
                 </div>
               </div>
-              <div className="rounded-xl border border-slate-200 p-3">
+              <div className="rounded-none border border-slate-200 p-3">
                 <div className="mb-2 flex items-center justify-between">
                   <p className="text-xs font-medium text-slate-700">{t('marketing.chartMixMock')}</p>
                   <InfoDot
@@ -709,33 +709,33 @@ export default function ShopMarketingFacebookWorkspacePage() {
                   {detailData.engagementMix.map((item) => (
                     <div key={item.label}>
                       <div className="mb-1 flex items-center justify-between text-[11px] text-slate-500"><span>{item.label}</span><span>{item.value}%</span></div>
-                      <div className="h-2.5 rounded-full bg-slate-100 overflow-hidden"><div className={`h-full rounded-full ${item.color}`} style={{ width: `${item.value}%` }} /></div>
+                      <div className="h-2.5 rounded-none bg-slate-100 overflow-hidden"><div className={`h-full rounded-none ${item.color}`} style={{ width: `${item.value}%` }} /></div>
                     </div>
                   ))}
                 </div>
                 <div className="mt-3 flex justify-center">
-                  <div className="h-20 w-20 rounded-full border-4 border-slate-200" style={{ background: 'conic-gradient(rgb(16 185 129) 0% 40%, rgb(245 158 11) 40% 72%, rgb(139 92 246) 72% 100%)' }} />
+                  <div className="h-20 w-20 rounded-none border-4 border-slate-200" style={{ background: 'conic-gradient(rgb(16 185 129) 0% 40%, rgb(245 158 11) 40% 72%, rgb(139 92 246) 72% 100%)' }} />
                 </div>
               </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="rounded-xl border border-slate-200 p-3">
+              <div className="rounded-none border border-slate-200 p-3">
                 <p className="mb-2 text-xs font-medium text-slate-700">{t('marketing.bestTimesTitle')}</p>
                 <div className="space-y-2">
                   {detailData.bestTimes.map((item) => (
-                    <div key={`${item.day}-${item.slot}`} className="rounded-md border border-slate-100 px-2 py-1.5">
+                    <div key={`${item.day}-${item.slot}`} className="rounded-none border border-slate-100 px-2 py-1.5">
                       <div className="mb-1 flex items-center justify-between text-xs text-slate-600"><span>{item.day}</span><span>{item.slot}</span></div>
-                      <div className="h-2 rounded bg-slate-100"><div className="h-2 rounded bg-blue-500" style={{ width: `${item.value}%` }} /></div>
+                      <div className="h-2 rounded-none bg-slate-100"><div className="h-2 rounded-none bg-blue-500" style={{ width: `${item.value}%` }} /></div>
                     </div>
                   ))}
                 </div>
               </div>
-              <div className="rounded-xl border border-slate-200 p-3">
+              <div className="rounded-none border border-slate-200 p-3">
                 <p className="mb-2 text-xs font-medium text-slate-700">{t('marketing.topPostsTitle')}</p>
                 <div className="space-y-2">
                   {detailData.topPosts.map((item) => (
-                    <div key={item.title} className="rounded-md border border-slate-100 p-2">
+                    <div key={item.title} className="rounded-none border border-slate-100 p-2">
                       <p className="text-sm font-medium text-slate-800">{item.title}</p>
                       <p className="text-xs text-slate-500">{item.metric} · {item.reason}</p>
                     </div>
@@ -744,7 +744,7 @@ export default function ShopMarketingFacebookWorkspacePage() {
               </div>
             </div>
 
-            <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+            <div className="rounded-none border border-slate-200 bg-slate-50 p-3">
               <div className="mb-2 flex items-center gap-2">
                 <img src={aiActionsBotIcon} alt="" className="h-6 w-6 object-contain" />
                 <p className="text-xs font-medium text-slate-700">{t('marketing.aiActionTitle')}</p>
@@ -766,26 +766,26 @@ export default function ShopMarketingFacebookWorkspacePage() {
             value={newPageName}
             onChange={(e) => setNewPageName(e.target.value)}
             placeholder={t('marketing.pageName')}
-            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+            className="w-full rounded-none border border-slate-200 px-3 py-2 text-sm"
           />
           <input
             value={newPageId}
             onChange={(e) => setNewPageId(e.target.value)}
             placeholder={t('marketing.pageId')}
-            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+            className="w-full rounded-none border border-slate-200 px-3 py-2 text-sm"
           />
           <input
             value={newAccessToken}
             onChange={(e) => setNewAccessToken(e.target.value)}
             placeholder={t('marketing.pageAccessToken')}
-            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm font-mono text-xs"
+            className="w-full rounded-none border border-slate-200 px-3 py-2 text-sm font-mono text-xs"
           />
           <div className="flex justify-end">
             <button
               type="button"
               disabled={manualLoading}
               onClick={() => void connectManual()}
-              className="px-3 py-2 text-sm rounded-lg bg-slate-900 text-white hover:bg-slate-800 disabled:opacity-50"
+              className="px-3 py-2 text-sm rounded-none bg-slate-900 text-white hover:bg-slate-800 disabled:opacity-50"
             >
               {manualLoading ? '…' : t('marketing.addPage')}
             </button>
@@ -794,15 +794,15 @@ export default function ShopMarketingFacebookWorkspacePage() {
       </CenterModal>
       <CenterModal open={openDashboard} title={t('marketing.pageDashboard')} onClose={() => setOpenDashboard(false)}>
         <div className="grid grid-cols-3 gap-3">
-          <div className="rounded-lg border border-slate-200 p-3">
+          <div className="rounded-none border border-slate-200 p-3">
             <p className="text-xs text-slate-500">{t('marketing.followers')}</p>
             <p className="text-lg font-semibold text-slate-900">{selectedPage?.followers ?? 0}</p>
           </div>
-          <div className="rounded-lg border border-slate-200 p-3">
+          <div className="rounded-none border border-slate-200 p-3">
             <p className="text-xs text-slate-500">{t('marketing.engagement')}</p>
             <p className="text-lg font-semibold text-slate-900">{detailApi?.kpis.engagementRate ?? '—'}</p>
           </div>
-          <div className="rounded-lg border border-slate-200 p-3">
+          <div className="rounded-none border border-slate-200 p-3">
             <p className="text-xs text-slate-500">{t('marketing.overall')}</p>
             <p className="text-lg font-semibold text-slate-900">
               {(detailApi?.kpis.followersDelta ?? 0) > 0 ? '+' + detailApi?.kpis.followersDelta : '—'}
@@ -810,8 +810,8 @@ export default function ShopMarketingFacebookWorkspacePage() {
           </div>
         </div>
       </CenterModal>
-      <CenterModal open={openAiAssist} title={t('marketing.aiAssist')} onClose={() => setOpenAiAssist(false)}><div className="space-y-3"><textarea value={aiGuide} onChange={(e) => setAiGuide(e.target.value)} rows={4} placeholder={t('marketing.aiPromptPlaceholder')} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" /><div className="flex justify-end"><button type="button" onClick={applyAi} className="px-3 py-2 text-sm rounded-lg bg-slate-900 text-white hover:bg-slate-800">{t('marketing.applyAi')}</button></div></div></CenterModal>
-      <CenterModal open={openImagePicker} title={t('marketing.pickImage')} onClose={() => setOpenImagePicker(false)}><div className="grid grid-cols-4 gap-2">{STORAGE_IMAGES.map((img, index) => <button key={`${img}-${index}`} type="button" onClick={() => { setPreviewImage(img); setOpenImagePicker(false) }} className="rounded-lg overflow-hidden border border-slate-200"><img src={img} alt="storage" className="h-16 w-full object-cover" /></button>)}</div><div className="mt-3 flex justify-end"><Link to={`/shops/${id}/image-bot`} className="text-sm text-primary hover:underline">{t('marketing.useImageBot')}</Link></div></CenterModal>
+      <CenterModal open={openAiAssist} title={t('marketing.aiAssist')} onClose={() => setOpenAiAssist(false)}><div className="space-y-3"><textarea value={aiGuide} onChange={(e) => setAiGuide(e.target.value)} rows={4} placeholder={t('marketing.aiPromptPlaceholder')} className="w-full rounded-none border border-slate-200 px-3 py-2 text-sm" /><div className="flex justify-end"><button type="button" onClick={applyAi} className="px-3 py-2 text-sm rounded-none bg-slate-900 text-white hover:bg-slate-800">{t('marketing.applyAi')}</button></div></div></CenterModal>
+      <CenterModal open={openImagePicker} title={t('marketing.pickImage')} onClose={() => setOpenImagePicker(false)}><div className="grid grid-cols-4 gap-2">{STORAGE_IMAGES.map((img, index) => <button key={`${img}-${index}`} type="button" onClick={() => { setPreviewImage(img); setOpenImagePicker(false) }} className="rounded-none overflow-hidden border border-slate-200"><img src={img} alt="storage" className="h-16 w-full object-cover" /></button>)}</div><div className="mt-3 flex justify-end"><Link to={`/shops/${id}/image-bot`} className="text-sm text-primary hover:underline">{t('marketing.useImageBot')}</Link></div></CenterModal>
       <CenterModal
         open={openPostView}
         title={activePost ? `${t('marketing.postViewTitle')} · ${activePost.title}` : t('marketing.postViewTitle')}
@@ -823,23 +823,23 @@ export default function ShopMarketingFacebookWorkspacePage() {
       <CenterModal open={openEdit} title={t('marketing.editPost')} onClose={() => setOpenEdit(false)}>
         <div className="space-y-3">
           {activePost && !activePost.createdByApp && (
-            <p className="text-xs text-amber-800 bg-amber-50 border border-amber-100 rounded-lg px-2 py-2">{t('marketing.editPostApiNote')}</p>
+            <p className="text-xs text-amber-800 bg-amber-50 border border-amber-100 rounded-none px-2 py-2">{t('marketing.editPostApiNote')}</p>
           )}
           <div>
             <p className="text-xs text-slate-500 mb-1">{t('marketing.postTitle')}</p>
-            <input value={activePost?.title || ''} onChange={(e) => setActivePost((prev) => (prev ? { ...prev, title: e.target.value } : prev))} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
+            <input value={activePost?.title || ''} onChange={(e) => setActivePost((prev) => (prev ? { ...prev, title: e.target.value } : prev))} className="w-full rounded-none border border-slate-200 px-3 py-2 text-sm" />
           </div>
           <div>
             <p className="text-xs text-slate-500 mb-1">{t('marketing.postBody')}</p>
-            <textarea value={activePost?.text || ''} onChange={(e) => setActivePost((prev) => (prev ? { ...prev, text: e.target.value } : prev))} rows={6} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm resize-y min-h-[8rem]" />
+            <textarea value={activePost?.text || ''} onChange={(e) => setActivePost((prev) => (prev ? { ...prev, text: e.target.value } : prev))} rows={6} className="w-full rounded-none border border-slate-200 px-3 py-2 text-sm resize-y min-h-[8rem]" />
           </div>
           <div className="flex justify-end gap-2">
-            <button type="button" onClick={() => setOpenEdit(false)} className="px-3 py-2 text-sm rounded-lg border border-slate-200 bg-white">{t('shopDetail.cancelEdit')}</button>
-            <button type="button" onClick={editActivePost} className="px-3 py-2 text-sm rounded-lg bg-slate-900 text-white hover:bg-slate-800">{t('marketing.save')}</button>
+            <button type="button" onClick={() => setOpenEdit(false)} className="px-3 py-2 text-sm rounded-none border border-slate-200 bg-white">{t('shopDetail.cancelEdit')}</button>
+            <button type="button" onClick={editActivePost} className="px-3 py-2 text-sm rounded-none bg-slate-900 text-white hover:bg-slate-800">{t('marketing.save')}</button>
           </div>
         </div>
       </CenterModal>
-      <CenterModal open={openDelete} title={t('marketing.deletePost')} onClose={() => setOpenDelete(false)}><p className="text-sm text-slate-700 mb-3">{t('marketing.deleteConfirm')}</p><div className="flex justify-end gap-2"><button type="button" onClick={() => setOpenDelete(false)} className="px-3 py-2 text-sm rounded-lg border border-slate-200 bg-white">{t('shopDetail.cancelEdit')}</button><button type="button" onClick={deleteActivePost} className="px-3 py-2 text-sm rounded-lg bg-red-600 text-white hover:bg-red-700">{t('storage.delete')}</button></div></CenterModal>
+      <CenterModal open={openDelete} title={t('marketing.deletePost')} onClose={() => setOpenDelete(false)}><p className="text-sm text-slate-700 mb-3">{t('marketing.deleteConfirm')}</p><div className="flex justify-end gap-2"><button type="button" onClick={() => setOpenDelete(false)} className="px-3 py-2 text-sm rounded-none border border-slate-200 bg-white">{t('shopDetail.cancelEdit')}</button><button type="button" onClick={deleteActivePost} className="px-3 py-2 text-sm rounded-none bg-red-600 text-white hover:bg-red-700">{t('storage.delete')}</button></div></CenterModal>
     </div>
   )
 }

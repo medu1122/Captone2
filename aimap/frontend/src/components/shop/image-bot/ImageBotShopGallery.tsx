@@ -25,7 +25,7 @@ export default function ImageBotShopGallery({ t, assets, loading, storagePath }:
           {t('imageBot.openStorage')}
         </a>
       </div>
-      <div className="h-32 sm:h-36 overflow-x-auto overflow-y-hidden border border-slate-200 rounded-lg bg-slate-50 p-2">
+      <div className="h-32 sm:h-36 overflow-x-auto overflow-y-hidden border border-slate-200 rounded-none bg-slate-50 p-2">
         {loading ? (
           <div className="h-full flex items-center justify-center text-slate-400 text-sm">...</div>
         ) : assets.length === 0 ? (
@@ -39,7 +39,7 @@ export default function ImageBotShopGallery({ t, assets, loading, storagePath }:
               return (
                 <div
                   key={a.id}
-                  className="h-full aspect-square shrink-0 rounded-lg border border-slate-200 bg-white overflow-hidden"
+                  className="h-full aspect-square shrink-0 rounded-none border border-slate-200 bg-white overflow-hidden"
                 >
                   {src ? (
                     <img src={src} alt={a.name || ''} className="w-full h-full object-cover" />

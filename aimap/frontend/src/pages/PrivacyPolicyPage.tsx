@@ -112,7 +112,7 @@ export default function PrivacyPolicyPage() {
           </p>
         </section>
 
-        <section className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
+        <section className="rounded-none border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
           <p className="font-medium text-slate-700 mb-1">English (summary for reviewers)</p>
           <p>
             AIMAP processes Facebook data (tokens, Page metadata, posts, and insights as permitted) only to

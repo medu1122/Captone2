@@ -151,11 +151,11 @@ export default function CreateShopPage() {
         </Link>
       </div>
 
-      <div className="bg-white border border-slate-300 rounded-lg p-6">
+      <div className="bg-white border border-slate-300 rounded-none p-6">
         <h2 className="text-lg font-semibold text-slate-900 mb-4">{t('shops.createShop')}</h2>
 
         {error && (
-          <p className="mb-4 text-sm text-red-500 bg-red-50 border border-red-100 rounded-lg px-3 py-2">
+          <p className="mb-4 text-sm text-red-500 bg-red-50 border border-red-100 rounded-none px-3 py-2">
             {error}
           </p>
         )}
@@ -170,7 +170,7 @@ export default function CreateShopPage() {
                   type="text"
                   required
                   maxLength={255}
-                  className="w-full px-4 py-2.5 rounded-lg border border-slate-300 text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-400"
+                  className="w-full px-4 py-2.5 rounded-none border border-slate-300 text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-400"
                   value={form.name}
                   onChange={(e) => update('name', e.target.value)}
                 />
@@ -182,7 +182,7 @@ export default function CreateShopPage() {
                   type="text"
                   required
                   placeholder="my-shop"
-                  className={`w-full px-4 py-2.5 rounded-lg border text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-400 ${
+                  className={`w-full px-4 py-2.5 rounded-none border text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-400 ${
                     slugTaken ? 'border-red-400 bg-red-50' : 'border-slate-300'
                   }`}
                   value={form.slug}
@@ -204,7 +204,7 @@ export default function CreateShopPage() {
                 <input
                   type="text"
                   autoComplete="off"
-                  className="w-full px-4 py-2.5 rounded-lg border border-slate-300 text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-400"
+                  className="w-full px-4 py-2.5 rounded-none border border-slate-300 text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-400"
                   value={industryInput || (form.industry ? getIndustryLabel(getIndustryByTag(form.industry)!, locale) : '')}
                   onChange={(e) => {
                     const v = e.target.value
@@ -216,7 +216,7 @@ export default function CreateShopPage() {
                 />
                 {industryDropdownOpen && (
                   <ul
-                    className="absolute z-10 mt-1 w-full max-h-56 overflow-auto rounded-lg border border-slate-300 bg-white shadow-lg py-1 text-sm"
+                    className="absolute z-10 mt-1 w-full max-h-56 overflow-auto rounded-none border border-slate-300 bg-white shadow-lg py-1 text-sm"
                     role="listbox"
                   >
                     {filteredIndustries.length === 0 ? (
@@ -249,7 +249,7 @@ export default function CreateShopPage() {
                 <textarea
                   required
                   rows={3}
-                  className="w-full px-4 py-2.5 rounded-lg border border-slate-300 text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-400"
+                  className="w-full px-4 py-2.5 rounded-none border border-slate-300 text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-400"
                   value={form.description}
                   onChange={(e) => update('description', e.target.value)}
                 />
@@ -259,7 +259,7 @@ export default function CreateShopPage() {
                 <textarea
                   required
                   rows={2}
-                  className="w-full px-4 py-2.5 rounded-lg border border-slate-300 text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-400"
+                  className="w-full px-4 py-2.5 rounded-none border border-slate-300 text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-400"
                   value={form.address}
                   onChange={(e) => update('address', e.target.value)}
                 />
@@ -270,7 +270,7 @@ export default function CreateShopPage() {
                   <input
                     type="text"
                     required
-                    className="w-full px-4 py-2.5 rounded-lg border border-slate-300 text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-400"
+                    className="w-full px-4 py-2.5 rounded-none border border-slate-300 text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-400"
                     value={form.city}
                     onChange={(e) => update('city', e.target.value)}
                   />
@@ -280,7 +280,7 @@ export default function CreateShopPage() {
                   <input
                     type="text"
                     required
-                    className="w-full px-4 py-2.5 rounded-lg border border-slate-300 text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-400"
+                    className="w-full px-4 py-2.5 rounded-none border border-slate-300 text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-400"
                     value={form.district}
                     onChange={(e) => update('district', e.target.value)}
                   />
@@ -290,7 +290,7 @@ export default function CreateShopPage() {
                   <input
                     type="text"
                     required
-                    className="w-full px-4 py-2.5 rounded-lg border border-slate-300 text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-400"
+                    className="w-full px-4 py-2.5 rounded-none border border-slate-300 text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-400"
                     value={form.postalCode}
                     onChange={(e) => update('postalCode', e.target.value)}
                   />
@@ -301,7 +301,7 @@ export default function CreateShopPage() {
                 <input
                   type="text"
                   required
-                  className="w-full px-4 py-2.5 rounded-lg border border-slate-300 text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-400"
+                  className="w-full px-4 py-2.5 rounded-none border border-slate-300 text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-400"
                   value={form.country}
                   onChange={(e) => update('country', e.target.value)}
                 />
@@ -317,7 +317,7 @@ export default function CreateShopPage() {
                 <input
                   type="tel"
                   required
-                  className="w-full px-4 py-2.5 rounded-lg border border-slate-300 text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-400"
+                  className="w-full px-4 py-2.5 rounded-none border border-slate-300 text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-400"
                   value={form.contactPhone}
                   onChange={(e) => update('contactPhone', e.target.value)}
                 />
@@ -327,7 +327,7 @@ export default function CreateShopPage() {
                 <input
                   type="email"
                   required
-                  className="w-full px-4 py-2.5 rounded-lg border border-slate-300 text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-400"
+                  className="w-full px-4 py-2.5 rounded-none border border-slate-300 text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-400"
                   value={form.contactEmail}
                   onChange={(e) => update('contactEmail', e.target.value)}
                 />
@@ -337,7 +337,7 @@ export default function CreateShopPage() {
                 <input
                   type="text"
                   required
-                  className="w-full px-4 py-2.5 rounded-lg border border-slate-300 text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-400"
+                  className="w-full px-4 py-2.5 rounded-none border border-slate-300 text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-400"
                   value={form.ownerName}
                   onChange={(e) => update('ownerName', e.target.value)}
                 />
@@ -348,14 +348,14 @@ export default function CreateShopPage() {
           <div className="flex justify-end gap-3 pt-2">
             <Link
               to="/shops"
-              className="px-4 py-2.5 rounded-lg border border-slate-300 text-slate-700 font-medium hover:bg-slate-50"
+              className="px-4 py-2.5 rounded-none border border-slate-300 text-slate-700 font-medium hover:bg-slate-50"
             >
               {t('profile.cancelButton')}
             </Link>
             <button
               type="submit"
               disabled={saving || slugTaken || !industryValid}
-              className="bg-primary hover:bg-primary/90 disabled:opacity-50 text-white font-semibold py-2.5 px-6 rounded-lg transition-colors"
+              className="bg-primary hover:bg-primary/90 disabled:opacity-50 text-white font-semibold py-2.5 px-6 rounded-none transition-colors"
             >
               {saving ? '...' : t('shops.submitCreate')}
             </button>

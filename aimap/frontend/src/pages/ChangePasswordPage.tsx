@@ -76,7 +76,7 @@ export default function ChangePasswordPage() {
   return (
     <AuthLayout>
       <div className="w-full max-w-md">
-        <div className="bg-white border border-slate-300 rounded-lg p-8">
+        <div className="bg-white border border-slate-300 rounded-none p-8">
           <div className="mb-6">
             <h1 className="text-xl font-bold text-slate-900">
               {t('changePassword.title')}
@@ -87,12 +87,12 @@ export default function ChangePasswordPage() {
           </div>
 
           {error && (
-            <p className="mb-4 text-sm text-red-400 bg-red-400/10 rounded-lg px-3 py-2">
+            <p className="mb-4 text-sm text-red-400 bg-red-400/10 rounded-none px-3 py-2">
               {error}
             </p>
           )}
           {success && (
-            <p className="mb-4 text-sm text-green-400 bg-green-400/10 rounded-lg px-3 py-2">
+            <p className="mb-4 text-sm text-green-400 bg-green-400/10 rounded-none px-3 py-2">
               {success}
             </p>
           )}
@@ -140,7 +140,7 @@ export default function ChangePasswordPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-primary hover:bg-primary/90 disabled:opacity-50 text-white font-semibold py-3 px-6 rounded-lg transition-colors"
+                className="w-full bg-primary hover:bg-primary/90 disabled:opacity-50 text-white font-semibold py-3 px-6 rounded-none transition-colors"
               >
                 {loading ? '...' : t('changePassword.requestSubmit')}
               </button>
@@ -164,7 +164,7 @@ export default function ChangePasswordPage() {
                   maxLength={6}
                   inputMode="numeric"
                   pattern="\d{6}"
-                  className="w-full px-4 py-3 rounded-lg bg-white border border-slate-300 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:border-slate-400 text-center text-lg tracking-widest"
+                  className="w-full px-4 py-3 rounded-none bg-white border border-slate-300 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:border-slate-400 text-center text-lg tracking-widest"
                   value={code}
                   onChange={(e) => setCode(e.target.value)}
                   placeholder="000000"
@@ -173,7 +173,7 @@ export default function ChangePasswordPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-primary hover:bg-primary/90 disabled:opacity-50 text-white font-semibold py-3 px-6 rounded-lg transition-colors"
+                className="w-full bg-primary hover:bg-primary/90 disabled:opacity-50 text-white font-semibold py-3 px-6 rounded-none transition-colors"
               >
                 {loading ? '...' : t('changePassword.confirmSubmit')}
               </button>

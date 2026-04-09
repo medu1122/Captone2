@@ -234,7 +234,7 @@ export default function DashboardPage() {
             id={`${idPrefix}-prev`}
             disabled={current <= 1}
             onClick={() => setPage((p) => Math.max(1, p - 1))}
-            className="px-3 py-1.5 rounded border border-slate-300 bg-white text-slate-800 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50"
+            className="px-3 py-1.5 rounded-none border border-slate-300 bg-white text-slate-800 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50"
           >
             {t('dashboard.logPrev')}
           </button>
@@ -243,7 +243,7 @@ export default function DashboardPage() {
             id={`${idPrefix}-next`}
             disabled={current >= total}
             onClick={() => setPage((p) => Math.min(total, p + 1))}
-            className="px-3 py-1.5 rounded border border-slate-300 bg-white text-slate-800 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50"
+            className="px-3 py-1.5 rounded-none border border-slate-300 bg-white text-slate-800 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50"
           >
             {t('dashboard.logNext')}
           </button>
@@ -255,9 +255,9 @@ export default function DashboardPage() {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div className="bg-white border border-slate-300 rounded-lg p-6">
+        <div className="bg-white border border-slate-300 rounded-none p-6">
           <div className="flex items-center gap-3 mb-3">
-            <div className="w-12 h-12 rounded-lg border border-slate-300 flex items-center justify-center bg-slate-50">
+            <div className="w-12 h-12 rounded-none border border-slate-300 flex items-center justify-center bg-slate-50">
               <img src="/icons/shop.png" alt="" className="w-8 h-8" />
             </div>
             <span className="text-sm font-medium text-slate-600">{t('dashboard.activeShops')}</span>
@@ -268,9 +268,9 @@ export default function DashboardPage() {
               : formatCount(t, 'dashboard.activeShopsCount', activeShopsCount)}
           </p>
         </div>
-        <div className="bg-white border border-slate-300 rounded-lg p-6">
+        <div className="bg-white border border-slate-300 rounded-none p-6">
           <div className="flex items-center gap-3 mb-3">
-            <div className="w-12 h-12 rounded-lg border border-slate-300 flex items-center justify-center bg-slate-50">
+            <div className="w-12 h-12 rounded-none border border-slate-300 flex items-center justify-center bg-slate-50">
               <span className="material-symbols-outlined text-3xl text-slate-600" aria-hidden>
                 payments
               </span>
@@ -286,7 +286,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      <div className="bg-white border border-slate-300 rounded-lg overflow-hidden">
+      <div className="bg-white border border-slate-300 rounded-none overflow-hidden">
         <div className="flex items-center gap-2 px-6 py-4 border-b border-slate-200">
           <img src="/icons/dashboard-stats.png" alt="" className="w-5 h-5" />
           <h2 className="text-lg font-semibold text-slate-900">{t('dashboard.activityLog')}</h2>
@@ -331,7 +331,7 @@ export default function DashboardPage() {
         {logPager(safeActPage, activityTotalPages, setActivityPage, 'act')}
       </div>
 
-      <div className="bg-white border border-slate-300 rounded-lg overflow-hidden">
+      <div className="bg-white border border-slate-300 rounded-none overflow-hidden">
         <h2 className="text-lg font-semibold text-slate-900 px-6 py-4 border-b border-slate-200">
           {t('dashboard.accessLog')}
         </h2>

@@ -29,7 +29,7 @@ export default function HomePage() {
           ) : (
             <>
               <a className="hidden sm:block text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors" href="/login">{t('nav.logIn')}</a>
-              <a href="/register" className="bg-primary hover:bg-primary/90 text-white text-sm font-semibold py-2 px-5 rounded-lg transition-colors">
+              <a href="/register" className="bg-primary hover:bg-primary/90 text-white text-sm font-semibold py-2 px-5 rounded-none transition-colors">
                 {t('nav.getStarted')}
               </a>
             </>
@@ -48,39 +48,39 @@ export default function HomePage() {
               {t('hero.subheadline')}
             </p>
             <div className="flex justify-center lg:justify-start">
-              <a href="/register" className="bg-primary hover:bg-primary/90 text-white font-semibold py-2.5 px-6 rounded-lg border border-slate-400 transition-colors inline-flex items-center justify-center gap-2">
+              <a href="/register" className="bg-primary hover:bg-primary/90 text-white font-semibold py-2.5 px-6 rounded-none border border-slate-400 transition-colors inline-flex items-center justify-center gap-2">
                 {t('hero.startAutomating')} →
               </a>
             </div>
           </div>
           {/* Pipeline diagram: Store → Branding → Website → Facebook */}
           <div className="flex-1 w-full max-w-md flex items-center justify-center">
-            <div className="bg-white border border-slate-300 rounded-lg p-6">
+            <div className="bg-white border border-slate-300 rounded-none p-6">
               <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-4">{t('hero.pipelineLabel')}</p>
               <div className="flex flex-col gap-3">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg border border-slate-300 flex items-center justify-center bg-slate-50">
+                  <div className="w-10 h-10 rounded-none border border-slate-300 flex items-center justify-center bg-slate-50">
                     <img src="/icons/store.png" alt="" className="w-6 h-6" />
                   </div>
                   <span className="text-sm font-medium text-slate-800">{t('hero.stepStore')}</span>
                 </div>
                 <div className="flex justify-center text-slate-400">↓</div>
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg border border-slate-300 flex items-center justify-center bg-slate-50">
+                  <div className="w-10 h-10 rounded-none border border-slate-300 flex items-center justify-center bg-slate-50">
                     <img src="/icons/branding.png" alt="" className="w-6 h-6" />
                   </div>
                   <span className="text-sm font-medium text-slate-800">{t('hero.stepBranding')}</span>
                 </div>
                 <div className="flex justify-center text-slate-400">↓</div>
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg border border-slate-300 flex items-center justify-center bg-slate-50">
+                  <div className="w-10 h-10 rounded-none border border-slate-300 flex items-center justify-center bg-slate-50">
                     <img src="/icons/website.png" alt="" className="w-6 h-6" />
                   </div>
                   <span className="text-sm font-medium text-slate-800">{t('hero.stepWebsite')}</span>
                 </div>
                 <div className="flex justify-center text-slate-400">↓</div>
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg border border-slate-300 flex items-center justify-center bg-slate-50">
+                  <div className="w-10 h-10 rounded-none border border-slate-300 flex items-center justify-center bg-slate-50">
                     <img src="/icons/social.png" alt="" className="w-6 h-6" />
                   </div>
                   <span className="text-sm font-medium text-slate-800">{t('hero.stepFacebook')}</span>
@@ -104,29 +104,29 @@ export default function HomePage() {
             <p className="text-slate-600 max-w-2xl mx-auto text-sm">{t('features.subtitle')}</p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <div className="bg-white border border-slate-300 rounded-lg p-6">
-              <div className="w-10 h-10 rounded-lg border border-slate-300 flex items-center justify-center mb-4 bg-slate-50">
+            <div className="bg-white border border-slate-300 rounded-none p-6">
+              <div className="w-10 h-10 rounded-none border border-slate-300 flex items-center justify-center mb-4 bg-slate-50">
                 <img src="/icons/store.png" alt="" className="w-5 h-5" />
               </div>
               <h3 className="text-lg font-semibold text-slate-900 mb-2">{t('features.unifiedInput')}</h3>
               <p className="text-slate-600 text-sm">{t('features.unifiedInputDesc')}</p>
             </div>
-            <div className="bg-white border border-slate-300 rounded-lg p-6">
-              <div className="w-10 h-10 rounded-lg border border-slate-300 flex items-center justify-center mb-4 bg-slate-50">
+            <div className="bg-white border border-slate-300 rounded-none p-6">
+              <div className="w-10 h-10 rounded-none border border-slate-300 flex items-center justify-center mb-4 bg-slate-50">
                 <img src="/icons/branding.png" alt="" className="w-5 h-5" />
               </div>
               <h3 className="text-lg font-semibold text-slate-900 mb-2">{t('features.aiBranding')}</h3>
               <p className="text-slate-600 text-sm">{t('features.aiBrandingDesc')}</p>
             </div>
-            <div className="bg-white border border-slate-300 rounded-lg p-6">
-              <div className="w-10 h-10 rounded-lg border border-slate-300 flex items-center justify-center mb-4 bg-slate-50">
+            <div className="bg-white border border-slate-300 rounded-none p-6">
+              <div className="w-10 h-10 rounded-none border border-slate-300 flex items-center justify-center mb-4 bg-slate-50">
                 <img src="/icons/website.png" alt="" className="w-5 h-5" />
               </div>
               <h3 className="text-lg font-semibold text-slate-900 mb-2">{t('features.aiWebsite')}</h3>
               <p className="text-slate-600 text-sm">{t('features.aiWebsiteDesc')}</p>
             </div>
-            <div className="bg-white border border-slate-300 rounded-lg p-6">
-              <div className="w-10 h-10 rounded-lg border border-slate-300 flex items-center justify-center mb-4 bg-slate-50">
+            <div className="bg-white border border-slate-300 rounded-none p-6">
+              <div className="w-10 h-10 rounded-none border border-slate-300 flex items-center justify-center mb-4 bg-slate-50">
                 <img src="/icons/social.png" alt="" className="w-5 h-5" />
               </div>
               <h3 className="text-lg font-semibold text-slate-900 mb-2">{t('features.facebookPublish')}</h3>
@@ -137,10 +137,10 @@ export default function HomePage() {
 
         {/* CTA / Pricing */}
         <section className="py-20 px-6 max-w-4xl mx-auto" id="pricing">
-          <div className="bg-white border border-slate-300 rounded-lg p-10 text-center">
+          <div className="bg-white border border-slate-300 rounded-none p-10 text-center">
             <h2 className="text-2xl md:text-3xl font-bold text-slate-900 mb-3">{t('cta.title')}</h2>
             <p className="text-slate-600 mb-6 text-sm max-w-xl mx-auto">{t('cta.subtitle')}</p>
-            <a href="/register" className="inline-flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-white font-semibold py-2.5 px-8 rounded-lg border border-slate-400 transition-colors">
+            <a href="/register" className="inline-flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-white font-semibold py-2.5 px-8 rounded-none border border-slate-400 transition-colors">
               {t('cta.createAccount')} →
             </a>
           </div>

@@ -16,8 +16,8 @@ type Props = {
 
 export default function ImageBotModelPicker({ name, value, onChange, compact, geminiDisabled }: Props) {
   const itemClass = compact
-    ? 'flex items-center gap-2 rounded-lg border border-slate-200 px-2 py-1.5 has-[:checked]:border-primary has-[:checked]:bg-primary/5 cursor-pointer'
-    : 'flex items-center gap-3 rounded-xl border border-slate-200 px-3 py-2.5 has-[:checked]:border-primary has-[:checked]:bg-primary/5 cursor-pointer hover:bg-slate-50'
+    ? 'flex items-center gap-2 rounded-none border border-slate-200 px-2 py-1.5 has-[:checked]:border-primary has-[:checked]:bg-primary/5 cursor-pointer'
+    : 'flex items-center gap-3 rounded-none border border-slate-200 px-3 py-2.5 has-[:checked]:border-primary has-[:checked]:bg-primary/5 cursor-pointer hover:bg-slate-50'
 
   const imgClass = compact ? 'h-6 w-6 shrink-0 object-contain' : 'h-9 w-9 shrink-0 object-contain'
   const textClass = compact ? 'text-[11px] font-mono text-slate-800 leading-tight break-all' : 'text-xs font-mono text-slate-800 leading-snug break-all'

@@ -66,12 +66,12 @@ function ImagePreview({ src }: { src: string }) {
   if (!src) return null
   if (err) return null
   if (!ok) return (
-    <div className="mt-2 h-32 rounded-lg bg-slate-100 flex items-center justify-center">
-      <div className="w-5 h-5 border-2 border-slate-300 border-t-blue-500 rounded-full animate-spin" />
+    <div className="mt-2 h-32 rounded-none bg-slate-100 flex items-center justify-center">
+      <div className="w-5 h-5 border-2 border-slate-300 border-t-blue-500 rounded-none animate-spin" />
     </div>
   )
   return (
-    <div className="mt-2 rounded-lg overflow-hidden border border-slate-200 bg-slate-50">
+    <div className="mt-2 rounded-none overflow-hidden border border-slate-200 bg-slate-50">
       <img src={src} alt="" className="max-h-48 w-full object-contain" />
     </div>
   )
@@ -286,7 +286,7 @@ export default function ShopProductsPage() {
 
       {/* Alerts */}
       {error && (
-        <div className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-red-700 text-sm">
+        <div className="flex items-center gap-2 rounded-none border border-red-200 bg-red-50 px-4 py-3 text-red-700 text-sm">
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="shrink-0">
             <circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1.3"/>
             <path d="M8 5v3.5M8 10.5v.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
@@ -295,7 +295,7 @@ export default function ShopProductsPage() {
         </div>
       )}
       {okMsg && (
-        <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-emerald-700 text-sm">
+        <div className="flex items-center gap-2 rounded-none border border-emerald-200 bg-emerald-50 px-4 py-3 text-emerald-700 text-sm">
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="shrink-0">
             <circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1.3"/>
             <path d="M5 8l2 2 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
@@ -306,7 +306,7 @@ export default function ShopProductsPage() {
 
       {loading ? (
         <div className="flex items-center justify-center py-16">
-          <div className="w-7 h-7 border-2 border-slate-200 border-t-blue-500 rounded-full animate-spin" />
+          <div className="w-7 h-7 border-2 border-slate-200 border-t-blue-500 rounded-none animate-spin" />
         </div>
       ) : (
         <div className="space-y-3">
@@ -314,11 +314,11 @@ export default function ShopProductsPage() {
           {rows.map((row, index) => (
             <div
               key={`${row.id}-${index}`}
-              className="rounded-2xl border border-slate-200 bg-white shadow-sm"
+              className="rounded-none border border-slate-200 bg-white shadow-sm"
             >
               {/* Card header — always visible */}
               <div
-                className="flex items-center gap-3 px-4 py-3 cursor-pointer select-none hover:bg-slate-50 transition-colors rounded-t-2xl"
+                className="flex items-center gap-3 px-4 py-3 cursor-pointer select-none hover:bg-slate-50 transition-colors rounded-none"
                 onClick={() => updateRow(index, { expanded: !row.expanded, confirmDelete: false })}
               >
                 {/* Thumbnail */}
@@ -327,11 +327,11 @@ export default function ShopProductsPage() {
                     <img
                       src={row.image_url}
                       alt=""
-                      className="w-12 h-12 rounded-xl object-cover border border-slate-200"
+                      className="w-12 h-12 rounded-none object-cover border border-slate-200"
                       onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
                     />
                   ) : (
-                    <div className="w-12 h-12 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center">
+                    <div className="w-12 h-12 rounded-none bg-slate-100 border border-slate-200 flex items-center justify-center">
                       <svg width="20" height="20" viewBox="0 0 20 20" fill="none" className="text-slate-400">
                         <rect x="2" y="3" width="16" height="14" rx="2" stroke="currentColor" strokeWidth="1.3"/>
                         <circle cx="7.5" cy="7.5" r="1.5" stroke="currentColor" strokeWidth="1.3"/>
@@ -353,7 +353,7 @@ export default function ShopProductsPage() {
                     {row.tag && (
                       <>
                         {row.price && <span className="text-slate-300">·</span>}
-                        <span className="text-xs text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-md font-medium">
+                        <span className="text-xs text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-none font-medium">
                           {allTags.find((t) => t.tag === row.tag)?.label ?? row.tag}
                         </span>
                       </>
@@ -376,7 +376,7 @@ export default function ShopProductsPage() {
                     e.stopPropagation()
                     updateRow(index, { confirmDelete: !row.confirmDelete, expanded: true })
                   }}
-                  className="shrink-0 p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+                  className="shrink-0 p-1.5 rounded-none text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors"
                   title={t('products.remove')}
                 >
                   <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
@@ -393,14 +393,14 @@ export default function ShopProductsPage() {
                     <button
                       type="button"
                       onClick={() => updateRow(index, { confirmDelete: false })}
-                      className="text-xs px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-600 hover:bg-slate-50 font-medium"
+                      className="text-xs px-3 py-1.5 rounded-none border border-slate-300 bg-white text-slate-600 hover:bg-slate-50 font-medium"
                     >
                       {t('products.confirmDeleteNo')}
                     </button>
                     <button
                       type="button"
                       onClick={() => removeRow(index)}
-                      className="text-xs px-3 py-1.5 rounded-lg bg-red-600 text-white hover:bg-red-700 font-medium"
+                      className="text-xs px-3 py-1.5 rounded-none bg-red-600 text-white hover:bg-red-700 font-medium"
                     >
                       {t('products.confirmDeleteYes')}
                     </button>
@@ -420,7 +420,7 @@ export default function ShopProductsPage() {
                       <input
                         value={row.name}
                         onChange={(e) => updateRow(index, { name: e.target.value })}
-                        className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2.5 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-colors"
+                        className="w-full text-sm border border-slate-200 rounded-none px-3 py-2.5 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-colors"
                         placeholder={t('products.namePlaceholder')}
                       />
                     </div>
@@ -431,7 +431,7 @@ export default function ShopProductsPage() {
                       <input
                         value={row.price}
                         onChange={(e) => updateRow(index, { price: e.target.value })}
-                        className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2.5 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-colors"
+                        className="w-full text-sm border border-slate-200 rounded-none px-3 py-2.5 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-colors"
                         placeholder="50.000đ"
                       />
                     </div>
@@ -446,7 +446,7 @@ export default function ShopProductsPage() {
                       value={row.description}
                       onChange={(e) => updateRow(index, { description: e.target.value })}
                       rows={2}
-                      className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2.5 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 resize-none transition-colors"
+                      className="w-full text-sm border border-slate-200 rounded-none px-3 py-2.5 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 resize-none transition-colors"
                       placeholder={t('products.descriptionPlaceholder')}
                     />
                   </div>
@@ -458,7 +458,7 @@ export default function ShopProductsPage() {
                     </label>
 
                     {/* Tab bar */}
-                    <div className="flex gap-0 rounded-lg border border-slate-200 overflow-hidden mb-3 w-fit">
+                    <div className="flex gap-0 rounded-none border border-slate-200 overflow-hidden mb-3 w-fit">
                       {(['url', 'storage', 'upload'] as ImageTab[]).map((tab) => {
                         const labels: Record<ImageTab, string> = {
                           url: t('products.imageTabUrl'),
@@ -488,7 +488,7 @@ export default function ShopProductsPage() {
                         <input
                           value={row.image_url}
                           onChange={(e) => updateRow(index, { image_url: e.target.value })}
-                          className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2.5 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-colors"
+                          className="w-full text-sm border border-slate-200 rounded-none px-3 py-2.5 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-colors"
                           placeholder="https://..."
                         />
                         <ImagePreview src={row.image_url} />
@@ -500,10 +500,10 @@ export default function ShopProductsPage() {
                       <div>
                         {galleryLoading ? (
                           <div className="flex justify-center py-8">
-                            <div className="w-6 h-6 border-2 border-slate-200 border-t-blue-500 rounded-full animate-spin" />
+                            <div className="w-6 h-6 border-2 border-slate-200 border-t-blue-500 rounded-none animate-spin" />
                           </div>
                         ) : galleryAssets.length === 0 ? (
-                          <div className="text-center py-8 text-sm text-slate-400 rounded-xl border-2 border-dashed border-slate-200">
+                          <div className="text-center py-8 text-sm text-slate-400 rounded-none border-2 border-dashed border-slate-200">
                             {t('products.storageEmpty')}
                           </div>
                         ) : (
@@ -516,7 +516,7 @@ export default function ShopProductsPage() {
                                   key={a.id}
                                   type="button"
                                   onClick={() => pickAsset(index, a)}
-                                  className={`aspect-square rounded-xl border-2 overflow-hidden bg-slate-100 transition-all ${
+                                  className={`aspect-square rounded-none border-2 overflow-hidden bg-slate-100 transition-all ${
                                     selected
                                       ? 'border-blue-500 ring-2 ring-blue-200'
                                       : 'border-transparent hover:border-slate-300'
@@ -559,7 +559,7 @@ export default function ShopProductsPage() {
                           <button
                             type="button"
                             onClick={() => fileRefs.current[index]?.click()}
-                            className="w-full py-8 rounded-xl border-2 border-dashed border-slate-200 text-center hover:border-blue-400 hover:bg-blue-50/50 transition-colors group"
+                            className="w-full py-8 rounded-none border-2 border-dashed border-slate-200 text-center hover:border-blue-400 hover:bg-blue-50/50 transition-colors group"
                           >
                             <div className="flex flex-col items-center gap-2">
                               <svg width="28" height="28" viewBox="0 0 28 28" fill="none" className="text-slate-400 group-hover:text-blue-500 transition-colors">
@@ -585,7 +585,7 @@ export default function ShopProductsPage() {
                                 if (row.pendingObjectUrl) URL.revokeObjectURL(row.pendingObjectUrl)
                                 updateRow(index, { image_url: '', uploadError: null, pendingFile: null, pendingObjectUrl: null })
                               }}
-                              className="absolute top-3 right-3 p-1.5 rounded-lg bg-white/90 border border-slate-200 text-slate-500 hover:text-red-600 hover:border-red-200 hover:bg-red-50 shadow-sm transition-colors"
+                              className="absolute top-3 right-3 p-1.5 rounded-none bg-white/90 border border-slate-200 text-slate-500 hover:text-red-600 hover:border-red-200 hover:bg-red-50 shadow-sm transition-colors"
                               title={t('products.removeImage')}
                             >
                               <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
@@ -621,14 +621,14 @@ export default function ShopProductsPage() {
               type="button"
               onClick={save}
               disabled={saving}
-              className="px-6 py-2.5 rounded-xl bg-slate-900 text-white text-sm font-semibold disabled:opacity-50 hover:bg-slate-700 transition-colors"
+              className="px-6 py-2.5 rounded-none bg-slate-900 text-white text-sm font-semibold disabled:opacity-50 hover:bg-slate-700 transition-colors"
             >
               {saving ? t('products.saving') : t('products.saveProducts')}
             </button>
             <button
               type="button"
               onClick={addRow}
-              className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-slate-200 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors"
+              className="flex items-center gap-1.5 px-4 py-2.5 rounded-none border border-slate-200 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors"
             >
               <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
                 <path d="M7 2v10M2 7h10" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>

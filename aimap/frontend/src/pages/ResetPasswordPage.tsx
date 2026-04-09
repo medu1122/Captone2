@@ -42,7 +42,7 @@ export default function ResetPasswordPage() {
   return (
     <AuthLayout>
       <div className="w-full max-w-md">
-        <div className="bg-white border border-slate-300 rounded-lg p-8">
+        <div className="bg-white border border-slate-300 rounded-none p-8">
           <div className="mb-6">
             <h1 className="text-xl font-bold text-slate-900">{t('auth.reset.title')}</h1>
             <p className="text-sm text-slate-600">{t('auth.reset.subtitle')}</p>
@@ -53,10 +53,10 @@ export default function ResetPasswordPage() {
             </p>
           )}
           {error && (
-            <p className="mb-4 text-sm text-red-400 bg-red-400/10 rounded-lg px-3 py-2">{error}</p>
+            <p className="mb-4 text-sm text-red-400 bg-red-400/10 rounded-none px-3 py-2">{error}</p>
           )}
           {success && (
-            <p className="mb-4 text-sm text-green-400 bg-green-400/10 rounded-lg px-3 py-2">
+            <p className="mb-4 text-sm text-green-400 bg-green-400/10 rounded-none px-3 py-2">
               {t('auth.reset.passwordUpdated')} <Link to="/login" className="underline">{t('auth.login.submit')}</Link>
             </p>
           )}
@@ -89,7 +89,7 @@ export default function ResetPasswordPage() {
             <button
               type="submit"
               disabled={!token || loading}
-              className="w-full bg-primary hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold py-3 px-6 rounded-lg transition-colors"
+              className="w-full bg-primary hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold py-3 px-6 rounded-none transition-colors"
             >
               {loading ? '...' : t('auth.reset.submit')}
             </button>

@@ -402,7 +402,7 @@ export default function ShopImageBotPage() {
 
   if (shopError) {
     return (
-      <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{shopError}</div>
+      <div className="rounded-none border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{shopError}</div>
     )
   }
 
@@ -414,12 +414,12 @@ export default function ShopImageBotPage() {
       </div>
 
       {toast && (
-        <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm text-emerald-800">
+        <div className="rounded-none border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm text-emerald-800">
           {toast}
         </div>
       )}
 
-      <section className="flex min-h-[560px] flex-col rounded-lg border border-slate-300 bg-white p-4">
+      <section className="flex min-h-[560px] flex-col rounded-none border border-slate-300 bg-white p-4">
         <h3 className="mb-3 shrink-0 border-b border-slate-100 pb-2 text-sm font-semibold text-slate-800">
           {t('imageBot.zoneInputTitle')}
         </h3>
@@ -435,7 +435,7 @@ export default function ShopImageBotPage() {
         </div>
       </section>
 
-      <section className="rounded-lg border border-slate-300 bg-white p-4">
+      <section className="rounded-none border border-slate-300 bg-white p-4">
         <h3 className="mb-3 shrink-0 border-b border-slate-100 pb-2 text-sm font-semibold text-slate-800">
           {t('imageBot.zoneOutputTitle')}
         </h3>
@@ -449,7 +449,7 @@ export default function ShopImageBotPage() {
         />
       </section>
 
-      <section className="rounded-lg border border-slate-300 bg-white p-4">
+      <section className="rounded-none border border-slate-300 bg-white p-4">
         <ImageBotShopGallery
           t={t}
           assets={galleryAssets}

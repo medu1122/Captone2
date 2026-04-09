@@ -1,4 +1,5 @@
 import { Router } from 'express'
+import bcrypt from 'bcrypt'
 import pool from '../db/index.js'
 import { requireAuth } from '../middleware/auth.js'
 import { logActivity } from '../services/activityLog.js'
@@ -18,7 +19,7 @@ import {
   serializeConversationContent,
   summarizeSections,
 } from '../services/shopWebsiteService.js'
-import { createShopContainer, getContainerStats } from '../services/shopDockerService.js'
+import { createShopContainer, getContainerStats, removeContainer } from '../services/shopDockerService.js'
 
 const router = Router()
 
@@ -134,6 +135,18 @@ async function getExistingSite(client, shop) {
   )
   if (existing.rows.length === 0) return null
   return existing.rows[0]
+}
+
+async function verifyProfilePassword(client, profileId, password) {
+  const result = await client.query(
+    `SELECT l.password_hash
+     FROM user_profiles up
+     JOIN logins l ON l.id = up.login_id
+     WHERE up.id = $1`,
+    [profileId]
+  )
+  if (result.rows.length === 0) return false
+  return bcrypt.compare(String(password || ''), result.rows[0].password_hash)
 }
 
 async function ensureSite(client, shop, assets, overrides = {}) {
@@ -760,6 +773,68 @@ router.get('/:id/website/deploy/status', requireAuth, async (req, res) => {
   } catch (error) {
     console.error('website deploy status error:', error)
     res.status(500).json({ error: error.message || 'Failed to load deploy status' })
+  } finally {
+    client.release()
+  }
+})
+
+router.post('/:id/website/delete', requireAuth, async (req, res) => {
+  const client = await pool.connect()
+  try {
+    const shop = await getOwnedShop(client, req.params.id, req.auth.profileId)
+    if (shop === undefined) return res.status(404).json({ error: 'Shop not found' })
+    if (!shop) return res.status(403).json({ error: 'Access denied' })
+
+    const password = req.body?.password
+    if (!password) return res.status(400).json({ error: 'Password is required' })
+
+    const isValidPassword = await verifyProfilePassword(client, req.auth.profileId, password)
+    if (!isValidPassword) return res.status(401).json({ error: 'Password is incorrect' })
+
+    const site = await getExistingSite(client, shop)
+    const deployment = await getDeployment(client, shop.id)
+
+    await client.query('BEGIN')
+    await ensureWebsiteTables(client)
+    await ensureDeploymentTable(client)
+
+    if (deployment?.container_id) {
+      try {
+        await removeContainer(deployment.container_id, true)
+      } catch (dockerError) {
+        console.warn('website delete removeContainer:', dockerError.message)
+      }
+    }
+
+    await client.query('DELETE FROM site_deployments WHERE shop_id = $1', [shop.id])
+    if (site?.id) {
+      await client.query('DELETE FROM conversation_messages WHERE site_id = $1', [site.id])
+      await client.query('DELETE FROM sites WHERE id = $1', [site.id])
+    }
+
+    await client.query('COMMIT')
+
+    try {
+      await logActivity(pool, {
+        userId: req.auth.profileId,
+        action: 'delete_website',
+        entityType: 'site',
+        entityId: site?.id || null,
+        details: { shop_id: shop.id },
+        severity: 'warning',
+        ipAddress: req.ip || req.headers['x-forwarded-for'],
+      })
+    } catch (logError) {
+      console.warn('activity log delete_website:', logError.message)
+    }
+
+    res.json({ ok: true })
+  } catch (error) {
+    try {
+      await client.query('ROLLBACK')
+    } catch {}
+    console.error('website delete error:', error)
+    res.status(500).json({ error: error.message || 'Failed to delete website' })
   } finally {
     client.release()
   }

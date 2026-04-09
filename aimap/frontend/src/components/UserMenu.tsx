@@ -18,14 +18,14 @@ export default function UserMenu({ user, onLogout }: UserMenuProps) {
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="flex items-center gap-2 rounded-full focus:outline-none focus:ring-2 focus:ring-primary/50"
+        className="flex items-center gap-2 rounded-none focus:outline-none focus:ring-2 focus:ring-primary/50"
         aria-expanded={open}
         aria-haspopup="true"
       >
         {user.avatarUrl ? (
-          <img src={user.avatarUrl} alt="" className="w-8 h-8 rounded-full object-cover border border-slate-300" />
+          <img src={user.avatarUrl} alt="" className="w-8 h-8 rounded-none object-cover border border-slate-300" />
         ) : (
-          <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center border border-slate-300 text-slate-600 text-sm font-medium">
+          <div className="w-8 h-8 rounded-none bg-slate-100 flex items-center justify-center border border-slate-300 text-slate-600 text-sm font-medium">
             {user.name?.[0] ?? user.email?.[0] ?? '?'}
           </div>
         )}
@@ -41,7 +41,7 @@ export default function UserMenu({ user, onLogout }: UserMenuProps) {
             aria-hidden="true"
             onClick={() => setOpen(false)}
           />
-          <div className="absolute right-0 top-full mt-2 w-48 py-1 rounded-lg bg-white border border-slate-300 shadow z-50">
+          <div className="absolute right-0 top-full mt-2 w-48 py-1 rounded-none bg-white border border-slate-300 shadow z-50">
             <Link
               to="/dashboard"
               className="block px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-100"

@@ -126,7 +126,7 @@ export default function CreditsTopUpPage() {
       <div className="flex-1 min-w-0 space-y-6 w-full">
         <h2 className="text-lg font-semibold text-slate-900">{t('credits.paymentTitle')}</h2>
 
-        <form onSubmit={handleSubmit} className="bg-white border border-slate-300 rounded-xl p-6 space-y-4 shadow-sm">
+        <form onSubmit={handleSubmit} className="bg-white border border-slate-300 rounded-none p-6 space-y-4 shadow-sm">
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-2">{t('credits.amountVnd')}</label>
             <input
@@ -135,7 +135,7 @@ export default function CreditsTopUpPage() {
               step={1000}
               value={amountVnd}
               onChange={(e) => setAmountVnd(Math.max(minVnd, parseInt(e.target.value, 10) || minVnd))}
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+              className="w-full px-3 py-2 border border-slate-300 rounded-none"
             />
             <p className="text-xs text-slate-500 mt-1">
               {t('credits.estimatedCredits')}: <strong>{previewCredits}</strong> ({rate} VND / {t('credits.creditUnit')})
@@ -154,7 +154,7 @@ export default function CreditsTopUpPage() {
                 setAccountNo(selected?.accountNo ?? null)
               }}
               disabled={loadingMethods || methods.length === 0}
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white"
+              className="w-full px-3 py-2 border border-slate-300 rounded-none bg-white"
             >
               {methods.map((m) => (
                 <option key={m.id} value={m.id}>
@@ -168,14 +168,14 @@ export default function CreditsTopUpPage() {
           <button
             type="submit"
             disabled={loading || loadingMethods}
-            className="w-full bg-primary hover:bg-primary/90 text-white font-semibold py-2.5 px-4 rounded-lg disabled:opacity-50"
+            className="w-full bg-primary hover:bg-primary/90 text-white font-semibold py-2.5 px-4 rounded-none disabled:opacity-50"
           >
             {loading ? '…' : t('credits.createPayment')}
           </button>
         </form>
 
         {paymentId && transferContent && amountMoney != null && (
-          <div className="bg-white border border-slate-300 rounded-xl p-6 space-y-4 shadow-sm">
+          <div className="bg-white border border-slate-300 rounded-none p-6 space-y-4 shadow-sm">
             <p className="text-sm text-slate-600">
               {t('credits.vndAmount')}: <strong>{amountMoney.toLocaleString()} đ</strong>
             </p>
@@ -186,11 +186,11 @@ export default function CreditsTopUpPage() {
             )}
             <p className="text-sm text-slate-600">
               {t('credits.transferContent')}:{' '}
-              <code className="bg-slate-100 px-2 py-1 rounded text-slate-900 select-all">{transferContent}</code>
+              <code className="bg-slate-100 px-2 py-1 rounded-none text-slate-900 select-all">{transferContent}</code>
             </p>
             {qrUrl && (
               <div className="flex justify-center">
-                <img src={qrUrl} alt="VietQR" className="max-w-[280px] w-full rounded-lg border border-slate-200" />
+                <img src={qrUrl} alt="VietQR" className="max-w-[280px] w-full rounded-none border border-slate-200" />
               </div>
             )}
             <p className="text-sm">
@@ -202,11 +202,11 @@ export default function CreditsTopUpPage() {
         <div className="space-y-3">
           <h3 className="text-lg font-semibold text-slate-900">{t('credits.historyTitle')}</h3>
           {historyLoading ? (
-            <div className="bg-white border border-slate-300 rounded-lg p-4 text-slate-600">…</div>
+            <div className="bg-white border border-slate-300 rounded-none p-4 text-slate-600">…</div>
           ) : historyError ? (
-            <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-red-800">{historyError}</div>
+            <div className="rounded-none border border-red-200 bg-red-50 px-4 py-3 text-red-800">{historyError}</div>
           ) : (
-            <div className="bg-white border border-slate-300 rounded-lg overflow-hidden">
+            <div className="bg-white border border-slate-300 rounded-none overflow-hidden">
               <table className="w-full text-sm text-left">
                 <thead>
                   <tr className="border-b border-slate-200 bg-slate-50">
@@ -251,7 +251,7 @@ export default function CreditsTopUpPage() {
         <img
           src="/vietqr-banner.svg"
           alt=""
-          className="rounded-xl border border-slate-200 shadow-sm w-full object-cover"
+          className="rounded-none border border-slate-200 shadow-sm w-full object-cover"
         />
       </div>
     </div>

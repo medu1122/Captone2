@@ -154,7 +154,7 @@ export default function ShopStoragePage() {
 
       {/* Error */}
       {error && (
-        <div className="rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
+        <div className="rounded-none bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
           {error}
         </div>
       )}
@@ -171,20 +171,20 @@ export default function ShopStoragePage() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder={t('storage.searchPlaceholder')}
-            className="w-full pl-9 pr-3 py-2 text-sm border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/60"
+            className="w-full pl-9 pr-3 py-2 text-sm border border-slate-200 rounded-none bg-white focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/60"
           />
         </div>
 
         <button
           type="button"
           onClick={() => setShowUploadModal(true)}
-          className="px-3.5 py-2 text-sm font-medium rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+          className="px-3.5 py-2 text-sm font-medium rounded-none border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
         >
           Upload more image
         </button>
         <Link
           to={`/shops/${id}/image-bot`}
-          className="px-3.5 py-2 text-sm font-medium rounded-xl bg-slate-900 text-white hover:bg-slate-800"
+          className="px-3.5 py-2 text-sm font-medium rounded-none bg-slate-900 text-white hover:bg-slate-800"
         >
           Create image with AI
         </Link>
@@ -198,7 +198,7 @@ export default function ShopStoragePage() {
 
       {showUploadModal && (
         <div className="fixed inset-0 z-40 bg-black/45 flex items-center justify-center p-4">
-          <div className="w-full max-w-xl rounded-2xl bg-white border border-slate-200 shadow-xl">
+          <div className="w-full max-w-xl rounded-none bg-white border border-slate-200 shadow-xl">
             <div className="px-4 py-3 border-b border-slate-200 flex items-center justify-between">
               <h2 className="text-base font-semibold text-slate-900">Upload image</h2>
               <button
@@ -211,7 +211,7 @@ export default function ShopStoragePage() {
               </button>
             </div>
             <div className="p-4 space-y-4">
-              <div className="flex rounded-xl border border-slate-200 overflow-hidden">
+              <div className="flex rounded-none border border-slate-200 overflow-hidden">
                 <button
                   type="button"
                   onClick={() => setUploadMode('device')}
@@ -244,11 +244,11 @@ export default function ShopStoragePage() {
                       setSelectedFiles((prev) => [...prev, ...files])
                       e.currentTarget.value = ''
                     }}
-                    className="block w-full text-sm text-slate-700 file:mr-3 file:px-3 file:py-1.5 file:rounded-lg file:border file:border-slate-200 file:bg-slate-50 file:text-slate-700 hover:file:bg-slate-100"
+                    className="block w-full text-sm text-slate-700 file:mr-3 file:px-3 file:py-1.5 file:rounded-none file:border file:border-slate-200 file:bg-slate-50 file:text-slate-700 hover:file:bg-slate-100"
                   />
                   <div className="space-y-2 max-h-44 overflow-auto">
                     {selectedFiles.map((file, idx) => (
-                      <div key={`${file.name}-${idx}`} className="flex items-center justify-between rounded-lg border border-slate-200 px-3 py-2">
+                      <div key={`${file.name}-${idx}`} className="flex items-center justify-between rounded-none border border-slate-200 px-3 py-2">
                         <span className="text-sm text-slate-700 truncate pr-3">{file.name}</span>
                         <button
                           type="button"
@@ -269,18 +269,18 @@ export default function ShopStoragePage() {
                     onChange={(e) => setUrlInput(e.target.value)}
                     placeholder="One image URL per line"
                     rows={4}
-                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/60"
+                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-none bg-white focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/60"
                   />
                   <button
                     type="button"
                     onClick={addUrls}
-                    className="px-3 py-2 text-sm font-medium rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                    className="px-3 py-2 text-sm font-medium rounded-none border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
                   >
                     Add links
                   </button>
                   <div className="space-y-2 max-h-44 overflow-auto">
                     {selectedUrls.map((url, idx) => (
-                      <div key={`${url}-${idx}`} className="flex items-center justify-between rounded-lg border border-slate-200 px-3 py-2">
+                      <div key={`${url}-${idx}`} className="flex items-center justify-between rounded-none border border-slate-200 px-3 py-2">
                         <span className="text-sm text-slate-700 truncate pr-3">{url}</span>
                         <button
                           type="button"
@@ -301,7 +301,7 @@ export default function ShopStoragePage() {
                 type="button"
                 onClick={closeUploadModal}
                 disabled={uploading}
-                className="px-3 py-2 text-sm rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                className="px-3 py-2 text-sm rounded-none border border-slate-200 text-slate-700 hover:bg-slate-50 disabled:opacity-50"
               >
                 Cancel
               </button>
@@ -312,7 +312,7 @@ export default function ShopStoragePage() {
                   uploading ||
                   (uploadMode === 'device' ? selectedFiles.length === 0 : selectedUrls.length === 0)
                 }
-                className="px-3 py-2 text-sm rounded-lg bg-slate-900 text-white hover:bg-slate-800 disabled:opacity-50"
+                className="px-3 py-2 text-sm rounded-none bg-slate-900 text-white hover:bg-slate-800 disabled:opacity-50"
               >
                 {uploading ? 'Uploading...' : 'Upload now'}
               </button>
@@ -324,7 +324,7 @@ export default function ShopStoragePage() {
       {/* Grid */}
       {loading ? (
         <div className="flex items-center justify-center py-20">
-          <div className="w-8 h-8 border-2 border-slate-200 border-t-primary rounded-full animate-spin" />
+          <div className="w-8 h-8 border-2 border-slate-200 border-t-primary rounded-none animate-spin" />
         </div>
       ) : filtered.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 gap-3 text-center">
@@ -345,7 +345,7 @@ export default function ShopStoragePage() {
             return (
               <div
                 key={asset.id}
-                className="group relative rounded-2xl overflow-hidden border border-slate-200 bg-slate-50 aspect-square shadow-sm hover:shadow-md transition-shadow"
+                className="group relative rounded-none overflow-hidden border border-slate-200 bg-slate-50 aspect-square shadow-sm hover:shadow-md transition-shadow"
               >
                 {/* Image */}
                 {src ? (
@@ -371,7 +371,7 @@ export default function ShopStoragePage() {
                   <button
                     type="button"
                     onClick={() => setConfirmDeleteId(asset.id)}
-                    className="absolute top-2 right-2 p-1.5 rounded-lg bg-white/90 border border-slate-200 text-slate-500 hover:text-red-600 hover:border-red-200 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-all shadow-sm"
+                    className="absolute top-2 right-2 p-1.5 rounded-none bg-white/90 border border-slate-200 text-slate-500 hover:text-red-600 hover:border-red-200 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-all shadow-sm"
                     title={t('storage.delete')}
                   >
                     <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
@@ -389,7 +389,7 @@ export default function ShopStoragePage() {
                         type="button"
                         onClick={() => setConfirmDeleteId(null)}
                         disabled={deleting}
-                        className="text-xs px-2.5 py-1.5 rounded-lg bg-white/20 text-white hover:bg-white/30 transition-colors disabled:opacity-50"
+                        className="text-xs px-2.5 py-1.5 rounded-none bg-white/20 text-white hover:bg-white/30 transition-colors disabled:opacity-50"
                       >
                         {t('shopDetail.cancelEdit')}
                       </button>
@@ -397,7 +397,7 @@ export default function ShopStoragePage() {
                         type="button"
                         onClick={() => handleDelete(asset.id)}
                         disabled={deleting}
-                        className="text-xs px-2.5 py-1.5 rounded-lg bg-red-500 text-white hover:bg-red-600 transition-colors disabled:opacity-50"
+                        className="text-xs px-2.5 py-1.5 rounded-none bg-red-500 text-white hover:bg-red-600 transition-colors disabled:opacity-50"
                       >
                         {deleting ? '…' : t('storage.delete')}
                       </button>

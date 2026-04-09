@@ -27,7 +27,7 @@ export default function PasswordInput({
   const { t } = useLocale()
   const [visible, setVisible] = useState(false)
   const baseClass =
-    'w-full px-4 py-3 pr-12 rounded-lg bg-white border border-slate-300 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:border-slate-400'
+    'w-full px-4 py-3 pr-12 rounded-none bg-white border border-slate-300 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:border-slate-400'
   return (
     <div className="relative">
       <input
@@ -45,7 +45,7 @@ export default function PasswordInput({
       <button
         type="button"
         onClick={() => setVisible((v) => !v)}
-        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-700 transition-colors p-1 rounded"
+        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-700 transition-colors p-1 rounded-none"
         tabIndex={-1}
         aria-label={visible ? t('auth.hidePassword') : t('auth.showPassword')}
       >

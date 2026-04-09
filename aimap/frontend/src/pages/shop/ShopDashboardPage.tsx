@@ -145,7 +145,7 @@ export default function ShopDashboardPage() {
 
       {/* Stats row */}
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-        <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+        <div className="bg-white border border-slate-200 rounded-none p-5 shadow-sm">
           <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">{t('shopDetail.stats.products')}</span>
           <p className="text-3xl font-bold text-slate-900 mt-1">
             {contentCount === null ? '…' : contentCount}
@@ -154,7 +154,7 @@ export default function ShopDashboardPage() {
             {t('shopDetail.nav.products')} →
           </Link>
         </div>
-        <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+        <div className="bg-white border border-slate-200 rounded-none p-5 shadow-sm">
           <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">{t('shopDetail.stats.images')}</span>
           <p className="text-3xl font-bold text-slate-900 mt-1">
             {assetsLoading ? '…' : assets.length}
@@ -163,7 +163,7 @@ export default function ShopDashboardPage() {
             {t('storage.openImageBot')} →
           </Link>
         </div>
-        <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+        <div className="bg-white border border-slate-200 rounded-none p-5 shadow-sm">
           <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">{t('shopDetail.stats.content')}</span>
           <p className="text-3xl font-bold text-slate-900 mt-1">
             {contentCount === null ? '…' : contentCount}
@@ -176,7 +176,7 @@ export default function ShopDashboardPage() {
             {t('shops.edit')} →
           </button>
         </div>
-        <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+        <div className="bg-white border border-slate-200 rounded-none p-5 shadow-sm">
           <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">{t('shopDetail.stats.siteStatus')}</span>
           <p className="text-3xl font-bold text-slate-900 mt-1">{t('website.siteDraft')}</p>
           <Link to={`/shops/${id}/website`} className="text-xs text-primary font-medium mt-2 inline-block hover:underline">
@@ -186,13 +186,13 @@ export default function ShopDashboardPage() {
       </div>
 
       {/* Shop info panel */}
-      <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+      <div className="bg-white border border-slate-200 rounded-none shadow-sm overflow-hidden">
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
           <h2 className="text-base font-semibold text-slate-800">{t('shopDetail.shopInfo')}</h2>
           {!editing && (
             <button
               onClick={startEdit}
-              className="text-sm font-medium text-primary hover:text-primary/80 border border-primary/30 rounded-lg px-3 py-1.5 transition-colors"
+              className="text-sm font-medium text-primary hover:text-primary/80 border border-primary/30 rounded-none px-3 py-1.5 transition-colors"
             >
               {t('shopDetail.editShopInfo')}
             </button>
@@ -207,11 +207,11 @@ export default function ShopDashboardPage() {
                 <div className="flex flex-wrap items-center gap-3">
                   <span className="text-xl font-bold text-slate-900">{shop.name}</span>
                   {shop.industry && (
-                    <span className="text-xs bg-blue-50 text-blue-700 border border-blue-200 rounded-full px-2.5 py-0.5 font-medium">
+                    <span className="text-xs bg-blue-50 text-blue-700 border border-blue-200 rounded-none px-2.5 py-0.5 font-medium">
                       {shop.industry}
                     </span>
                   )}
-                  <span className={`text-xs rounded-full px-2.5 py-0.5 font-medium border ${
+                  <span className={`text-xs rounded-none px-2.5 py-0.5 font-medium border ${
                     shop.status === 'active'
                       ? 'bg-green-50 text-green-700 border-green-200'
                       : 'bg-slate-50 text-slate-600 border-slate-200'
@@ -266,7 +266,7 @@ export default function ShopDashboardPage() {
                 )}
 
                 {shop.slug && (
-                  <div className="text-xs text-slate-400 font-mono bg-slate-50 inline-block px-2 py-1 rounded">
+                  <div className="text-xs text-slate-400 font-mono bg-slate-50 inline-block px-2 py-1 rounded-none">
                     {shop.slug}.captone2.site
                   </div>
                 )}
@@ -285,7 +285,7 @@ export default function ShopDashboardPage() {
                   type="text"
                   value={editForm?.name ?? ''}
                   onChange={e => setField('name', e.target.value)}
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+                  className="w-full border border-slate-300 rounded-none px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
                 />
               </div>
               <div>
@@ -294,7 +294,7 @@ export default function ShopDashboardPage() {
                   type="text"
                   value={editForm?.industry ?? ''}
                   onChange={e => setField('industry', e.target.value)}
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+                  className="w-full border border-slate-300 rounded-none px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
                 />
               </div>
             </div>
@@ -305,7 +305,7 @@ export default function ShopDashboardPage() {
                 rows={3}
                 value={editForm?.description ?? ''}
                 onChange={e => setField('description', e.target.value)}
-                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 resize-none"
+                className="w-full border border-slate-300 rounded-none px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 resize-none"
               />
             </div>
 
@@ -316,7 +316,7 @@ export default function ShopDashboardPage() {
                   type="text"
                   value={editForm?.address ?? ''}
                   onChange={e => setField('address', e.target.value)}
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+                  className="w-full border border-slate-300 rounded-none px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
                 />
               </div>
               <div>
@@ -325,7 +325,7 @@ export default function ShopDashboardPage() {
                   type="text"
                   value={editForm?.district ?? ''}
                   onChange={e => setField('district', e.target.value)}
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+                  className="w-full border border-slate-300 rounded-none px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
                 />
               </div>
               <div>
@@ -334,7 +334,7 @@ export default function ShopDashboardPage() {
                   type="text"
                   value={editForm?.city ?? ''}
                   onChange={e => setField('city', e.target.value)}
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+                  className="w-full border border-slate-300 rounded-none px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
                 />
               </div>
               <div>
@@ -343,7 +343,7 @@ export default function ShopDashboardPage() {
                   type="text"
                   value={editForm?.country ?? ''}
                   onChange={e => setField('country', e.target.value)}
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+                  className="w-full border border-slate-300 rounded-none px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
                 />
               </div>
             </div>
@@ -355,7 +355,7 @@ export default function ShopDashboardPage() {
                   type="text"
                   value={editForm?.owner_name ?? ''}
                   onChange={e => setField('owner_name', e.target.value)}
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+                  className="w-full border border-slate-300 rounded-none px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
                 />
               </div>
               <div>
@@ -364,7 +364,7 @@ export default function ShopDashboardPage() {
                   type="text"
                   value={editForm?.phone ?? ''}
                   onChange={e => setField('phone', e.target.value)}
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+                  className="w-full border border-slate-300 rounded-none px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
                 />
               </div>
               <div>
@@ -373,7 +373,7 @@ export default function ShopDashboardPage() {
                   type="email"
                   value={editForm?.email ?? ''}
                   onChange={e => setField('email', e.target.value)}
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+                  className="w-full border border-slate-300 rounded-none px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
                 />
               </div>
             </div>
@@ -382,14 +382,14 @@ export default function ShopDashboardPage() {
               <button
                 onClick={saveEdit}
                 disabled={savingInfo}
-                className="bg-primary text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-primary/90 disabled:opacity-50 transition-colors"
+                className="bg-primary text-white text-sm font-medium px-4 py-2 rounded-none hover:bg-primary/90 disabled:opacity-50 transition-colors"
               >
                 {savingInfo ? t('shopDetail.savingInfo') : t('shopDetail.saveShopInfo')}
               </button>
               <button
                 onClick={cancelEdit}
                 disabled={savingInfo}
-                className="text-sm font-medium text-slate-600 hover:text-slate-900 px-4 py-2 rounded-lg border border-slate-300 hover:border-slate-400 transition-colors disabled:opacity-50"
+                className="text-sm font-medium text-slate-600 hover:text-slate-900 px-4 py-2 rounded-none border border-slate-300 hover:border-slate-400 transition-colors disabled:opacity-50"
               >
                 {t('shopDetail.cancelEdit')}
               </button>
@@ -398,7 +398,7 @@ export default function ShopDashboardPage() {
         )}
 
         {saveMsg && (
-          <div className={`mx-6 mb-4 px-4 py-2.5 rounded-lg text-sm font-medium ${
+          <div className={`mx-6 mb-4 px-4 py-2.5 rounded-none text-sm font-medium ${
             saveMsg.ok ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
           }`}>
             {saveMsg.text}
@@ -407,7 +407,7 @@ export default function ShopDashboardPage() {
       </div>
 
       {/* Products mini-list */}
-      <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+      <div className="bg-white border border-slate-200 rounded-none shadow-sm overflow-hidden">
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
           <h2 className="text-base font-semibold text-slate-800">{t('shopDetail.currentProducts')}</h2>
           <Link to={productsPath} className="text-sm font-medium text-primary hover:underline">
@@ -425,15 +425,15 @@ export default function ShopDashboardPage() {
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {products.slice(0, 6).map((p, i) => (
-                <div key={i} className="flex items-center gap-3 p-3 rounded-lg border border-slate-100 hover:border-slate-200 transition-colors">
+                <div key={i} className="flex items-center gap-3 p-3 rounded-none border border-slate-100 hover:border-slate-200 transition-colors">
                   {p.image_url ? (
                     <img
                       src={assetStorageUrl(p.image_url)}
                       alt={p.name ?? ''}
-                      className="w-12 h-12 rounded-lg object-cover flex-shrink-0 bg-slate-100"
+                      className="w-12 h-12 rounded-none object-cover flex-shrink-0 bg-slate-100"
                     />
                   ) : (
-                    <div className="w-12 h-12 rounded-lg bg-slate-100 flex items-center justify-center flex-shrink-0">
+                    <div className="w-12 h-12 rounded-none bg-slate-100 flex items-center justify-center flex-shrink-0">
                       <svg className="w-5 h-5 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                       </svg>
@@ -460,7 +460,7 @@ export default function ShopDashboardPage() {
       </div>
 
       {/* Recent assets */}
-      <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-6">
+      <div className="bg-white border border-slate-200 rounded-none shadow-sm p-6">
         <RecentAssetsStrip
           t={t}
           assets={assets}
