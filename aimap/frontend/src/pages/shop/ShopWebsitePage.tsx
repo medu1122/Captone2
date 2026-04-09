@@ -1,505 +1,355 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { useLocale } from '../../contexts/LocaleContext'
-import { shopsApi } from '../../api/shops'
-import { shopWebsiteApi, type WebsiteHistoryItem, type WebsiteOverview } from '../../api/shopWebsite'
+import { shopsApi, type ShopAsset } from '../../api/shops'
+import { assetStorageUrl } from '../../api/client'
+import {
+  shopWebsiteApi,
+  type WebsiteEntryRow,
+  type WebsiteTemplate,
+  type WebsiteTheme,
+  type WebsiteTone,
+} from '../../api/shopWebsite'
 
-type ActivityType = 'all' | 'prompt' | 'deploy'
+const DEFAULT_PALETTES: Record<WebsiteTone, WebsiteTheme> = {
+  balanced: { primary: '#0f172a', accent: '#2563eb', background: '#f8fafc', surface: '#ffffff' },
+  friendly: { primary: '#14532d', accent: '#16a34a', background: '#f6fef9', surface: '#ffffff' },
+  luxury: { primary: '#3f2f1d', accent: '#c28f2c', background: '#fdf8f1', surface: '#fffdf8' },
+  energetic: { primary: '#7c2d12', accent: '#ea580c', background: '#fff7ed', surface: '#ffffff' },
+}
 
-function EmptyMetricCard({ label, t }: { label: string; t: (key: string) => string }) {
-  return (
-    <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-3">
-      <p className="text-xs font-medium text-slate-500">{label}</p>
-      <p className="mt-1 text-sm font-semibold text-slate-700">{t('website.dashboard.emptyBackend')}</p>
-      <p className="mt-1 text-xs text-slate-500">{t('website.dashboard.emptyHint')}</p>
-    </div>
-  )
+function statusClass(status: string): string {
+  if (status === 'running' || status === 'deployed') return 'border-emerald-200 bg-emerald-50 text-emerald-800'
+  if (status === 'building') return 'border-blue-200 bg-blue-50 text-blue-700'
+  if (status === 'preview_ready') return 'border-amber-200 bg-amber-50 text-amber-800'
+  if (status === 'error') return 'border-rose-200 bg-rose-50 text-rose-700'
+  return 'border-slate-200 bg-slate-100 text-slate-700'
 }
 
 export default function ShopWebsitePage() {
   const { t } = useLocale()
   const { token } = useAuth()
+  const navigate = useNavigate()
   const { id } = useParams<{ id: string }>()
-  const [activityFilter, setActivityFilter] = useState<ActivityType>('all')
-  const [copyDone, setCopyDone] = useState(false)
+
   const [loading, setLoading] = useState(true)
-  const [overview, setOverview] = useState<WebsiteOverview | null>(null)
-  const [history, setHistory] = useState<WebsiteHistoryItem[]>([])
-  const [actionMessage, setActionMessage] = useState<string | null>(null)
-  const [deploying, setDeploying] = useState(false)
-  const [stopping, setStopping] = useState(false)
-  const [removing, setRemoving] = useState(false)
-  const [restoringId, setRestoringId] = useState<string | null>(null)
+  const [sites, setSites] = useState<WebsiteEntryRow[]>([])
+  const [assets, setAssets] = useState<ShopAsset[]>([])
+  const [creating, setCreating] = useState(false)
+  const [message, setMessage] = useState<string | null>(null)
+  const [idea, setIdea] = useState('')
+  const [promptNote, setPromptNote] = useState('')
+  const [template, setTemplate] = useState<WebsiteTemplate>('catalog')
+  const [tone, setTone] = useState<WebsiteTone>('balanced')
+  const [selectedAssetIds, setSelectedAssetIds] = useState<string[]>([])
 
   if (!id) return <p className="text-sm text-slate-500">{t('website.common.missingShopId')}</p>
   if (!token) return null
 
-  const filteredEvents = useMemo(() => {
-    if (activityFilter === 'all') return history
-    return history.filter((item) => item.type === activityFilter)
-  }, [activityFilter, history])
+  const hasSite = sites.length > 0
+
+  const load = async () => {
+    setLoading(true)
+    const [entryRes, assetsRes] = await Promise.all([
+      shopWebsiteApi.getEntry(token, id),
+      shopsApi.listAssets(token, id),
+    ])
+    setSites(entryRes.data?.sites || [])
+    setAssets(assetsRes.data?.assets || [])
+    setLoading(false)
+  }
 
   useEffect(() => {
-    let cancelled = false
-    const load = async () => {
-      setLoading(true)
-      const [shopRes, containerRes, websiteRes] = await Promise.all([
-        shopsApi.get(token, id),
-        shopsApi.getShopContainer(token, id),
-        shopWebsiteApi.getOverview(token, id),
-      ])
-
-      if (cancelled) return
-
-      if (websiteRes.data?.overview) {
-        setOverview(websiteRes.data.overview)
-        setHistory(websiteRes.data.history || [])
-        setActionMessage(null)
-        setLoading(false)
-        return
-      }
-
-      const shop = shopRes.data
-      const deploy = containerRes.data?.deployment
-      const slug = String(shop?.slug || `shop-${id}`)
-      const subdomain = deploy?.subdomain || `${slug}.captone2.site`
-      const publicUrl = `https://${subdomain}`
-      const previewUrl = `https://preview.captone2.site/sites/${id}`
-      const status = deploy?.status === 'running' ? 'deployed' : deploy?.status === 'building' ? 'building' : 'draft'
-
-      setOverview({
-        siteId: null,
-        slug,
-        status,
-        versionCount: 1,
-        publicUrl,
-        previewUrl,
-        updatedAt: deploy?.updated_at || null,
-        promptCount: null,
-        promptSuccessRate: null,
-        creditsUsed: null,
-        lastPrompt: null,
-        viewsToday: null,
-        views7d: null,
-        mobileDesktopRatio: null,
-        coreWebVitals: null,
-      })
-      setHistory([])
-      setLoading(false)
-    }
     void load()
-    return () => {
-      cancelled = true
-    }
   }, [id, token])
 
-  const reloadOverview = async () => {
-    const [containerRes, websiteRes] = await Promise.all([
-      shopsApi.getShopContainer(token, id),
-      shopWebsiteApi.getOverview(token, id),
-    ])
-    if (websiteRes.data?.overview) {
-      setOverview(websiteRes.data.overview)
-      setHistory(websiteRes.data.history || [])
+  const selectedAssetsPreview = useMemo(
+    () => assets.filter((asset) => selectedAssetIds.includes(asset.id)),
+    [assets, selectedAssetIds]
+  )
+
+  const handleCreate = async () => {
+    const mergedIdea = [idea.trim(), promptNote.trim()].filter(Boolean).join('\n\n')
+    if (!mergedIdea) {
+      setMessage('Hãy nhập mong muốn hoặc prompt khởi tạo trước khi tạo website.')
       return
     }
-    if (containerRes.data?.deployment && overview) {
-      setOverview({
-        ...overview,
-        status: containerRes.data.deployment.status === 'running'
-          ? 'deployed'
-          : containerRes.data.deployment.status === 'building'
-            ? 'building'
-            : containerRes.data.deployment.status === 'error'
-              ? 'error'
-              : 'draft',
-      })
-    }
-  }
 
-  const copyUrl = async (value: string) => {
-    try {
-      await navigator.clipboard.writeText(value)
-      setCopyDone(true)
-      setTimeout(() => setCopyDone(false), 1200)
-    } catch (error) {
-      console.error('Copy failed', error)
-    }
-  }
-
-  const handleDeploy = async () => {
-    setDeploying(true)
-    const res = await shopWebsiteApi.deploy(token, id)
-    setDeploying(false)
+    setCreating(true)
+    const res = await shopWebsiteApi.createFromIdea(token, id, {
+      idea: mergedIdea,
+      template,
+      tone,
+      palette: DEFAULT_PALETTES[tone],
+      selectedAssetIds,
+    })
+    setCreating(false)
     if (res.data?.ok) {
-      setActionMessage(t('website.dashboard.deploySuccess'))
-      await reloadOverview()
+      setMessage('Đã tạo website draft. Đang chuyển sang dashboard website...')
+      await load()
+      navigate(`/shops/${id}/website/dashboard`)
       return
     }
-    setActionMessage(res.error || t('website.deployFailed'))
+    setMessage(res.error || 'Không thể tạo website lúc này.')
   }
-
-  const handleStop = async () => {
-    setStopping(true)
-    const res = await shopsApi.stopShopContainer(token, id)
-    setStopping(false)
-    if (res.data?.ok) {
-      setActionMessage(t('website.dashboard.stopSuccess'))
-      await reloadOverview()
-      return
-    }
-    setActionMessage(res.error || t('website.dashboard.actionError'))
-  }
-
-  const handleRemove = async () => {
-    setRemoving(true)
-    const res = await shopsApi.deleteShopContainer(token, id)
-    setRemoving(false)
-    if (res.data?.ok) {
-      setActionMessage(t('website.dashboard.removeSuccess'))
-      await reloadOverview()
-      return
-    }
-    setActionMessage(res.error || t('website.dashboard.actionError'))
-  }
-
-  const handleRestore = async (versionId: string) => {
-    setRestoringId(versionId)
-    const res = await shopWebsiteApi.restoreVersion(token, id, versionId)
-    setRestoringId(null)
-    if (res.data?.ok) {
-      setActionMessage(res.data.summary || t('website.dashboard.restoreSuccess'))
-      await reloadOverview()
-      return
-    }
-    setActionMessage(res.error || t('website.dashboard.actionError'))
-  }
-
-  const statusLabel =
-    overview?.status === 'deployed'
-      ? t('website.dashboard.statusDeployed')
-      : overview?.status === 'building'
-        ? t('website.dashboard.statusBuilding')
-        : overview?.status === 'error'
-          ? t('website.dashboard.statusError')
-          : overview?.status === 'preview_ready'
-            ? t('website.dashboard.statusPreviewReady')
-          : t('website.dashboard.statusDraft')
-
-  const mainUrl = overview?.publicUrl || ''
-  const previewUrl = overview?.previewUrl || ''
-  const isRunning = overview?.status === 'deployed'
-  const templateLabel = overview?.template || '-'
-  const toneLabel = overview?.tone || '-'
 
   return (
-    <div className="flex w-full min-w-0 flex-col gap-5">
-      <section className="rounded-2xl border border-slate-200 bg-white p-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <div className="mb-1 flex items-center gap-2">
-              <h1 className="text-xl font-bold text-slate-900">{t('website.dashboard.title')}</h1>
-              <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs text-slate-700">
-                {statusLabel}
-              </span>
-            </div>
-            <p className="text-sm text-slate-600">{t('website.dashboard.controlCenterDesc')}</p>
+    <div className="flex w-full min-w-0 flex-col gap-6">
+      <section className="overflow-hidden rounded-[28px] border border-slate-200 bg-white">
+        <div className="grid gap-0 lg:grid-cols-[minmax(0,1.3fr)_360px]">
+          <div className="border-b border-slate-100 p-6 lg:border-b-0 lg:border-r">
+            <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs text-slate-600">
+              Website entry
+            </span>
+            <h1 className="mt-4 text-3xl font-bold tracking-tight text-slate-950">Quản lý website của shop từ một trang trung gian</h1>
+            <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">
+              Khi bấm vào mục Website, user sẽ đi qua trang này trước. Nếu chưa có website thì nhập mong muốn, prompt khởi tạo và bấm
+              tạo ngay. Nếu đã có website thì xem danh sách dạng bảng và mở chi tiết.
+            </p>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <Link
-              to={`/shops/${id}/website/builder`}
-              className="rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-800"
-            >
-              {t('website.dashboard.openBuilder')}
-            </Link>
-            <button
-              type="button"
-              className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
-              onClick={() => void reloadOverview()}
-              disabled={loading}
-            >
-              {t('website.dashboard.refresh')}
-            </button>
-            <button
-              type="button"
-              className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
-              onClick={() => window.open(mainUrl || previewUrl, '_blank', 'noopener,noreferrer')}
-              disabled={!mainUrl && !previewUrl}
-            >
-              {t('website.dashboard.openWebsite')}
-            </button>
-            <button
-              type="button"
-              className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
-              onClick={() => void copyUrl(mainUrl || previewUrl)}
-              disabled={!mainUrl && !previewUrl}
-            >
-              {copyDone ? t('website.common.copied') : t('website.dashboard.copyLink')}
-            </button>
-          </div>
-        </div>
-        {actionMessage ? <p className="mt-3 text-sm text-slate-600">{actionMessage}</p> : null}
-      </section>
-
-      <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
-        <div className="space-y-5">
-          <section className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <div className="rounded-2xl border border-slate-200 bg-white p-4">
-              <p className="text-xs font-medium text-slate-500">{t('website.dashboard.currentWebsite')}</p>
-              <p className="mt-1 text-base font-semibold text-slate-900">{overview?.slug || '...'}</p>
-
-              <div className="mt-3 space-y-2">
-                <div className="flex items-center justify-between gap-2">
-                  <a
-                    href={mainUrl || undefined}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="truncate text-sm text-primary underline underline-offset-2"
-                  >
-                    {mainUrl || t('website.common.notDeployed')}
-                  </a>
-                  <button
-                    type="button"
-                    className="rounded-md border border-slate-200 px-2 py-1 text-xs text-slate-700 hover:bg-slate-50"
-                    onClick={() => mainUrl && window.open(mainUrl, '_blank', 'noopener,noreferrer')}
-                    disabled={!mainUrl}
-                  >
-                    {t('website.common.visit')}
-                  </button>
-                </div>
-                <div className="flex items-center justify-between gap-2">
-                  <a
-                    href={previewUrl || undefined}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="truncate text-sm text-primary underline underline-offset-2"
-                  >
-                    {previewUrl || '-'}
-                  </a>
-                  <button
-                    type="button"
-                    className="rounded-md border border-slate-200 px-2 py-1 text-xs text-slate-700 hover:bg-slate-50"
-                    onClick={() => previewUrl && window.open(previewUrl, '_blank', 'noopener,noreferrer')}
-                    disabled={!previewUrl}
-                  >
-                    {t('website.common.visit')}
-                  </button>
-                </div>
+          <div className="p-6">
+            <p className="text-sm font-semibold text-slate-900">Trạng thái hiện tại</p>
+            <div className="mt-4 space-y-3">
+              <div className="rounded-2xl border border-slate-200 p-4">
+                <p className="text-xs text-slate-500">Số website</p>
+                <p className="mt-1 text-2xl font-bold text-slate-950">{sites.length}</p>
               </div>
-              <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
-                <div>
-                  <p className="text-xs text-slate-500">{t('website.dashboard.template')}</p>
-                  <p className="font-semibold text-slate-900">{templateLabel}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-slate-500">{t('website.dashboard.tone')}</p>
-                  <p className="font-semibold text-slate-900">{toneLabel}</p>
-                </div>
+              <div className="rounded-2xl border border-slate-200 p-4">
+                <p className="text-xs text-slate-500">Assets khả dụng</p>
+                <p className="mt-1 text-2xl font-bold text-slate-950">{assets.length}</p>
               </div>
-            </div>
-            <div className="rounded-2xl border border-slate-200 bg-white p-4">
-              <p className="text-xs font-medium text-slate-500">{t('website.dashboard.status')}</p>
-              <p className="mt-1 text-base font-semibold text-slate-900">{statusLabel}</p>
-              <p className="mt-3 text-xs font-medium text-slate-500">{t('website.dashboard.lastUpdated')}</p>
-              <p className="text-sm text-slate-800">{overview?.updatedAt || '-'}</p>
-              <p className="mt-3 text-xs font-medium text-slate-500">{t('website.dashboard.versionCount')}</p>
-              <p className="text-sm text-slate-800">{overview?.versionCount ?? '-'}</p>
-              <div className="mt-4 flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={handleDeploy}
-                  disabled={deploying}
-                  className="rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
-                >
-                  {deploying ? t('website.dashboard.deploying') : t('website.dashboard.deployNow')}
-                </button>
-                <button
-                  type="button"
-                  onClick={handleStop}
-                  disabled={stopping || !isRunning}
-                  className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-50"
-                >
-                  {stopping ? t('website.dashboard.stopping') : t('website.stopBtn')}
-                </button>
-                <button
-                  type="button"
-                  onClick={handleRemove}
-                  disabled={removing}
-                  className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-50"
-                >
-                  {removing ? t('website.dashboard.removing') : t('website.deleteContainerBtn')}
-                </button>
-              </div>
-            </div>
-          </section>
-
-          <section className="rounded-2xl border border-slate-200 bg-white p-4">
-            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-              <p className="text-sm font-semibold text-slate-900">{t('website.dashboard.quickPreview')}</p>
-              <Link
-                to={`/shops/${id}/website/builder`}
-                className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs text-slate-700 hover:bg-slate-50"
-              >
-                {t('website.dashboard.goToEditor')}
-              </Link>
-            </div>
-            <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-              <div className="mb-3 rounded-lg border border-slate-200 bg-white px-3 py-1 text-xs text-slate-500">
-                {previewUrl || '-'}
-              </div>
-              <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-                <div className="rounded-lg border border-slate-200 bg-white p-3">
-                  <p className="text-xs text-slate-500">{t('website.dashboard.manualFirst')}</p>
-                  <p className="mt-1 text-sm font-semibold text-slate-900">
-                    {loading ? t('website.common.loading') : t('website.dashboard.manualFirstValue')}
-                  </p>
-                </div>
-                <div className="rounded-lg border border-slate-200 bg-white p-3">
-                  <p className="text-xs text-slate-500">{t('website.dashboard.selectedAssets')}</p>
-                  <p className="mt-1 text-sm font-semibold text-slate-900">
-                    {overview?.selectedAssetIds?.length ?? 0}
-                  </p>
-                </div>
-                <div className="rounded-lg border border-slate-200 bg-white p-3">
-                  <p className="text-xs text-slate-500">{t('website.dashboard.nextStep')}</p>
-                  <p className="mt-1 text-sm font-semibold text-slate-900">
-                    {isRunning ? t('website.dashboard.nextStepRefine') : t('website.dashboard.nextStepDeploy')}
-                  </p>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          <section className="rounded-2xl border border-slate-200 bg-white p-4">
-            <p className="mb-3 text-sm font-semibold text-slate-900">{t('website.dashboard.importantMetrics')}</p>
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-              <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                <p className="text-xs text-slate-500">{t('website.dashboard.promptsRun')}</p>
-                <p className="text-lg font-bold text-slate-900">{overview?.promptCount ?? '-'}</p>
-              </div>
-              <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                <p className="text-xs text-slate-500">{t('website.dashboard.successRate')}</p>
-                <p className="text-lg font-bold text-slate-900">
-                  {overview?.promptSuccessRate != null ? `${overview.promptSuccessRate}%` : '-'}
+              <div className="rounded-2xl border border-slate-200 p-4">
+                <p className="text-xs text-slate-500">Hướng flow</p>
+                <p className="mt-1 text-sm font-semibold text-slate-950">
+                  {hasSite ? 'Xem bảng rồi vào chi tiết' : 'Chưa có web, hiển thị form tạo ngay tại đây'}
                 </p>
               </div>
-              <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                <p className="text-xs text-slate-500">{t('website.dashboard.lastPrompt')}</p>
-                <p className="text-sm font-semibold text-slate-900">{overview?.lastPrompt || '-'}</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {!hasSite ? (
+        <section className="rounded-[28px] border border-slate-200 bg-white p-6">
+          <div className="mb-5">
+            <h2 className="text-xl font-semibold text-slate-950">Tạo website đầu tiên</h2>
+            <p className="mt-1 text-sm text-slate-600">
+              Form này chỉ xuất hiện khi shop chưa có website. User nhập mong muốn, prompt ban đầu và chọn assets trước khi bấm tạo.
+            </p>
+          </div>
+
+          <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
+            <div className="space-y-5">
+              <div>
+                <label className="mb-2 block text-sm font-medium text-slate-700">Mong muốn cho website</label>
+                <textarea
+                  value={idea}
+                  onChange={(event) => setIdea(event.target.value)}
+                  rows={5}
+                  className="w-full resize-none rounded-2xl border border-slate-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  placeholder="Ví dụ: website sạch, hiện đại, tập trung giới thiệu shop, sản phẩm nổi bật và thông tin liên hệ."
+                />
               </div>
-              <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                <p className="text-xs text-slate-500">{t('website.dashboard.creditsUsed')}</p>
-                <p className="text-lg font-bold text-slate-900">{overview?.creditsUsed ?? '-'}</p>
+
+              <div>
+                <label className="mb-2 block text-sm font-medium text-slate-700">Prompt khởi tạo</label>
+                <textarea
+                  value={promptNote}
+                  onChange={(event) => setPromptNote(event.target.value)}
+                  rows={4}
+                  className="w-full resize-none rounded-2xl border border-slate-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  placeholder="Ví dụ: tạo hero ngắn gọn, CTA rõ, ưu tiên ảnh sản phẩm thật, tone thân thiện."
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-slate-700">Template</label>
+                  <select
+                    value={template}
+                    onChange={(event) => setTemplate(event.target.value as WebsiteTemplate)}
+                    className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm"
+                  >
+                    <option value="catalog">Catalog</option>
+                    <option value="story">Story</option>
+                    <option value="minimal">Minimal</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-slate-700">Tone</label>
+                  <select
+                    value={tone}
+                    onChange={(event) => setTone(event.target.value as WebsiteTone)}
+                    className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm"
+                  >
+                    <option value="balanced">Balanced</option>
+                    <option value="friendly">Friendly</option>
+                    <option value="luxury">Luxury</option>
+                    <option value="energetic">Energetic</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <div className="mb-3 flex items-center justify-between">
+                  <label className="block text-sm font-medium text-slate-700">Chọn ảnh từ storage</label>
+                  <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] text-slate-600">
+                    {selectedAssetIds.length} ảnh
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
+                  {assets.length === 0 ? (
+                    <div className="col-span-full rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-500">
+                      Shop chưa có ảnh trong storage.
+                    </div>
+                  ) : (
+                    assets.slice(0, 6).map((asset) => {
+                      const active = selectedAssetIds.includes(asset.id)
+                      return (
+                        <button
+                          key={asset.id}
+                          type="button"
+                          onClick={() => setSelectedAssetIds((prev) => (
+                            prev.includes(asset.id)
+                              ? prev.filter((item) => item !== asset.id)
+                              : [...prev, asset.id]
+                          ))}
+                          className={`overflow-hidden rounded-2xl border text-left transition ${
+                            active ? 'border-slate-900 ring-2 ring-slate-900/10' : 'border-slate-200'
+                          }`}
+                        >
+                          <div className="h-28 bg-slate-100">
+                            {asset.storage_path_or_url ? (
+                              <img
+                                src={assetStorageUrl(asset.storage_path_or_url)}
+                                alt={asset.name || ''}
+                                className="h-full w-full object-cover"
+                              />
+                            ) : null}
+                          </div>
+                          <div className="p-3">
+                            <p className="truncate text-xs font-semibold text-slate-800">{asset.name || asset.type || 'Asset'}</p>
+                          </div>
+                        </button>
+                      )
+                    })
+                  )}
+                </div>
+              </div>
+
+              <div className="flex flex-wrap gap-3">
+                <button
+                  type="button"
+                  onClick={() => void handleCreate()}
+                  disabled={creating || loading}
+                  className="rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
+                >
+                  {creating ? 'Đang tạo...' : 'Tạo ngay'}
+                </button>
+                {message ? <p className="self-center text-sm text-slate-600">{message}</p> : null}
               </div>
             </div>
-            <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
-              {overview?.viewsToday == null ? (
-                <EmptyMetricCard label={t('website.dashboard.viewsToday')} t={t} />
-              ) : (
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                  <p className="text-xs text-slate-500">{t('website.dashboard.viewsToday')}</p>
-                  <p className="text-lg font-bold text-slate-900">{overview.viewsToday}</p>
+
+            <div className="space-y-4">
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                <p className="text-xs text-slate-500">Preview dữ liệu đầu vào</p>
+                <p className="mt-2 text-sm font-semibold text-slate-900">{idea || 'Chưa có mô tả mong muốn.'}</p>
+              </div>
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                <p className="text-xs text-slate-500">Prompt ban đầu</p>
+                <p className="mt-2 text-sm font-semibold text-slate-900">{promptNote || 'Chưa có prompt khởi tạo.'}</p>
+              </div>
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                <p className="text-xs text-slate-500">Ảnh đã chọn</p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {selectedAssetsPreview.length === 0 ? (
+                    <span className="text-sm text-slate-500">Chưa chọn ảnh.</span>
+                  ) : (
+                    selectedAssetsPreview.map((asset) => (
+                      <span key={asset.id} className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs text-slate-700">
+                        {asset.name || asset.type || asset.id}
+                      </span>
+                    ))
+                  )}
                 </div>
-              )}
-              {overview?.views7d == null ? (
-                <EmptyMetricCard label={t('website.dashboard.views7d')} t={t} />
-              ) : (
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                  <p className="text-xs text-slate-500">{t('website.dashboard.views7d')}</p>
-                  <p className="text-lg font-bold text-slate-900">{overview.views7d}</p>
-                </div>
-              )}
-              {overview?.mobileDesktopRatio == null ? (
-                <EmptyMetricCard label={t('website.dashboard.mobileDesktopRatio')} t={t} />
-              ) : (
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                  <p className="text-xs text-slate-500">{t('website.dashboard.mobileDesktopRatio')}</p>
-                  <p className="text-lg font-bold text-slate-900">{overview.mobileDesktopRatio}</p>
-                </div>
-              )}
-              {overview?.coreWebVitals == null ? (
-                <EmptyMetricCard label={t('website.dashboard.coreWebVitals')} t={t} />
-              ) : (
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                  <p className="text-xs text-slate-500">{t('website.dashboard.coreWebVitals')}</p>
-                  <p className="text-lg font-bold text-slate-900">{overview.coreWebVitals}</p>
-                </div>
-              )}
+              </div>
             </div>
-          </section>
+          </div>
+        </section>
+      ) : null}
+
+      <section className="rounded-[28px] border border-slate-200 bg-white p-6">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <h2 className="text-xl font-semibold text-slate-950">Danh sách website</h2>
+            <p className="mt-1 text-sm text-slate-600">Trang trung gian này chỉ cần hiển thị dạng bảng, đủ thông tin cơ bản và nút xem chi tiết.</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => void load()}
+            disabled={loading}
+            className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+          >
+            Tải lại
+          </button>
         </div>
 
-        <aside className="space-y-5">
-          <section className="rounded-2xl border border-slate-200 bg-white p-4">
-            <div className="mb-3 flex items-center justify-between">
-              <p className="text-sm font-semibold text-slate-900">{t('website.dashboard.websiteHistory')}</p>
-              <select
-                value={activityFilter}
-                onChange={(event) => setActivityFilter(event.target.value as ActivityType)}
-                className="rounded-lg border border-slate-200 px-2 py-1 text-xs text-slate-700"
-              >
-                <option value="all">{t('website.dashboard.filterAll')}</option>
-                <option value="prompt">{t('website.dashboard.filterPrompt')}</option>
-                <option value="deploy">{t('website.dashboard.filterDeploy')}</option>
-              </select>
-            </div>
-            <div className="space-y-2">
-              {filteredEvents.length === 0 ? (
-                <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-3 text-xs text-slate-500">
-                  {t('website.dashboard.noHistory')}
-                </div>
+        <div className="mt-5 overflow-hidden rounded-2xl border border-slate-200">
+          <table className="min-w-full divide-y divide-slate-200">
+            <thead className="bg-slate-50">
+              <tr className="text-left text-sm text-slate-600">
+                <th className="px-4 py-3 font-medium">Tên</th>
+                <th className="px-4 py-3 font-medium">Link</th>
+                <th className="px-4 py-3 font-medium">Trạng thái</th>
+                <th className="px-4 py-3 font-medium">Ngày tạo</th>
+                <th className="px-4 py-3 font-medium">Ngày chạy</th>
+                <th className="px-4 py-3 font-medium">Chi tiết</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-200 bg-white">
+              {loading ? (
+                <tr>
+                  <td className="px-4 py-6 text-sm text-slate-500" colSpan={6}>Đang tải dữ liệu website...</td>
+                </tr>
+              ) : sites.length === 0 ? (
+                <tr>
+                  <td className="px-4 py-6 text-sm text-slate-500" colSpan={6}>
+                    Chưa có website nào. Hãy dùng form phía trên để tạo website đầu tiên.
+                  </td>
+                </tr>
               ) : (
-                filteredEvents.map((item) => (
-                  <div key={item.id} className="rounded-xl border border-slate-200 p-2">
-                    <p className="text-sm font-medium text-slate-800">{item.title}</p>
-                    <p className="text-xs text-slate-500">{item.createdAt}</p>
-                    {item.summary ? <p className="mt-1 text-xs text-slate-500">{item.summary}</p> : null}
-                    {item.restorable ? (
-                      <button
-                        type="button"
-                        onClick={() => void handleRestore(item.id)}
-                        disabled={restoringId === item.id}
-                        className="mt-2 rounded-md border border-slate-200 px-2 py-1 text-xs text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                sites.map((site) => (
+                  <tr key={site.id} className="text-sm text-slate-700">
+                    <td className="px-4 py-4 font-semibold text-slate-950">{site.name}</td>
+                    <td className="px-4 py-4">
+                      <div className="space-y-1">
+                        <p className="max-w-[260px] truncate">{site.link}</p>
+                        <p className="max-w-[260px] truncate text-xs text-slate-500">{site.previewUrl}</p>
+                      </div>
+                    </td>
+                    <td className="px-4 py-4">
+                      <span className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${statusClass(site.status)}`}>
+                        {site.status}
+                      </span>
+                    </td>
+                    <td className="px-4 py-4">{site.createdAt || '-'}</td>
+                    <td className="px-4 py-4">{site.launchedAt || '-'}</td>
+                    <td className="px-4 py-4">
+                      <Link
+                        to={`/shops/${id}/website/dashboard`}
+                        className="inline-flex rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
                       >
-                        {restoringId === item.id ? t('website.dashboard.restoring') : t('website.dashboard.restoreVersion')}
-                      </button>
-                    ) : null}
-                  </div>
+                        Xem chi tiết
+                      </Link>
+                    </td>
+                  </tr>
                 ))
               )}
-            </div>
-          </section>
-
-          <section className="rounded-2xl border border-slate-200 bg-white p-4">
-            <p className="text-sm font-semibold text-slate-900">{t('website.dashboard.quickActions')}</p>
-            <div className="mt-3 space-y-2">
-              <Link
-                to={`/shops/${id}/website/builder`}
-                className="block rounded-lg bg-slate-900 px-3 py-2 text-center text-sm font-semibold text-white hover:bg-slate-800"
-              >
-                {t('website.dashboard.openBuilder')}
-              </Link>
-              <button
-                type="button"
-                className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
-                onClick={() => void handleDeploy()}
-                disabled={deploying}
-              >
-                {deploying ? t('website.dashboard.deploying') : t('website.dashboard.deployNow')}
-              </button>
-              <button
-                type="button"
-                className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
-                onClick={() => window.open(mainUrl || previewUrl, '_blank', 'noopener,noreferrer')}
-                disabled={!mainUrl && !previewUrl}
-              >
-                {t('website.dashboard.viewWebsite')}
-              </button>
-            </div>
-          </section>
-        </aside>
-      </div>
+            </tbody>
+          </table>
+        </div>
+      </section>
     </div>
   )
 }

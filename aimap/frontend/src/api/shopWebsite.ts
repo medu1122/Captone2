@@ -15,6 +15,16 @@ export type WebsiteHistoryItem = {
   restorable?: boolean
 }
 
+export type WebsiteEntryRow = {
+  id: string
+  name: string
+  link: string
+  previewUrl: string
+  status: string
+  createdAt: string | null
+  launchedAt: string | null
+}
+
 export type WebsiteOverview = {
   siteId: string | null
   slug: string
@@ -39,6 +49,10 @@ export type WebsiteOverview = {
 type WebsiteOverviewResponse = {
   overview: WebsiteOverview
   history: WebsiteHistoryItem[]
+}
+
+type WebsiteEntryResponse = {
+  sites: WebsiteEntryRow[]
 }
 
 export type WebsiteTone = 'balanced' | 'friendly' | 'luxury' | 'energetic'
@@ -163,6 +177,12 @@ type PromptApplyResponse = {
 }
 
 export const shopWebsiteApi = {
+  getEntry: (token: string, shopId: string) =>
+    apiFetch<WebsiteEntryResponse>(`${SHOPS_PREFIX}/${shopId}/website/entry`, {
+      method: 'GET',
+      headers: auth(token),
+    }),
+
   getOverview: (token: string, shopId: string) =>
     apiFetch<WebsiteOverviewResponse>(`${SHOPS_PREFIX}/${shopId}/website/overview`, {
       method: 'GET',

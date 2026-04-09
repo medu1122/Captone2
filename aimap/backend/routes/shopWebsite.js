@@ -126,15 +126,20 @@ async function upsertSite(client, { siteId, shopId, userId, name, slug, config, 
   return inserted.rows[0]
 }
 
-async function ensureSite(client, shop, assets, overrides = {}) {
+async function getExistingSite(client, shop) {
   await ensureWebsiteTables(client)
   const existing = await client.query(
     'SELECT * FROM sites WHERE shop_id = $1 ORDER BY updated_at DESC NULLS LAST, created_at DESC LIMIT 1',
     [shop.id]
   )
+  if (existing.rows.length === 0) return null
+  return existing.rows[0]
+}
 
-  if (existing.rows.length > 0) {
-    const site = existing.rows[0]
+async function ensureSite(client, shop, assets, overrides = {}) {
+  const existingSite = await getExistingSite(client, shop)
+  if (existingSite) {
+    const site = existingSite
     const config = normalizeWebsiteConfig(site.config_json, { shop, assets })
     return { site, config }
   }
@@ -244,6 +249,38 @@ async function buildOverviewPayload(client, shop) {
     history: buildHistoryItems(config, deployment),
   }
 }
+
+router.get('/:id/website/entry', requireAuth, async (req, res) => {
+  const client = await pool.connect()
+  try {
+    const shop = await getOwnedShop(client, req.params.id, req.auth.profileId)
+    if (shop === undefined) return res.status(404).json({ error: 'Shop not found' })
+    if (!shop) return res.status(403).json({ error: 'Access denied' })
+
+    const site = await getExistingSite(client, shop)
+    const deployment = await getDeployment(client, shop.id)
+    if (!site) {
+      return res.json({ sites: [] })
+    }
+
+    res.json({
+      sites: [{
+        id: site.id,
+        name: site.name || `${shop.name} website`,
+        link: `https://${toText(deployment?.subdomain, `${normalizeSlug(site.slug)}.captone2.site`)}`,
+        previewUrl: `https://preview.captone2.site/sites/${shop.id}`,
+        status: deployment?.status || site.status || 'draft',
+        createdAt: site.created_at || null,
+        launchedAt: deployment?.deployed_at || null,
+      }],
+    })
+  } catch (error) {
+    console.error('website entry error:', error)
+    res.status(500).json({ error: error.message || 'Failed to load website entry' })
+  } finally {
+    client.release()
+  }
+})
 
 router.get('/:id/website/overview', requireAuth, async (req, res) => {
   const client = await pool.connect()

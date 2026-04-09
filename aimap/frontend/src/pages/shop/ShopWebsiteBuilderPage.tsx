@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { useLocale } from '../../contexts/LocaleContext'
 import { useAuth } from '../../contexts/AuthContext'
 import { assetStorageUrl } from '../../api/client'
@@ -9,7 +9,6 @@ import {
   type WebsiteBuilderState,
   type WebsiteConfig,
   type WebsiteDeviceMode,
-  type WebsiteSection,
   type WebsiteTemplate,
   type WebsiteTheme,
   type WebsiteTone,
@@ -26,55 +25,34 @@ const QUICK_CHIP_KEYS = [
   'website.builder.quickChip.optimizeMobile',
 ]
 
-function isObject(value: unknown): value is Record<string, unknown> {
-  return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
-}
-
 function cloneConfig(config: WebsiteConfig): WebsiteConfig {
   return JSON.parse(JSON.stringify(config)) as WebsiteConfig
 }
 
-function sectionFields(section: WebsiteSection): Array<{ key: string; value: string; multiline: boolean }> {
-  const props = isObject(section.props) ? section.props : {}
-  return Object.keys(props).map((key) => {
-    const raw = props[key]
-    if (typeof raw === 'string' || typeof raw === 'number') {
-      return { key, value: String(raw), multiline: String(raw).length > 80 || key.toLowerCase().includes('body') }
-    }
-    return { key, value: JSON.stringify(raw ?? '', null, 2), multiline: true }
-  })
-}
-
-function parseFieldValue(value: string): unknown {
-  const trimmed = value.trim()
-  if (!trimmed) return ''
-  if ((trimmed.startsWith('{') && trimmed.endsWith('}')) || (trimmed.startsWith('[') && trimmed.endsWith(']'))) {
-    try {
-      return JSON.parse(trimmed)
-    } catch {
-      return value
-    }
-  }
-  return value
+function deployBadge(status: string | null | undefined): string {
+  if (status === 'running' || status === 'deployed') return 'border-emerald-200 bg-emerald-50 text-emerald-800'
+  if (status === 'building') return 'border-blue-200 bg-blue-50 text-blue-700'
+  if (status === 'error') return 'border-rose-200 bg-rose-50 text-rose-700'
+  return 'border-slate-200 bg-slate-100 text-slate-700'
 }
 
 export default function ShopWebsiteBuilderPage() {
   const { t } = useLocale()
   const { token } = useAuth()
+  const navigate = useNavigate()
   const { id } = useParams<{ id: string }>()
   const [deviceMode, setDeviceMode] = useState<WebsiteDeviceMode>('desktop')
   const [selectedSectionId, setSelectedSectionId] = useState<string | null>(null)
+  const [activeStep, setActiveStep] = useState<'setup' | 'prompt'>('setup')
   const [prompt, setPrompt] = useState('')
   const [scope, setScope] = useState<PromptScope>('all')
   const [creativity, setCreativity] = useState<Creativity>('balanced')
-  const [copyDone, setCopyDone] = useState(false)
   const [recentPrompts, setRecentPrompts] = useState<string[]>([])
   const [statusText, setStatusText] = useState('website.builder.status.ready')
   const [statusSummary, setStatusSummary] = useState('')
   const [builderState, setBuilderState] = useState<WebsiteBuilderState | null>(null)
   const [currentConfig, setCurrentConfig] = useState<WebsiteConfig | null>(null)
   const [previewConfig, setPreviewConfig] = useState<WebsiteConfig | null>(null)
-  const [fieldState, setFieldState] = useState<Record<string, string>>({})
   const [publicUrl, setPublicUrl] = useState('')
   const [previewUrl, setPreviewUrl] = useState('')
   const [idea, setIdea] = useState('')
@@ -88,15 +66,35 @@ export default function ShopWebsiteBuilderPage() {
   })
   const [selectedAssetIds, setSelectedAssetIds] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
-  const [savingSection, setSavingSection] = useState(false)
   const [creatingDraft, setCreatingDraft] = useState(false)
   const [previewingPrompt, setPreviewingPrompt] = useState(false)
   const [applyingPrompt, setApplyingPrompt] = useState(false)
   const [promptAffectedSections, setPromptAffectedSections] = useState<string[]>([])
+  const [deploying, setDeploying] = useState(false)
+  const [restoringVersionId, setRestoringVersionId] = useState<string | null>(null)
 
   if (!id) return <p className="text-sm text-slate-500">{t('website.common.missingShopId')}</p>
   if (!token) return null
   const recentKey = `aimap-web-builder-recent-${id}`
+
+  const refreshBuilderState = async () => {
+    const res = await shopWebsiteApi.getBuilderState(token, id)
+    if (!res.data) return null
+    const data = res.data
+    const config = cloneConfig(data.config)
+    setBuilderState(data)
+    setCurrentConfig(config)
+    setPreviewConfig(config)
+    setPublicUrl(data.publicUrl)
+    setPreviewUrl(data.previewUrl)
+    setIdea(data.config.meta?.lastIdea || data.shop.description || '')
+    setTemplate(data.selectedTemplate)
+    setTone(data.config.settings.tone)
+    setPalette(data.theme)
+    setSelectedAssetIds(data.config.selectedAssetIds || [])
+    setSelectedSectionId((current) => current && config.sections.some((section) => section.id === current) ? current : (data.sections[0]?.id || null))
+    return data
+  }
 
   useEffect(() => {
     try {
@@ -113,6 +111,12 @@ export default function ShopWebsiteBuilderPage() {
     let cancelled = false
     const load = async () => {
       setLoading(true)
+      const entryRes = await shopWebsiteApi.getEntry(token, id)
+      if (cancelled) return
+      if (!entryRes.data?.sites?.length) {
+        navigate(`/shops/${id}/website`, { replace: true })
+        return
+      }
       const res = await shopWebsiteApi.getBuilderState(token, id)
       if (cancelled) return
       if (res.data) {
@@ -136,24 +140,7 @@ export default function ShopWebsiteBuilderPage() {
     return () => {
       cancelled = true
     }
-  }, [id, token])
-
-  useEffect(() => {
-    if (!previewConfig || !selectedSectionId) {
-      setFieldState({})
-      return
-    }
-    const section = previewConfig.sections.find((item) => item.id === selectedSectionId)
-    if (!section) {
-      setFieldState({})
-      return
-    }
-    const nextFields = sectionFields(section).reduce<Record<string, string>>((acc, field) => {
-      acc[field.key] = field.value
-      return acc
-    }, {})
-    setFieldState(nextFields)
-  }, [previewConfig, selectedSectionId])
+  }, [id, navigate, token])
 
   const pushRecent = (value: string) => {
     const trimmed = value.trim()
@@ -163,16 +150,6 @@ export default function ShopWebsiteBuilderPage() {
     localStorage.setItem(recentKey, JSON.stringify(next))
   }
 
-  const copyUrl = async (value: string) => {
-    try {
-      await navigator.clipboard.writeText(value)
-      setCopyDone(true)
-      setTimeout(() => setCopyDone(false), 1200)
-    } catch (error) {
-      console.error('Copy failed', error)
-    }
-  }
-
   const applyChip = (chip: string) => {
     setPrompt((prev) => (prev ? `${prev}\n${chip}` : chip))
   }
@@ -180,6 +157,7 @@ export default function ShopWebsiteBuilderPage() {
   const selectSection = (sectionId: string) => {
     const tag = `@section:${sectionId}`
     setSelectedSectionId(sectionId)
+    setActiveStep('prompt')
     setScope('selected')
     setPrompt((prev) => {
       if (prev.includes(tag)) return prev
@@ -192,6 +170,9 @@ export default function ShopWebsiteBuilderPage() {
     () => previewConfig?.sections.find((section) => section.id === selectedSectionId) || null,
     [previewConfig, selectedSectionId]
   )
+
+  const versions = builderState?.versions || []
+  const deployStatus = builderState?.deploy?.status || builderState?.site?.status || 'draft'
 
   const saveThemeAndIdea = async (mode: 'create' | 'rebuild') => {
     const body = {
@@ -217,12 +198,7 @@ export default function ShopWebsiteBuilderPage() {
       setSelectedSectionId(config.sections[0]?.id || null)
       setStatusText('website.builder.status.generated')
       setStatusSummary(res.data.summary || '')
-      const state = await shopWebsiteApi.getBuilderState(token, id)
-      if (state.data) {
-        setBuilderState(state.data)
-        setPublicUrl(state.data.publicUrl)
-        setPreviewUrl(state.data.previewUrl)
-      }
+      await refreshBuilderState()
       return
     }
     setStatusText('website.builder.status.backendError')
@@ -269,58 +245,32 @@ export default function ShopWebsiteBuilderPage() {
       setStatusText('website.builder.status.applied')
       setStatusSummary(res.data.message || '')
       pushRecent(trimmed)
-      const state = await shopWebsiteApi.getBuilderState(token, id)
-      if (state.data) {
-        setBuilderState(state.data)
-        setPublicUrl(state.data.publicUrl)
-        setPreviewUrl(state.data.previewUrl)
-      }
+      await refreshBuilderState()
       return
     }
     setStatusText('website.builder.status.backendError')
   }
 
-  const handleSaveSection = async () => {
-    if (!selectedSectionId || !selectedSection) return
-    const props = Object.keys(fieldState).reduce<Record<string, unknown>>((acc, key) => {
-      acc[key] = parseFieldValue(fieldState[key])
-      return acc
-    }, {})
-    setSavingSection(true)
-    const res = await shopWebsiteApi.updateSection(token, id, selectedSectionId, {
-      props,
-      theme: palette,
-      settings: { tone },
-      selectedAssetIds,
-    })
-    setSavingSection(false)
-    if (res.data?.config) {
-      const config = cloneConfig(res.data.config)
-      setCurrentConfig(config)
-      setPreviewConfig(config)
-      setStatusText('website.builder.status.savedSection')
-      setStatusSummary(res.data.summary || '')
+  const handleDeploy = async () => {
+    setDeploying(true)
+    const res = await shopWebsiteApi.deploy(token, id)
+    setDeploying(false)
+    if (res.data?.ok) {
+      setStatusSummary('Draft deployed successfully.')
+      await refreshBuilderState()
       return
     }
     setStatusText('website.builder.status.backendError')
   }
 
-  const handleMoveSection = async (direction: 'up' | 'down') => {
-    if (!selectedSectionId) return
-    setSavingSection(true)
-    const res = await shopWebsiteApi.updateSection(token, id, selectedSectionId, {
-      moveDirection: direction,
-      theme: palette,
-      settings: { tone },
-      selectedAssetIds,
-    })
-    setSavingSection(false)
-    if (res.data?.config) {
-      const config = cloneConfig(res.data.config)
-      setCurrentConfig(config)
-      setPreviewConfig(config)
+  const handleRestoreVersion = async (versionId: string) => {
+    setRestoringVersionId(versionId)
+    const res = await shopWebsiteApi.restoreVersion(token, id, versionId)
+    setRestoringVersionId(null)
+    if (res.data?.ok) {
+      setStatusSummary(res.data.summary || 'Version restored.')
       setStatusText('website.builder.status.savedSection')
-      setStatusSummary(res.data.summary || '')
+      await refreshBuilderState()
       return
     }
     setStatusText('website.builder.status.backendError')
@@ -330,288 +280,68 @@ export default function ShopWebsiteBuilderPage() {
   const assets = builderState?.assets || []
 
   return (
-    <div className="flex w-full min-w-0 flex-col gap-4">
-      <section className="rounded-2xl border border-slate-200 bg-white p-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <div className="mb-1 flex items-center gap-2">
-              <h1 className="text-xl font-bold text-slate-900">{t('website.builder.title')}</h1>
-              <span className="rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-xs text-blue-700">
-                {t('website.builder.manualFirstBadge')}
+    <div className="flex w-full min-w-0 flex-col gap-6">
+      <section className="overflow-hidden rounded-[28px] border border-slate-200 bg-white">
+        <div className="grid gap-0 lg:grid-cols-[minmax(0,1.4fr)_320px]">
+          <div className="border-b border-slate-100 p-6 lg:border-b-0 lg:border-r">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${deployBadge(deployStatus)}`}>
+                {deployStatus}
               </span>
             </div>
-            <p className="text-sm text-slate-600">{t(statusText)}</p>
-            {statusSummary ? <p className="mt-1 text-xs text-slate-500">{statusSummary}</p> : null}
+            <h1 className="mt-4 text-3xl font-bold tracking-tight text-slate-950">Website edit</h1>
+            <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
+              Preview là vùng làm việc chính. User click trực tiếp vào section để lấy tag sửa bằng prompt, còn panel bên phải chỉ giữ 2
+              bước: chốt định hướng ban đầu và tinh chỉnh bằng prompt.
+            </p>
+            {statusSummary ? <p className="mt-4 text-sm text-slate-600">{statusSummary}</p> : <p className="mt-4 text-sm text-slate-600">{t(statusText)}</p>}
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <Link
-              to={`/shops/${id}/website`}
-              className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
-            >
-              {t('website.builder.backToDashboard')}
-            </Link>
-            <button
-              type="button"
-              className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
-              onClick={() => window.open(publicUrl, '_blank', 'noopener,noreferrer')}
-              disabled={!publicUrl}
-            >
-              {t('website.builder.openPublicUrl')}
-            </button>
-            <button
-              type="button"
-              className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
-              onClick={() => window.open(previewUrl, '_blank', 'noopener,noreferrer')}
-              disabled={!previewUrl}
-            >
-              {t('website.builder.openPreviewUrl')}
-            </button>
-            <button
-              type="button"
-              className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
-              onClick={() => void copyUrl(previewUrl)}
-            >
-              {copyDone ? t('website.common.copied') : t('website.builder.copyUrl')}
-            </button>
+
+          <div className="p-6">
+            <p className="text-sm font-semibold text-slate-900">Tóm tắt nhanh</p>
+            <div className="mt-4 space-y-3">
+              <div className="rounded-2xl border border-slate-200 p-4">
+                <p className="text-xs text-slate-500">Section đang chọn</p>
+                <p className="mt-1 text-sm font-semibold text-slate-900">{selectedSection?.name || 'Chưa chọn section nào'}</p>
+              </div>
+              <div className="rounded-2xl border border-slate-200 p-4">
+                <p className="text-xs text-slate-500">Prompt tag</p>
+                <p className="mt-1 text-sm font-semibold text-slate-900">{selectedSectionId ? `@section:${selectedSectionId}` : 'Click vào preview để lấy tag'}</p>
+              </div>
+              <div className="rounded-2xl border border-slate-200 p-4">
+                <p className="text-xs text-slate-500">URLs</p>
+                <p className="mt-1 break-all text-sm font-semibold text-slate-900">{previewUrl || publicUrl || '-'}</p>
+              </div>
+            </div>
           </div>
         </div>
       </section>
 
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[340px_minmax(0,1fr)_320px]">
-        <section className="rounded-2xl border border-slate-200 bg-white p-4">
-          <div className="space-y-5">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.75fr)_minmax(320px,0.85fr)]">
+        <section className="rounded-[28px] border border-slate-200 bg-white p-6">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <p className="text-sm font-semibold text-slate-900">{t('website.builder.directionTitle')}</p>
-              <p className="mt-1 text-xs text-slate-500">{t('website.builder.directionHint')}</p>
-              <textarea
-                value={idea}
-                onChange={(event) => setIdea(event.target.value)}
-                rows={4}
-                className="mt-3 w-full resize-none rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-                placeholder={t('website.builder.ideaPlaceholder')}
-              />
+              <h2 className="text-lg font-semibold text-slate-950">Preview và tương tác</h2>
+              <p className="mt-1 text-sm text-slate-600">Click trực tiếp vào section để chèn tag code vào prompt flow ở bên phải.</p>
             </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="mb-1 block text-xs text-slate-500">{t('website.builder.templateLabel')}</label>
-                <select
-                  value={template}
-                  onChange={(event) => setTemplate(event.target.value as WebsiteTemplate)}
-                  className="w-full rounded-lg border border-slate-200 px-2 py-2 text-sm"
-                >
-                  <option value="catalog">{t('website.builder.template.catalog')}</option>
-                  <option value="story">{t('website.builder.template.story')}</option>
-                  <option value="minimal">{t('website.builder.template.minimal')}</option>
-                </select>
-              </div>
-              <div>
-                <label className="mb-1 block text-xs text-slate-500">{t('website.builder.toneLabel')}</label>
-                <select
-                  value={tone}
-                  onChange={(event) => setTone(event.target.value as WebsiteTone)}
-                  className="w-full rounded-lg border border-slate-200 px-2 py-2 text-sm"
-                >
-                  <option value="balanced">{t('website.builder.tone.balanced')}</option>
-                  <option value="friendly">{t('website.builder.tone.friendly')}</option>
-                  <option value="luxury">{t('website.builder.tone.luxury')}</option>
-                  <option value="energetic">{t('website.builder.tone.energetic')}</option>
-                </select>
-              </div>
-            </div>
-
-            <div>
-              <p className="mb-2 text-xs text-slate-500">{t('website.builder.paletteLabel')}</p>
-              <div className="grid grid-cols-2 gap-3">
-                {(['primary', 'accent', 'background', 'surface'] as Array<keyof WebsiteTheme>).map((key) => (
-                  <label key={key} className="rounded-xl border border-slate-200 p-2 text-xs text-slate-600">
-                    <span className="mb-1 block">{t(`website.builder.palette.${key}`)}</span>
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="color"
-                        value={palette[key]}
-                        onChange={(event) => setPalette((prev) => ({ ...prev, [key]: event.target.value }))}
-                        className="h-9 w-10 rounded border border-slate-200 bg-transparent p-0"
-                      />
-                      <input
-                        type="text"
-                        value={palette[key]}
-                        onChange={(event) => setPalette((prev) => ({ ...prev, [key]: event.target.value }))}
-                        className="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-xs"
-                      />
-                    </div>
-                  </label>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <div className="mb-2 flex items-center justify-between">
-                <p className="text-sm font-semibold text-slate-900">{t('website.builder.assetPickerTitle')}</p>
-                <span className="text-xs text-slate-500">{selectedAssetIds.length}</span>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                {assets.length === 0 ? (
-                  <div className="col-span-2 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-3 text-xs text-slate-500">
-                    {t('website.builder.noAssets')}
-                  </div>
-                ) : (
-                  assets.slice(0, 6).map((asset) => {
-                    const active = selectedAssetIds.includes(asset.id)
-                    return (
-                      <button
-                        key={asset.id}
-                        type="button"
-                        onClick={() => setSelectedAssetIds((prev) => (
-                          prev.includes(asset.id)
-                            ? prev.filter((item) => item !== asset.id)
-                            : [...prev, asset.id]
-                        ))}
-                        className={`overflow-hidden rounded-xl border text-left ${active ? 'border-slate-900 ring-2 ring-slate-900/10' : 'border-slate-200'}`}
-                      >
-                        <div className="h-24 bg-slate-100">
-                          {asset.storage_path_or_url ? (
-                            <img
-                              src={assetStorageUrl(asset.storage_path_or_url)}
-                              alt={asset.name || ''}
-                              className="h-full w-full object-cover"
-                            />
-                          ) : null}
-                        </div>
-                        <div className="p-2">
-                          <p className="truncate text-xs font-medium text-slate-800">{asset.name || asset.type || 'Asset'}</p>
-                        </div>
-                      </button>
-                    )
-                  })
-                )}
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2">
+            <div className="flex overflow-hidden rounded-2xl border border-slate-200">
               <button
                 type="button"
-                onClick={() => void saveThemeAndIdea('create')}
-                disabled={creatingDraft || loading}
-                className="rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
-              >
-                {creatingDraft ? t('website.builder.generating') : t('website.builder.generateDraft')}
-              </button>
-              <button
-                type="button"
-                onClick={() => void saveThemeAndIdea('rebuild')}
-                disabled={creatingDraft || loading}
-                className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-50"
-              >
-                {t('website.builder.rebuildDraft')}
-              </button>
-            </div>
-
-            <div className="border-t border-slate-100 pt-4">
-              <div className="mb-3 flex items-center justify-between">
-                <p className="text-sm font-semibold text-slate-900">{t('website.builder.sectionEditorTitle')}</p>
-                {selectedSection ? (
-                  <span className="rounded-full bg-slate-100 px-2 py-1 text-[11px] text-slate-600">
-                    {selectedSection.name}
-                  </span>
-                ) : null}
-              </div>
-              <div className="space-y-2">
-                {previewConfig?.sections.map((section) => {
-                  const active = section.id === selectedSectionId
-                  return (
-                    <button
-                      key={section.id}
-                      type="button"
-                      onClick={() => setSelectedSectionId(section.id)}
-                      className={`block w-full rounded-xl border px-3 py-2 text-left text-sm ${
-                        active ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-200 bg-white text-slate-700'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between gap-2">
-                        <span>{section.name}</span>
-                        <span className={`text-[11px] ${active ? 'text-slate-300' : 'text-slate-400'}`}>{section.type}</span>
-                      </div>
-                    </button>
-                  )
-                })}
-              </div>
-              {selectedSection ? (
-                <div className="mt-3 space-y-3">
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => void handleMoveSection('up')}
-                      className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700 hover:bg-slate-50"
-                    >
-                      {t('website.builder.moveUp')}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => void handleMoveSection('down')}
-                      className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700 hover:bg-slate-50"
-                    >
-                      {t('website.builder.moveDown')}
-                    </button>
-                  </div>
-                  {sectionFields(selectedSection).map((field) => (
-                    <div key={field.key}>
-                      <label className="mb-1 block text-xs text-slate-500">{field.key}</label>
-                      {field.multiline ? (
-                        <textarea
-                          rows={field.value.length > 120 ? 5 : 3}
-                          value={fieldState[field.key] ?? ''}
-                          onChange={(event) => setFieldState((prev) => ({ ...prev, [field.key]: event.target.value }))}
-                          className="w-full resize-y rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-                        />
-                      ) : (
-                        <input
-                          type="text"
-                          value={fieldState[field.key] ?? ''}
-                          onChange={(event) => setFieldState((prev) => ({ ...prev, [field.key]: event.target.value }))}
-                          className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-                        />
-                      )}
-                    </div>
-                  ))}
-                  <button
-                    type="button"
-                    onClick={() => void handleSaveSection()}
-                    disabled={savingSection}
-                    className="w-full rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
-                  >
-                    {savingSection ? t('website.builder.savingSection') : t('website.builder.saveSection')}
-                  </button>
-                </div>
-              ) : null}
-            </div>
-          </div>
-        </section>
-
-        <section className="rounded-2xl border border-slate-200 bg-white p-4">
-          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-            <div>
-              <p className="text-sm font-semibold text-slate-900">{t('website.builder.previewInteraction')}</p>
-              <p className="text-xs text-slate-500">{t('website.builder.clickSectionHint')}</p>
-            </div>
-            <div className="flex overflow-hidden rounded-lg border border-slate-200">
-              <button
-                type="button"
-                className={`px-3 py-1 text-xs ${deviceMode === 'desktop' ? 'bg-slate-900 text-white' : 'bg-white text-slate-700'}`}
+                className={`px-4 py-2 text-xs font-medium ${deviceMode === 'desktop' ? 'bg-slate-900 text-white' : 'bg-white text-slate-700'}`}
                 onClick={() => setDeviceMode('desktop')}
               >
                 {t('website.builder.deviceDesktop')}
               </button>
               <button
                 type="button"
-                className={`border-x border-slate-200 px-3 py-1 text-xs ${deviceMode === 'tablet' ? 'bg-slate-900 text-white' : 'bg-white text-slate-700'}`}
+                className={`border-x border-slate-200 px-4 py-2 text-xs font-medium ${deviceMode === 'tablet' ? 'bg-slate-900 text-white' : 'bg-white text-slate-700'}`}
                 onClick={() => setDeviceMode('tablet')}
               >
                 {t('website.builder.deviceTablet')}
               </button>
               <button
                 type="button"
-                className={`px-3 py-1 text-xs ${deviceMode === 'mobile' ? 'bg-slate-900 text-white' : 'bg-white text-slate-700'}`}
+                className={`px-4 py-2 text-xs font-medium ${deviceMode === 'mobile' ? 'bg-slate-900 text-white' : 'bg-white text-slate-700'}`}
                 onClick={() => setDeviceMode('mobile')}
               >
                 {t('website.builder.deviceMobile')}
@@ -619,9 +349,24 @@ export default function ShopWebsiteBuilderPage() {
             </div>
           </div>
 
-          <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+          <div className="mt-4 grid gap-3 md:grid-cols-3">
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <p className="text-xs text-slate-500">Selected section</p>
+              <p className="mt-1 text-sm font-semibold text-slate-900">{selectedSection?.name || 'None'}</p>
+            </div>
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <p className="text-xs text-slate-500">Prompt tag</p>
+              <p className="mt-1 text-sm font-semibold text-slate-900">{selectedSectionId ? `@section:${selectedSectionId}` : 'Pick a section first'}</p>
+            </div>
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <p className="text-xs text-slate-500">Preview URL</p>
+              <p className="mt-1 truncate text-sm font-semibold text-slate-900">{previewUrl || '-'}</p>
+            </div>
+          </div>
+
+          <div className="mt-4 rounded-[28px] border border-slate-200 bg-slate-50 p-4">
             {loading ? (
-              <div className="flex h-[760px] items-center justify-center rounded-xl border border-dashed border-slate-300 bg-white text-sm text-slate-500">
+              <div className="flex h-[760px] items-center justify-center rounded-[24px] border border-dashed border-slate-300 bg-white text-sm text-slate-500">
                 {t('website.common.loading')}
               </div>
             ) : (
@@ -635,141 +380,378 @@ export default function ShopWebsiteBuilderPage() {
           </div>
         </section>
 
-        <section className="rounded-2xl border border-slate-200 bg-white p-4">
-          <p className="text-sm font-semibold text-slate-900">{t('website.builder.promptStudio')}</p>
-
-          <div className="mt-3 space-y-2">
-            <p className="text-xs text-slate-500">{t('website.builder.quickTemplate')}</p>
-            <div className="flex flex-wrap gap-2">
-              {QUICK_CHIP_KEYS.map((chipKey) => (
-                <button
-                  key={chipKey}
-                  type="button"
-                  className="rounded-full border border-slate-200 bg-white px-2 py-1 text-xs text-slate-700 hover:bg-slate-50"
-                  onClick={() => applyChip(t(chipKey))}
-                >
-                  {t(chipKey)}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="mt-3 space-y-2">
-            <label className="text-xs text-slate-500" htmlFor="website-prompt-input">
-              {t('website.builder.promptLabel')}
-            </label>
-            <textarea
-              id="website-prompt-input"
-              value={prompt}
-              onChange={(event) => setPrompt(event.target.value)}
-              rows={8}
-              className="w-full resize-none rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-              placeholder={t('website.builder.promptPlaceholder')}
-            />
-            <p className="text-xs text-slate-500">
-              {charCount} {t('website.builder.characters')} · {charCount < 20 ? t('website.builder.promptTooShort') : t('website.builder.promptLengthOk')}
-            </p>
-          </div>
-
-          <div className="mt-3 grid grid-cols-2 gap-2">
+        <section className="rounded-[28px] border border-slate-200 bg-white p-6">
+          <div className="space-y-6">
             <div>
-              <label className="mb-1 block text-xs text-slate-500">{t('website.builder.scope')}</label>
-              <select
-                value={scope}
-                onChange={(event) => setScope(event.target.value as PromptScope)}
-                className="w-full rounded-lg border border-slate-200 px-2 py-2 text-sm"
+              <h2 className="text-lg font-semibold text-slate-950">Bảng điều khiển chỉnh sửa</h2>
+              <p className="mt-1 text-sm text-slate-600">Gộp định hướng website và prompt studio vào cùng một khối, chia theo 2 bước rõ ràng.</p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => setActiveStep('setup')}
+                className={`rounded-2xl border px-4 py-4 text-left ${
+                  activeStep === 'setup' ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-200 bg-slate-50 text-slate-800'
+                }`}
               >
-                <option value="all">{t('website.builder.scopeAll')}</option>
-                <option value="selected">{t('website.builder.scopeSelected')}</option>
-              </select>
-            </div>
-            <div>
-              <label className="mb-1 block text-xs text-slate-500">{t('website.builder.creativity')}</label>
-              <select
-                value={creativity}
-                onChange={(event) => setCreativity(event.target.value as Creativity)}
-                className="w-full rounded-lg border border-slate-200 px-2 py-2 text-sm"
+                <p className={`text-xs ${activeStep === 'setup' ? 'text-slate-300' : 'text-slate-500'}`}>Hộp số 1</p>
+                <p className="mt-1 text-sm font-semibold">Khởi tạo định hướng</p>
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveStep('prompt')}
+                className={`rounded-2xl border px-4 py-4 text-left ${
+                  activeStep === 'prompt' ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-200 bg-slate-50 text-slate-800'
+                }`}
               >
-                <option value="safe">{t('website.builder.creativitySafe')}</option>
-                <option value="balanced">{t('website.builder.creativityBalanced')}</option>
-                <option value="creative">{t('website.builder.creativityCreative')}</option>
-              </select>
+                <p className={`text-xs ${activeStep === 'prompt' ? 'text-slate-300' : 'text-slate-500'}`}>Hộp số 2</p>
+                <p className="mt-1 text-sm font-semibold">Prompt và tinh chỉnh</p>
+              </button>
             </div>
-          </div>
 
-          {promptAffectedSections.length > 0 ? (
-            <div className="mt-3 flex flex-wrap gap-2">
-              {promptAffectedSections.map((sectionId) => (
-                <button
-                  key={sectionId}
-                  type="button"
-                  onClick={() => setSelectedSectionId(sectionId)}
-                  className="rounded-full border border-slate-200 bg-slate-50 px-2 py-1 text-xs text-slate-700 hover:bg-slate-100"
-                >
-                  {sectionId}
-                </button>
-              ))}
-            </div>
-          ) : null}
+            {activeStep === 'setup' ? (
+              <div className="space-y-5">
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-slate-700">Định hướng website</label>
+                  <textarea
+                    value={idea}
+                    onChange={(event) => setIdea(event.target.value)}
+                    rows={5}
+                    className="w-full resize-none rounded-2xl border border-slate-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                    placeholder={t('website.builder.ideaPlaceholder')}
+                  />
+                </div>
 
-          <div className="mt-3 grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-50"
-              onClick={() => void handlePreview()}
-              disabled={previewingPrompt}
-            >
-              {previewingPrompt ? t('website.builder.previewing') : t('website.builder.previewChange')}
-            </button>
-            <button
-              type="button"
-              className="rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
-              onClick={() => void handleApply()}
-              disabled={applyingPrompt}
-            >
-              {applyingPrompt ? t('website.builder.applying') : t('website.builder.apply')}
-            </button>
-            <button
-              type="button"
-              className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
-              onClick={() => {
-                if (!currentConfig) return
-                setPreviewConfig(cloneConfig(currentConfig))
-                setStatusText('website.builder.status.ready')
-                setStatusSummary('')
-              }}
-            >
-              {t('website.builder.resetPreview')}
-            </button>
-            <button
-              type="button"
-              className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
-              onClick={() => setPrompt('')}
-            >
-              {t('website.builder.clearPrompt')}
-            </button>
-          </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="mb-2 block text-xs font-medium uppercase tracking-wide text-slate-500">Template</label>
+                    <select
+                      value={template}
+                      onChange={(event) => setTemplate(event.target.value as WebsiteTemplate)}
+                      className="w-full rounded-2xl border border-slate-200 px-3 py-3 text-sm"
+                    >
+                      <option value="catalog">{t('website.builder.template.catalog')}</option>
+                      <option value="story">{t('website.builder.template.story')}</option>
+                      <option value="minimal">{t('website.builder.template.minimal')}</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="mb-2 block text-xs font-medium uppercase tracking-wide text-slate-500">Tone</label>
+                    <select
+                      value={tone}
+                      onChange={(event) => setTone(event.target.value as WebsiteTone)}
+                      className="w-full rounded-2xl border border-slate-200 px-3 py-3 text-sm"
+                    >
+                      <option value="balanced">{t('website.builder.tone.balanced')}</option>
+                      <option value="friendly">{t('website.builder.tone.friendly')}</option>
+                      <option value="luxury">{t('website.builder.tone.luxury')}</option>
+                      <option value="energetic">{t('website.builder.tone.energetic')}</option>
+                    </select>
+                  </div>
+                </div>
 
-          <div className="mt-4">
-            <p className="mb-2 text-xs text-slate-500">{t('website.builder.recentPrompts')}</p>
-            <div className="space-y-2">
-              {recentPrompts.length === 0 ? (
-                <p className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-2 py-2 text-xs text-slate-500">
-                  {t('website.builder.noPromptHistory')}
-                </p>
-              ) : (
-                recentPrompts.map((item) => (
+                <div>
+                  <p className="mb-3 text-xs font-medium uppercase tracking-wide text-slate-500">Palette</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    {(['primary', 'accent', 'background', 'surface'] as Array<keyof WebsiteTheme>).map((key) => (
+                      <label key={key} className="rounded-2xl border border-slate-200 p-3 text-xs text-slate-600">
+                        <span className="mb-2 block font-medium">{key}</span>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="color"
+                            value={palette[key]}
+                            onChange={(event) => setPalette((prev) => ({ ...prev, [key]: event.target.value }))}
+                            className="h-10 w-10 rounded border border-slate-200 bg-transparent p-0"
+                          />
+                          <input
+                            type="text"
+                            value={palette[key]}
+                            onChange={(event) => setPalette((prev) => ({ ...prev, [key]: event.target.value }))}
+                            className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs"
+                          />
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <div className="mb-3 flex items-center justify-between">
+                    <h3 className="text-sm font-semibold text-slate-950">Assets cho website</h3>
+                    <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] text-slate-600">
+                      {selectedAssetIds.length} active
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    {assets.length === 0 ? (
+                      <div className="col-span-2 rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4 text-xs text-slate-500">
+                        {t('website.builder.noAssets')}
+                      </div>
+                    ) : (
+                      assets.slice(0, 6).map((asset) => {
+                        const active = selectedAssetIds.includes(asset.id)
+                        return (
+                          <button
+                            key={asset.id}
+                            type="button"
+                            onClick={() => setSelectedAssetIds((prev) => (
+                              prev.includes(asset.id)
+                                ? prev.filter((item) => item !== asset.id)
+                                : [...prev, asset.id]
+                            ))}
+                            className={`overflow-hidden rounded-2xl border text-left transition ${
+                              active ? 'border-slate-900 ring-2 ring-slate-900/10' : 'border-slate-200'
+                            }`}
+                          >
+                            <div className="h-24 bg-slate-100">
+                              {asset.storage_path_or_url ? (
+                                <img
+                                  src={assetStorageUrl(asset.storage_path_or_url)}
+                                  alt={asset.name || ''}
+                                  className="h-full w-full object-cover"
+                                />
+                              ) : null}
+                            </div>
+                            <div className="p-3">
+                              <p className="truncate text-xs font-semibold text-slate-800">{asset.name || asset.type || 'Asset'}</p>
+                            </div>
+                          </button>
+                        )
+                      })
+                    )}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
                   <button
-                    key={item}
                     type="button"
-                    className="block w-full rounded-lg border border-slate-200 bg-white px-2 py-2 text-left text-xs text-slate-700 hover:bg-slate-50"
-                    onClick={() => setPrompt(item)}
+                    onClick={() => void saveThemeAndIdea('create')}
+                    disabled={creatingDraft || loading}
+                    className="rounded-2xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
                   >
-                    {item}
+                    {creatingDraft ? t('website.builder.generating') : t('website.builder.generateDraft')}
                   </button>
-                ))
-              )}
-            </div>
+                  <button
+                    type="button"
+                    onClick={() => void saveThemeAndIdea('rebuild')}
+                    disabled={creatingDraft || loading}
+                    className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                  >
+                    {t('website.builder.rebuildDraft')}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-5">
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                  <p className="text-xs text-slate-500">Section được lấy từ preview</p>
+                  <p className="mt-1 text-sm font-semibold text-slate-950">{selectedSection?.name || 'Chưa chọn section nào'}</p>
+                  <p className="mt-2 text-xs text-slate-600">{selectedSectionId ? `@section:${selectedSectionId}` : 'Click vào vùng preview để sinh tag sửa.'}</p>
+                </div>
+
+                <div>
+                  <p className="mb-3 text-xs font-medium uppercase tracking-wide text-slate-500">Section tags</p>
+                  <div className="flex flex-wrap gap-2">
+                    {(previewConfig?.sections || []).map((section) => (
+                      <button
+                        key={section.id}
+                        type="button"
+                        onClick={() => selectSection(section.id)}
+                        className={`rounded-full border px-3 py-1.5 text-xs ${
+                          section.id === selectedSectionId
+                            ? 'border-slate-900 bg-slate-900 text-white'
+                            : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                        }`}
+                      >
+                        {section.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <p className="mb-3 text-xs font-medium uppercase tracking-wide text-slate-500">Quick prompt ideas</p>
+                  <div className="flex flex-wrap gap-2">
+                    {QUICK_CHIP_KEYS.map((chipKey) => (
+                      <button
+                        key={chipKey}
+                        type="button"
+                        className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-50"
+                        onClick={() => applyChip(t(chipKey))}
+                      >
+                        {t(chipKey)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-xs font-medium uppercase tracking-wide text-slate-500" htmlFor="website-prompt-input">
+                    Prompt with explicit scope
+                  </label>
+                  <textarea
+                    id="website-prompt-input"
+                    value={prompt}
+                    onChange={(event) => setPrompt(event.target.value)}
+                    rows={9}
+                    className="w-full resize-none rounded-2xl border border-slate-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                    placeholder={t('website.builder.promptPlaceholder')}
+                  />
+                  <p className="mt-2 text-xs text-slate-500">
+                    {charCount} {t('website.builder.characters')} · {charCount < 20 ? t('website.builder.promptTooShort') : t('website.builder.promptLengthOk')}
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="mb-2 block text-xs font-medium uppercase tracking-wide text-slate-500">Scope</label>
+                    <select
+                      value={scope}
+                      onChange={(event) => setScope(event.target.value as PromptScope)}
+                      className="w-full rounded-2xl border border-slate-200 px-3 py-3 text-sm"
+                    >
+                      <option value="all">{t('website.builder.scopeAll')}</option>
+                      <option value="selected">{t('website.builder.scopeSelected')}</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="mb-2 block text-xs font-medium uppercase tracking-wide text-slate-500">Creativity</label>
+                    <select
+                      value={creativity}
+                      onChange={(event) => setCreativity(event.target.value as Creativity)}
+                      className="w-full rounded-2xl border border-slate-200 px-3 py-3 text-sm"
+                    >
+                      <option value="safe">{t('website.builder.creativitySafe')}</option>
+                      <option value="balanced">{t('website.builder.creativityBalanced')}</option>
+                      <option value="creative">{t('website.builder.creativityCreative')}</option>
+                    </select>
+                  </div>
+                </div>
+
+                {promptAffectedSections.length > 0 ? (
+                  <div>
+                    <p className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-500">Affected sections</p>
+                    <div className="flex flex-wrap gap-2">
+                      {promptAffectedSections.map((sectionId) => (
+                        <button
+                          key={sectionId}
+                          type="button"
+                          onClick={() => selectSection(sectionId)}
+                          className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-100"
+                        >
+                          {sectionId}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                    onClick={() => void handlePreview()}
+                    disabled={previewingPrompt}
+                  >
+                    {previewingPrompt ? t('website.builder.previewing') : t('website.builder.previewChange')}
+                  </button>
+                  <button
+                    type="button"
+                    className="rounded-2xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
+                    onClick={() => void handleApply()}
+                    disabled={applyingPrompt}
+                  >
+                    {applyingPrompt ? t('website.builder.applying') : t('website.builder.apply')}
+                  </button>
+                  <button
+                    type="button"
+                    className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                    onClick={() => {
+                      if (!currentConfig) return
+                      setPreviewConfig(cloneConfig(currentConfig))
+                      setStatusText('website.builder.status.ready')
+                      setStatusSummary('')
+                    }}
+                  >
+                    {t('website.builder.resetPreview')}
+                  </button>
+                  <button
+                    type="button"
+                    className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                    onClick={() => setPrompt('')}
+                  >
+                    {t('website.builder.clearPrompt')}
+                  </button>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => void handleDeploy()}
+                  disabled={deploying}
+                  className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                >
+                  {deploying ? t('website.dashboard.deploying') : 'Deploy current draft'}
+                </button>
+
+                <div className="border-t border-slate-100 pt-6">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <h3 className="text-sm font-semibold text-slate-950">Version rail</h3>
+                      <p className="mt-1 text-xs text-slate-500">Theo dõi các lần generate, prompt apply và restore từ server.</p>
+                    </div>
+                    <span className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold ${deployBadge(deployStatus)}`}>
+                      {deployStatus}
+                    </span>
+                  </div>
+                  <div className="mt-4 space-y-2">
+                    {versions.length === 0 ? (
+                      <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4 text-xs text-slate-500">
+                        No server versions yet.
+                      </div>
+                    ) : (
+                      versions.slice(0, 6).map((version) => (
+                        <div key={version.id} className="rounded-2xl border border-slate-200 p-4">
+                          <p className="text-sm font-semibold text-slate-900">{version.title}</p>
+                          <p className="mt-1 text-xs text-slate-500">{version.createdAt}</p>
+                          <p className="mt-2 text-xs leading-5 text-slate-600">{version.summary || version.source}</p>
+                          <button
+                            type="button"
+                            onClick={() => void handleRestoreVersion(version.id)}
+                            disabled={restoringVersionId === version.id}
+                            className="mt-3 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                          >
+                            {restoringVersionId === version.id ? t('website.dashboard.restoring') : t('website.dashboard.restoreVersion')}
+                          </button>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+
+                <div>
+                  <p className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-500">{t('website.builder.recentPrompts')}</p>
+                  <div className="space-y-2">
+                    {recentPrompts.length === 0 ? (
+                      <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4 text-xs text-slate-500">
+                        {t('website.builder.noPromptHistory')}
+                      </div>
+                    ) : (
+                      recentPrompts.map((item) => (
+                        <button
+                          key={item}
+                          type="button"
+                          className="block w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-left text-xs text-slate-700 hover:bg-white"
+                          onClick={() => setPrompt(item)}
+                        >
+                          {item}
+                        </button>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </section>
       </div>
