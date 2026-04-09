@@ -9,7 +9,8 @@ import {
   type WebsiteConfig,
   type WebsiteDeviceMode,
 } from '../../api/shopWebsite'
-import WebsitePreviewFrame from '../../components/shop/WebsitePreviewFrame'
+import { websiteRuntimePreviewUrl } from '../../api/client'
+import WebsitePreviewFrame, { type WebsitePreviewVariant } from '../../components/shop/WebsitePreviewFrame'
 
 type PromptScope = PromptPreviewBody['scope']
 
@@ -52,6 +53,10 @@ export default function ShopWebsiteBuilderPage() {
   const [deletePassword, setDeletePassword] = useState('')
   const [deleting, setDeleting] = useState(false)
   const [deleteMessage, setDeleteMessage] = useState<string | null>(null)
+  const [previewVariant, setPreviewVariant] = useState<WebsitePreviewVariant>('interactive')
+  const [publishedReloadKey, setPublishedReloadKey] = useState(0)
+  const [deploying, setDeploying] = useState(false)
+  const [deployMessage, setDeployMessage] = useState<string | null>(null)
 
   if (!id) return <p className="text-sm text-slate-500">{t('website.common.missingShopId')}</p>
   if (!token) return null
@@ -67,6 +72,7 @@ export default function ShopWebsiteBuilderPage() {
     setPreviewConfig(config)
     setPublicUrl(data.publicUrl)
     setPreviewUrl(data.previewUrl)
+    setPublishedReloadKey((k) => k + 1)
     setSelectedSectionId((current) => current && config.sections.some((section) => section.id === current) ? current : (data.sections[0]?.id || null))
     return data
   }
@@ -141,10 +147,27 @@ export default function ShopWebsiteBuilderPage() {
       setStatusSummary(res.data.message || '')
       pushRecent(trimmed)
       setPrompt('')
+      setPublishedReloadKey((k) => k + 1)
       await refreshBuilderState()
       return
     }
     setStatusText('website.builder.status.backendError')
+  }
+
+  const handleDeploy = async () => {
+    setDeployMessage(null)
+    setDeploying(true)
+    const res = await shopWebsiteApi.deploy(token, id)
+    setDeploying(false)
+    if (res.data?.ok) {
+      setPublicUrl(res.data.publicUrl)
+      setPreviewUrl(res.data.previewUrl)
+      setPublishedReloadKey((k) => k + 1)
+      setDeployMessage(t('website.builder.deploySuccess'))
+      await refreshBuilderState()
+      return
+    }
+    setDeployMessage(res.error || t('website.builder.deployError'))
   }
 
   const handleRestoreVersion = async (versionId: string) => {
@@ -154,6 +177,7 @@ export default function ShopWebsiteBuilderPage() {
     if (res.data?.ok) {
       setStatusSummary(res.data.summary || 'Version restored.')
       setStatusText('website.builder.status.savedSection')
+      setPublishedReloadKey((k) => k + 1)
       await refreshBuilderState()
       return
     }
@@ -177,7 +201,9 @@ export default function ShopWebsiteBuilderPage() {
 
   const versions = builderState?.versions || []
   const deployStatus = builderState?.deploy?.status || builderState?.site?.status || 'draft'
-  const websiteAddress = publicUrl || previewUrl || '-'
+  const runtimePreviewSrc = websiteRuntimePreviewUrl(id)
+  const openPreviewHref = publicUrl || previewUrl || runtimePreviewSrc
+  const websiteAddress = openPreviewHref
   const websiteStatus = deployStatus === 'running' || deployStatus === 'deployed' ? 'Online' : 'Offline'
   const lastUpdated = formatDateShort(
     builderState?.site?.updated_at
@@ -205,18 +231,21 @@ export default function ShopWebsiteBuilderPage() {
               <tbody className="bg-white">
                 <tr className="text-sm text-slate-700">
                   <td className="px-4 py-4 font-medium text-slate-950">
-                    {(publicUrl || previewUrl) ? (
-                      <a href={publicUrl || previewUrl} target="_blank" rel="noreferrer" className="text-blue-600 underline">
-                        {websiteAddress}
+                    <a href={openPreviewHref} target="_blank" rel="noreferrer" className="text-blue-600 underline break-all">
+                      {websiteAddress}
+                    </a>
+                    <p className="mt-1 text-xs font-normal text-slate-500">
+                      API preview:{' '}
+                      <a href={runtimePreviewSrc} target="_blank" rel="noreferrer" className="text-blue-600 underline">
+                        {runtimePreviewSrc}
                       </a>
-                    ) : websiteAddress}
+                    </p>
                   </td>
                   <td className="px-4 py-4">
                     <button
                       type="button"
-                      onClick={() => window.open(publicUrl || previewUrl, '_blank', 'noopener,noreferrer')}
-                      disabled={!publicUrl && !previewUrl}
-                      className="border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                      onClick={() => window.open(openPreviewHref, '_blank', 'noopener,noreferrer')}
+                      className="border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
                     >
                       Truy cập
                     </button>
@@ -231,35 +260,64 @@ export default function ShopWebsiteBuilderPage() {
               </tbody>
             </table>
           </div>
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              onClick={() => void handleDeploy()}
+              disabled={deploying}
+              className="rounded-none bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
+            >
+              {deploying ? t('website.builder.deploying') : t('website.builder.deploy')}
+            </button>
+            {deployMessage ? <p className="text-sm text-slate-600">{deployMessage}</p> : null}
+          </div>
         </div>
       </section>
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.75fr)_minmax(320px,0.85fr)]">
         <section className="rounded-none border border-slate-200 bg-white p-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 className="text-lg font-semibold text-slate-950">Preview và tương tác</h2>
-            <div className="flex overflow-hidden border border-slate-200">
-              <button
-                type="button"
-                className={`px-4 py-2 text-xs font-medium ${deviceMode === 'desktop' ? 'bg-slate-900 text-white' : 'bg-white text-slate-700'}`}
-                onClick={() => setDeviceMode('desktop')}
-              >
-                {t('website.builder.deviceDesktop')}
-              </button>
-              <button
-                type="button"
-                className={`border-x border-slate-200 px-4 py-2 text-xs font-medium ${deviceMode === 'tablet' ? 'bg-slate-900 text-white' : 'bg-white text-slate-700'}`}
-                onClick={() => setDeviceMode('tablet')}
-              >
-                {t('website.builder.deviceTablet')}
-              </button>
-              <button
-                type="button"
-                className={`px-4 py-2 text-xs font-medium ${deviceMode === 'mobile' ? 'bg-slate-900 text-white' : 'bg-white text-slate-700'}`}
-                onClick={() => setDeviceMode('mobile')}
-              >
-                {t('website.builder.deviceMobile')}
-              </button>
+            <h2 className="text-lg font-semibold text-slate-950">{t('website.builder.previewInteraction')}</h2>
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="flex overflow-hidden border border-slate-200">
+                <button
+                  type="button"
+                  className={`px-3 py-2 text-xs font-medium ${previewVariant === 'interactive' ? 'bg-slate-900 text-white' : 'bg-white text-slate-700'}`}
+                  onClick={() => setPreviewVariant('interactive')}
+                >
+                  {t('website.builder.previewModeInteractive')}
+                </button>
+                <button
+                  type="button"
+                  className={`px-3 py-2 text-xs font-medium ${previewVariant === 'published' ? 'bg-slate-900 text-white' : 'bg-white text-slate-700'}`}
+                  onClick={() => setPreviewVariant('published')}
+                >
+                  {t('website.builder.previewModePublished')}
+                </button>
+              </div>
+              <div className="flex overflow-hidden border border-slate-200">
+                <button
+                  type="button"
+                  className={`px-4 py-2 text-xs font-medium ${deviceMode === 'desktop' ? 'bg-slate-900 text-white' : 'bg-white text-slate-700'}`}
+                  onClick={() => setDeviceMode('desktop')}
+                >
+                  {t('website.builder.deviceDesktop')}
+                </button>
+                <button
+                  type="button"
+                  className={`border-x border-slate-200 px-4 py-2 text-xs font-medium ${deviceMode === 'tablet' ? 'bg-slate-900 text-white' : 'bg-white text-slate-700'}`}
+                  onClick={() => setDeviceMode('tablet')}
+                >
+                  {t('website.builder.deviceTablet')}
+                </button>
+                <button
+                  type="button"
+                  className={`px-4 py-2 text-xs font-medium ${deviceMode === 'mobile' ? 'bg-slate-900 text-white' : 'bg-white text-slate-700'}`}
+                  onClick={() => setDeviceMode('mobile')}
+                >
+                  {t('website.builder.deviceMobile')}
+                </button>
+              </div>
             </div>
           </div>
 
@@ -274,6 +332,9 @@ export default function ShopWebsiteBuilderPage() {
                 deviceMode={deviceMode}
                 selectedSectionId={selectedSectionId}
                 onSelectSection={selectSection}
+                variant={previewVariant}
+                publishedSrc={runtimePreviewSrc}
+                publishedReloadKey={publishedReloadKey}
               />
             )}
           </div>

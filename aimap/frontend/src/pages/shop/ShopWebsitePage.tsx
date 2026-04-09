@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { useLocale } from '../../contexts/LocaleContext'
 import { shopsApi, type ShopAsset } from '../../api/shops'
-import { assetStorageUrl } from '../../api/client'
+import { assetStorageUrl, websiteRuntimePreviewUrl } from '../../api/client'
 import {
   shopWebsiteApi,
   type WebsiteEntryRow,
@@ -274,16 +274,21 @@ export default function ShopWebsitePage() {
                   </td>
                 </tr>
               ) : (
-                sites.slice(0, 1).map((site) => (
+                sites.slice(0, 1).map((site) => {
+                  const runtimePreview = websiteRuntimePreviewUrl(id)
+                  const previewHref = site.previewUrl || runtimePreview
+                  return (
                   <tr key={site.id} className="text-sm text-slate-700">
                     <td className="px-4 py-4 font-semibold text-slate-950">{site.name}</td>
                     <td className="px-4 py-4">
                       <div className="space-y-1">
-                        <a href={site.link} target="_blank" rel="noreferrer" className="block max-w-[260px] truncate text-blue-600 underline">
-                          {site.link}
-                        </a>
-                        <a href={site.previewUrl} target="_blank" rel="noreferrer" className="block max-w-[260px] truncate text-xs text-blue-600 underline">
-                          {site.previewUrl}
+                        {site.link ? (
+                          <a href={site.link} target="_blank" rel="noreferrer" className="block max-w-[260px] truncate text-blue-600 underline">
+                            {site.link}
+                          </a>
+                        ) : null}
+                        <a href={previewHref} target="_blank" rel="noreferrer" className="block max-w-[320px] truncate text-xs text-blue-600 underline">
+                          {previewHref}
                         </a>
                       </div>
                     </td>
@@ -303,7 +308,8 @@ export default function ShopWebsitePage() {
                       </Link>
                     </td>
                   </tr>
-                ))
+                  )
+                })
               )}
             </tbody>
           </table>

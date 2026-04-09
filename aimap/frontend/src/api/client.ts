@@ -10,6 +10,11 @@ export function apiUrl(path: string): string {
   return `${API_BASE.replace(/\/$/, '')}${p}`
 }
 
+/** HTML runtime preview từ backend (GET /api/shops/preview/sites/:shopId, không cần token). */
+export function websiteRuntimePreviewUrl(shopId: string): string {
+  return apiUrl(`/shops/preview/sites/${encodeURIComponent(shopId)}`)
+}
+
 /** Ảnh lưu tại /uploads (không nằm dưới /api). */
 export function assetStorageUrl(path: string | null | undefined): string {
   if (!path) return ''

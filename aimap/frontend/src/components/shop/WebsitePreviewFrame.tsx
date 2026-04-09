@@ -1,11 +1,19 @@
 import { useEffect, useMemo } from 'react'
 import type { WebsiteConfig, WebsiteDeviceMode, WebsiteSection } from '../../api/shopWebsite'
 
+export type WebsitePreviewVariant = 'interactive' | 'published'
+
 type Props = {
   config: WebsiteConfig | null
   deviceMode: WebsiteDeviceMode
   selectedSectionId: string | null
   onSelectSection?: (sectionId: string) => void
+  /** interactive = srcDoc + chọn section; published = iframe HTML đã lưu trên server */
+  variant?: WebsitePreviewVariant
+  /** URL GET /api/shops/preview/sites/:shopId; dùng khi variant === 'published' */
+  publishedSrc?: string | null
+  /** Đổi key để iframe tải lại sau khi apply/save */
+  publishedReloadKey?: number
 }
 
 function escapeHtml(value: unknown): string {
@@ -321,8 +329,12 @@ export default function WebsitePreviewFrame({
   deviceMode,
   selectedSectionId,
   onSelectSection,
+  variant = 'interactive',
+  publishedSrc,
+  publishedReloadKey = 0,
 }: Props) {
   useEffect(() => {
+    if (variant !== 'interactive') return
     function handleMessage(event: MessageEvent) {
       if (event.data?.type !== 'aimap-website-section-select') return
       if (typeof event.data.sectionId !== 'string') return
@@ -331,7 +343,7 @@ export default function WebsitePreviewFrame({
 
     window.addEventListener('message', handleMessage)
     return () => window.removeEventListener('message', handleMessage)
-  }, [onSelectSection])
+  }, [onSelectSection, variant])
 
   const widthClass = deviceMode === 'mobile'
     ? 'max-w-[360px]'
@@ -344,13 +356,28 @@ export default function WebsitePreviewFrame({
     return buildPreviewHtml(config, selectedSectionId)
   }, [config, selectedSectionId])
 
+  const publishedUrl = useMemo(() => {
+    if (!publishedSrc) return ''
+    const sep = publishedSrc.includes('?') ? '&' : '?'
+    return `${publishedSrc}${sep}v=${publishedReloadKey}`
+  }, [publishedSrc, publishedReloadKey])
+
   return (
     <div className={`mx-auto w-full ${widthClass}`}>
-      <iframe
-        title="Website preview"
-        srcDoc={srcDoc}
-        className="h-[760px] w-full rounded-none border border-slate-200 bg-white shadow-sm"
-      />
+      {variant === 'published' && publishedUrl ? (
+        <iframe
+          key={publishedReloadKey}
+          title="Website published preview"
+          src={publishedUrl}
+          className="h-[760px] w-full rounded-none border border-slate-200 bg-white shadow-sm"
+        />
+      ) : (
+        <iframe
+          title="Website preview"
+          srcDoc={srcDoc}
+          className="h-[760px] w-full rounded-none border border-slate-200 bg-white shadow-sm"
+        />
+      )}
     </div>
   )
 }

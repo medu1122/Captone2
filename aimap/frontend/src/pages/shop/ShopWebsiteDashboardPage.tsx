@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { useLocale } from '../../contexts/LocaleContext'
+import { websiteRuntimePreviewUrl } from '../../api/client'
 import { shopsApi } from '../../api/shops'
 import { shopWebsiteApi, type WebsiteOverview } from '../../api/shopWebsite'
 
@@ -75,6 +76,8 @@ export default function ShopWebsiteDashboardPage() {
   const { id } = useParams<{ id: string }>()
 
   const [overview, setOverview] = useState<WebsiteOverview | null>(null)
+  const [deploying, setDeploying] = useState(false)
+  const [deployMessage, setDeployMessage] = useState<string | null>(null)
   const [chatInput, setChatInput] = useState('')
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
     {
@@ -120,7 +123,7 @@ export default function ShopWebsiteDashboardPage() {
         status: deploy?.status === 'running' ? 'deployed' : deploy?.status === 'building' ? 'building' : 'draft',
         versionCount: 1,
         publicUrl: `https://${subdomain}`,
-        previewUrl: `https://preview.captone2.site/sites/${id}`,
+        previewUrl: websiteRuntimePreviewUrl(id),
         updatedAt: deploy?.updated_at || null,
         promptCount: null,
         promptSuccessRate: null,
@@ -162,8 +165,23 @@ export default function ShopWebsiteDashboardPage() {
     setChatInput('')
   }
 
+  const handleDeploy = async () => {
+    setDeployMessage(null)
+    setDeploying(true)
+    const res = await shopWebsiteApi.deploy(token, id)
+    setDeploying(false)
+    if (res.data?.ok) {
+      const websiteRes = await shopWebsiteApi.getOverview(token, id)
+      if (websiteRes.data?.overview) setOverview(websiteRes.data.overview)
+      setDeployMessage(t('website.builder.deploySuccess'))
+      return
+    }
+    setDeployMessage(res.error || t('website.builder.deployError'))
+  }
+
   const mainUrl = overview?.publicUrl || ''
-  const previewUrl = overview?.previewUrl || ''
+  const apiRuntimePreview = websiteRuntimePreviewUrl(id)
+  const previewUrl = overview?.previewUrl || apiRuntimePreview
 
   return (
     <div className="flex w-full min-w-0 flex-col gap-6">
@@ -177,13 +195,22 @@ export default function ShopWebsiteDashboardPage() {
             </div>
             <h1 className="mt-4 text-3xl font-bold tracking-tight text-slate-950">Website của shop</h1>
             <p className="mt-2 text-sm text-slate-600">Một shop — một website.</p>
-            <div className="mt-5 flex flex-wrap gap-3">
+            <div className="mt-5 flex flex-wrap items-center gap-3">
               <Link
                 to={`/shops/${id}/website/builder`}
                 className="rounded-none bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800"
               >
                 Website edit
               </Link>
+              <button
+                type="button"
+                onClick={() => void handleDeploy()}
+                disabled={deploying}
+                className="rounded-none border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-900 hover:bg-slate-50 disabled:opacity-50"
+              >
+                {deploying ? t('website.builder.deploying') : t('website.builder.deploy')}
+              </button>
+              {deployMessage ? <span className="text-sm text-slate-600">{deployMessage}</span> : null}
             </div>
           </div>
 
@@ -204,6 +231,14 @@ export default function ShopWebsiteDashboardPage() {
                 <a href={previewUrl} target="_blank" rel="noreferrer" className="mt-1 block break-all text-sm font-semibold text-blue-600 underline">
                   {previewUrl}
                 </a>
+                {overview?.previewUrl && overview.previewUrl !== apiRuntimePreview ? (
+                  <p className="mt-2 text-xs text-slate-500">
+                    API runtime:{' '}
+                    <a href={apiRuntimePreview} target="_blank" rel="noreferrer" className="font-medium text-blue-600 underline">
+                      {apiRuntimePreview}
+                    </a>
+                  </p>
+                ) : null}
               </div>
             </div>
           </div>
