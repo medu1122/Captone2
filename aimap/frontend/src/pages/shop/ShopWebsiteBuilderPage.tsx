@@ -64,6 +64,7 @@ export default function ShopWebsiteBuilderPage() {
   const [publishedReloadKey, setPublishedReloadKey] = useState(0)
   const [deploying, setDeploying] = useState(false)
   const [deployMessage, setDeployMessage] = useState<string | null>(null)
+  const [actionError, setActionError] = useState<string | null>(null)
 
   if (!id) return <p className="text-sm text-slate-500">{t('website.common.missingShopId')}</p>
   if (!token) return null
@@ -72,7 +73,10 @@ export default function ShopWebsiteBuilderPage() {
 
   const refreshBuilderState = async () => {
     const res = await shopWebsiteApi.getBuilderState(token, id)
-    if (!res.data) return null
+    if (!res.data) {
+      setActionError(res.error || t('website.builder.loadFailed'))
+      return null
+    }
     const data = res.data
     const config = cloneConfig(data.config)
     setBuilderState(data)
@@ -98,18 +102,26 @@ export default function ShopWebsiteBuilderPage() {
   useEffect(() => {
     let cancelled = false
     const load = async () => {
-      setLoading(true)
-      const entryRes = await shopWebsiteApi.getEntry(token, id)
-      if (cancelled) return
-      if (!entryRes.data?.sites?.length) {
-        navigate(`/shops/${id}/website`, { replace: true })
-        return
-      }
+      try {
+        setLoading(true)
+        setActionError(null)
+        const entryRes = await shopWebsiteApi.getEntry(token, id)
+        if (cancelled) return
+        if (!entryRes.data?.sites?.length) {
+          navigate(`/shops/${id}/website`, { replace: true })
+          return
+        }
 
-      const data = await refreshBuilderState()
-      if (cancelled) return
-      if (data) setStatusSummary('')
-      setLoading(false)
+        const data = await refreshBuilderState()
+        if (cancelled) return
+        if (data) setStatusSummary('')
+      } catch (error) {
+        if (!cancelled) {
+          setActionError(error instanceof Error ? error.message : t('website.builder.loadFailed'))
+        }
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
     }
     void load()
     return () => {
@@ -139,56 +151,82 @@ export default function ShopWebsiteBuilderPage() {
     const trimmed = prompt.trim()
     if (!trimmed) return
     const scope: PromptScope = selectedSectionId ? 'selected' : 'all'
+    setActionError(null)
     setSendingPrompt(true)
-    const res = await shopWebsiteApi.applyPrompt(token, id, {
-      prompt: trimmed,
-      scope,
-      sectionId: selectedSectionId,
-      creativity: 'balanced',
-    })
-    setSendingPrompt(false)
-    if (res.data?.ok && res.data.config) {
-      const config = cloneConfig(res.data.config)
-      setPreviewConfig(config)
-      setStatusText('website.builder.status.applied')
-      setStatusSummary(res.data.message || '')
-      pushRecent(trimmed)
-      setPrompt('')
-      setPublishedReloadKey((k) => k + 1)
-      await refreshBuilderState()
-      return
+    try {
+      const res = await shopWebsiteApi.applyPrompt(token, id, {
+        prompt: trimmed,
+        scope,
+        sectionId: selectedSectionId,
+        creativity: 'balanced',
+      })
+      if (res.data?.ok && res.data.config) {
+        const config = cloneConfig(res.data.config)
+        setPreviewConfig(config)
+        setStatusText('website.builder.status.applied')
+        setStatusSummary(res.data.message || '')
+        pushRecent(trimmed)
+        setPrompt('')
+        setPublishedReloadKey((k) => k + 1)
+        await refreshBuilderState()
+        return
+      }
+      setStatusText('website.builder.status.backendError')
+      setActionError(res.error || t('website.builder.applyFailed'))
+    } catch (error) {
+      setStatusText('website.builder.status.backendError')
+      setActionError(error instanceof Error ? error.message : t('website.builder.applyFailed'))
+    } finally {
+      setSendingPrompt(false)
     }
-    setStatusText('website.builder.status.backendError')
   }
 
   const handleDeploy = async () => {
     setDeployMessage(null)
+    setActionError(null)
     setDeploying(true)
-    const res = await shopWebsiteApi.deploy(token, id)
-    setDeploying(false)
-    if (res.data?.ok) {
-      setPublicUrl(res.data.publicUrl)
-      setPreviewUrl(res.data.previewUrl)
-      setPublishedReloadKey((k) => k + 1)
-      setDeployMessage(t('website.builder.deploySuccess'))
-      await refreshBuilderState()
-      return
+    try {
+      const res = await shopWebsiteApi.deploy(token, id)
+      if (res.data?.ok) {
+        setPublicUrl(res.data.publicUrl)
+        setPreviewUrl(res.data.previewUrl)
+        setPublishedReloadKey((k) => k + 1)
+        setDeployMessage(t('website.builder.deploySuccess'))
+        await refreshBuilderState()
+        return
+      }
+      const errorText = res.error || t('website.builder.deployError')
+      setDeployMessage(errorText)
+      setActionError(errorText)
+    } catch (error) {
+      const errorText = error instanceof Error ? error.message : t('website.builder.deployError')
+      setDeployMessage(errorText)
+      setActionError(errorText)
+    } finally {
+      setDeploying(false)
     }
-    setDeployMessage(res.error || t('website.builder.deployError'))
   }
 
   const handleRestoreVersion = async (versionId: string) => {
+    setActionError(null)
     setRestoringVersionId(versionId)
-    const res = await shopWebsiteApi.restoreVersion(token, id, versionId)
-    setRestoringVersionId(null)
-    if (res.data?.ok) {
-      setStatusSummary(res.data.summary || t('website.dashboard.restoreSuccess'))
-      setStatusText('website.builder.status.savedSection')
-      setPublishedReloadKey((k) => k + 1)
-      await refreshBuilderState()
-      return
+    try {
+      const res = await shopWebsiteApi.restoreVersion(token, id, versionId)
+      if (res.data?.ok) {
+        setStatusSummary(res.data.summary || t('website.dashboard.restoreSuccess'))
+        setStatusText('website.builder.status.savedSection')
+        setPublishedReloadKey((k) => k + 1)
+        await refreshBuilderState()
+        return
+      }
+      setStatusText('website.builder.status.backendError')
+      setActionError(res.error || t('website.builder.restoreFailed'))
+    } catch (error) {
+      setStatusText('website.builder.status.backendError')
+      setActionError(error instanceof Error ? error.message : t('website.builder.restoreFailed'))
+    } finally {
+      setRestoringVersionId(null)
     }
-    setStatusText('website.builder.status.backendError')
   }
 
   const handleDeleteWebsite = async () => {
@@ -280,6 +318,11 @@ export default function ShopWebsiteBuilderPage() {
             </button>
             {deployMessage ? <p className="text-sm text-slate-600">{deployMessage}</p> : null}
           </div>
+          {actionError ? (
+            <div className="mt-4 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+              {actionError}
+            </div>
+          ) : null}
         </div>
       </section>
 
@@ -368,7 +411,7 @@ export default function ShopWebsiteBuilderPage() {
               type="button"
                 className="w-full rounded-lg bg-slate-950 px-4 py-3 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
               onClick={() => void handleSendPrompt()}
-              disabled={sendingPrompt}
+              disabled={sendingPrompt || loading || !prompt.trim()}
             >
               {sendingPrompt ? t('website.builder.applying') : t('website.builder.sendPrompt')}
             </button>

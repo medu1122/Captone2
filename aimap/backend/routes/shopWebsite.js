@@ -128,23 +128,31 @@ async function getDeployment(client, shopId) {
 
 async function upsertSite(client, { siteId, shopId, userId, name, slug, config, status }) {
   if (siteId) {
-    const updated = await client.query(
-      `UPDATE sites
-       SET name = $1, slug = $2, config_json = $3::jsonb, status = $4, updated_at = NOW()
-       WHERE id = $5
-       RETURNING *`,
-      [name, slug, JSON.stringify(config), status, siteId]
-    )
-    return updated.rows[0]
+    try {
+      const updated = await client.query(
+        `UPDATE sites
+         SET name = $1, slug = $2, config_json = $3::jsonb, status = $4, updated_at = NOW()
+         WHERE id = $5
+         RETURNING *`,
+        [name, slug, JSON.stringify(config), status, siteId]
+      )
+      return updated.rows[0]
+    } catch (error) {
+      throw error
+    }
   }
 
-  const inserted = await client.query(
-    `INSERT INTO sites (shop_id, user_id, name, slug, config_json, status)
-     VALUES ($1, $2, $3, $4, $5::jsonb, $6)
-     RETURNING *`,
-    [shopId, userId, name, slug, JSON.stringify(config), status]
-  )
-  return inserted.rows[0]
+  try {
+    const inserted = await client.query(
+      `INSERT INTO sites (shop_id, user_id, name, slug, config_json, status)
+       VALUES ($1, $2, $3, $4, $5::jsonb, $6)
+       RETURNING *`,
+      [shopId, userId, name, slug, JSON.stringify(config), status]
+    )
+    return inserted.rows[0]
+  } catch (error) {
+    throw error
+  }
 }
 
 async function getExistingSite(client, shop) {

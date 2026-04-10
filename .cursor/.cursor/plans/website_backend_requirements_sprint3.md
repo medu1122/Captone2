@@ -57,6 +57,9 @@ Không mở rộng:
 - [x] Đồng bộ preview URL thật với runtime đã publish:
   - thêm endpoint `GET /api/shops/preview/sites/:shopId` trả static runtime `index.html`
   - đưa URL preview/public về env config (`WEBSITE_PREVIEW_BASE_URL`, `WEBSITE_PUBLIC_BASE_DOMAIN`)
+- [x] Harden frontend flow website (entry/dashboard/builder):
+  - hiển thị lỗi backend chi tiết cho prompt/apply/deploy/load thay vì lỗi chung chung
+  - giữ trạng thái loading/action rõ ràng để tránh cảm giác "bấm nút không chạy"
 - [ ] Thêm health endpoint per shop (proxy/container) cho dashboard.
 
 ---

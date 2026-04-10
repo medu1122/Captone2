@@ -28,6 +28,7 @@ export default function ShopWebsiteDashboardPage() {
   const [deploying, setDeploying] = useState(false)
   const [deployMessage, setDeployMessage] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
   if (!id) return <p className="text-sm text-slate-500">{t('website.common.missingShopId')}</p>
   if (!token) return null
@@ -35,21 +36,31 @@ export default function ShopWebsiteDashboardPage() {
   useEffect(() => {
     let cancelled = false
     const load = async () => {
-      setLoading(true)
-      const entryRes = await shopWebsiteApi.getEntry(token, id)
-      if (cancelled) return
-      if (!entryRes.data?.sites?.length) {
-        navigate(`/shops/${id}/website`, { replace: true })
-        return
-      }
+      try {
+        setLoading(true)
+        setErrorMessage(null)
+        const entryRes = await shopWebsiteApi.getEntry(token, id)
+        if (cancelled) return
+        if (!entryRes.data?.sites?.length) {
+          navigate(`/shops/${id}/website`, { replace: true })
+          return
+        }
 
-      const websiteRes = await shopWebsiteApi.getOverview(token, id)
-      if (cancelled) return
+        const websiteRes = await shopWebsiteApi.getOverview(token, id)
+        if (cancelled) return
 
-      if (websiteRes.data?.overview) {
-        setOverview(websiteRes.data.overview)
+        if (websiteRes.data?.overview) {
+          setOverview(websiteRes.data.overview)
+        } else {
+          setErrorMessage(websiteRes.error || t('website.dashboard.loadFailed'))
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setErrorMessage(error instanceof Error ? error.message : t('website.dashboard.loadFailed'))
+        }
+      } finally {
+        if (!cancelled) setLoading(false)
       }
-      setLoading(false)
     }
     void load()
     return () => {
@@ -59,16 +70,26 @@ export default function ShopWebsiteDashboardPage() {
 
   const handleDeploy = async () => {
     setDeployMessage(null)
+    setErrorMessage(null)
     setDeploying(true)
-    const res = await shopWebsiteApi.deploy(token, id)
-    setDeploying(false)
-    if (res.data?.ok) {
-      const websiteRes = await shopWebsiteApi.getOverview(token, id)
-      if (websiteRes.data?.overview) setOverview(websiteRes.data.overview)
-      setDeployMessage(t('website.builder.deploySuccess'))
-      return
+    try {
+      const res = await shopWebsiteApi.deploy(token, id)
+      if (res.data?.ok) {
+        const websiteRes = await shopWebsiteApi.getOverview(token, id)
+        if (websiteRes.data?.overview) setOverview(websiteRes.data.overview)
+        setDeployMessage(t('website.builder.deploySuccess'))
+        return
+      }
+      const errorText = res.error || t('website.builder.deployError')
+      setDeployMessage(errorText)
+      setErrorMessage(errorText)
+    } catch (error) {
+      const errorText = error instanceof Error ? error.message : t('website.builder.deployError')
+      setDeployMessage(errorText)
+      setErrorMessage(errorText)
+    } finally {
+      setDeploying(false)
     }
-    setDeployMessage(res.error || t('website.builder.deployError'))
   }
 
   const mainUrl = overview?.publicUrl || ''
@@ -136,6 +157,11 @@ export default function ShopWebsiteDashboardPage() {
           </div>
         </div>
       </section>
+      {errorMessage ? (
+        <section className="rounded-none border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
+          {errorMessage}
+        </section>
+      ) : null}
 
       <section className="rounded-none border border-slate-200 bg-white p-6">
         <h2 className="text-xl font-semibold text-slate-950">{t('website.dashboard.usageBackendTitle')}</h2>

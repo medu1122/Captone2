@@ -44,6 +44,7 @@ export default function ShopWebsitePage() {
   const [creating, setCreating] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
   const [showCreateForm, setShowCreateForm] = useState(false)
+  const [loadError, setLoadError] = useState<string | null>(null)
   const [idea, setIdea] = useState('')
   const [promptNote, setPromptNote] = useState('')
   const [template, setTemplate] = useState<WebsiteTemplate>('catalog')
@@ -54,15 +55,27 @@ export default function ShopWebsitePage() {
   if (!token) return null
 
   const load = async () => {
-    setLoading(true)
-    const [entryRes, assetsRes] = await Promise.all([
-      shopWebsiteApi.getEntry(token, id),
-      shopsApi.listAssets(token, id),
-    ])
-    setSites(entryRes.data?.sites || [])
-    setAssets(assetsRes.data?.assets || [])
-    setShowCreateForm(!(entryRes.data?.sites?.length))
-    setLoading(false)
+    try {
+      setLoading(true)
+      setLoadError(null)
+      const [entryRes, assetsRes] = await Promise.all([
+        shopWebsiteApi.getEntry(token, id),
+        shopsApi.listAssets(token, id),
+      ])
+      if (!entryRes.data) {
+        setLoadError(entryRes.error || t('website.page.loadFailed'))
+      }
+      if (!assetsRes.data) {
+        setLoadError((prev) => prev || assetsRes.error || t('website.page.loadFailed'))
+      }
+      setSites(entryRes.data?.sites || [])
+      setAssets(assetsRes.data?.assets || [])
+      setShowCreateForm(!(entryRes.data?.sites?.length))
+    } catch (error) {
+      setLoadError(error instanceof Error ? error.message : t('website.page.loadFailed'))
+    } finally {
+      setLoading(false)
+    }
   }
 
   useEffect(() => {
@@ -82,6 +95,7 @@ export default function ShopWebsitePage() {
     }
 
     setCreating(true)
+    setLoadError(null)
     const res = await shopWebsiteApi.createFromIdea(token, id, {
       idea: mergedIdea,
       template,
@@ -101,6 +115,11 @@ export default function ShopWebsitePage() {
 
   return (
     <div className="flex w-full min-w-0 flex-col gap-6">
+      {loadError ? (
+        <section className="rounded-none border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
+          {loadError}
+        </section>
+      ) : null}
       {showCreateForm ? (
         <section className="rounded-none border border-slate-200 bg-white p-6">
           <h2 className="mb-2 text-xl font-semibold text-slate-950">{t('website.page.createTitle')}</h2>

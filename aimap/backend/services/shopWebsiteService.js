@@ -437,4 +437,27 @@ export async function ensureWebsiteTables(client) {
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `)
+
+  // Keep legacy databases compatible with current website statuses.
+  // Older schemas often had sites_status_check limited to draft/deployed/archived.
+  await client.query(`
+    DO $$
+    DECLARE
+      r RECORD;
+    BEGIN
+      FOR r IN
+        SELECT conname
+        FROM pg_constraint
+        WHERE conrelid = 'sites'::regclass
+          AND contype = 'c'
+          AND pg_get_constraintdef(oid) ILIKE '%status%'
+      LOOP
+        EXECUTE format('ALTER TABLE sites DROP CONSTRAINT IF EXISTS %I', r.conname);
+      END LOOP;
+
+      ALTER TABLE sites
+      ADD CONSTRAINT sites_status_check
+      CHECK (status IN ('draft', 'preview_ready', 'deployed', 'building', 'error', 'archived'));
+    END $$;
+  `)
 }
