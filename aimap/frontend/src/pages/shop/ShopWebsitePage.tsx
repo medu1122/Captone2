@@ -77,7 +77,7 @@ export default function ShopWebsitePage() {
   const handleCreate = async () => {
     const mergedIdea = [idea.trim(), promptNote.trim()].filter(Boolean).join('\n\n')
     if (!mergedIdea) {
-      setMessage('Hãy nhập mong muốn hoặc prompt khởi tạo trước khi tạo website.')
+      setMessage(t('website.page.messageIdeaRequired'))
       return
     }
 
@@ -91,84 +91,84 @@ export default function ShopWebsitePage() {
     })
     setCreating(false)
     if (res.data?.ok) {
-      setMessage('Đã tạo website draft. Đang chuyển sang dashboard website...')
+      setMessage(t('website.page.messageCreated'))
       await load()
       navigate(`/shops/${id}/website/dashboard`)
       return
     }
-    setMessage(res.error || 'Không thể tạo website lúc này.')
+    setMessage(res.error || t('website.page.messageCreateFailed'))
   }
 
   return (
     <div className="flex w-full min-w-0 flex-col gap-6">
       {showCreateForm ? (
         <section className="rounded-none border border-slate-200 bg-white p-6">
-          <h2 className="mb-2 text-xl font-semibold text-slate-950">Tạo website cho shop</h2>
-          <p className="mb-5 text-sm text-slate-600">Mỗi shop chỉ có một website. Sau khi tạo, bạn chỉnh sửa hoặc xoá để tạo lại từ trang chỉnh sửa.</p>
+          <h2 className="mb-2 text-xl font-semibold text-slate-950">{t('website.page.createTitle')}</h2>
+          <p className="mb-5 text-sm text-slate-600">{t('website.page.createHint')}</p>
 
           <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
             <div className="space-y-5">
               <div>
-                <label className="mb-2 block text-sm font-medium text-slate-700">Mong muốn cho website</label>
+                <label className="mb-2 block text-sm font-medium text-slate-700">{t('website.page.ideaLabel')}</label>
                 <textarea
                   value={idea}
                   onChange={(event) => setIdea(event.target.value)}
                   rows={5}
                   className="w-full resize-none rounded-none border border-slate-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-                  placeholder="Ví dụ: website sạch, hiện đại, tập trung giới thiệu shop, sản phẩm nổi bật và thông tin liên hệ."
+                  placeholder={t('website.page.ideaPlaceholder')}
                 />
               </div>
 
               <div>
-                <label className="mb-2 block text-sm font-medium text-slate-700">Prompt khởi tạo</label>
+                <label className="mb-2 block text-sm font-medium text-slate-700">{t('website.page.promptLabel')}</label>
                 <textarea
                   value={promptNote}
                   onChange={(event) => setPromptNote(event.target.value)}
                   rows={4}
                   className="w-full resize-none rounded-none border border-slate-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-                  placeholder="Ví dụ: tạo hero ngắn gọn, CTA rõ, ưu tiên ảnh sản phẩm thật, tone thân thiện."
+                  placeholder={t('website.page.promptPlaceholder')}
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="mb-2 block text-sm font-medium text-slate-700">Template</label>
+                  <label className="mb-2 block text-sm font-medium text-slate-700">{t('website.builder.templateLabel')}</label>
                   <select
                     value={template}
                     onChange={(event) => setTemplate(event.target.value as WebsiteTemplate)}
                     className="w-full rounded-none border border-slate-200 px-4 py-3 text-sm"
                   >
-                    <option value="catalog">Catalog</option>
-                    <option value="story">Story</option>
-                    <option value="minimal">Minimal</option>
+                    <option value="catalog">{t('website.builder.template.catalog')}</option>
+                    <option value="story">{t('website.builder.template.story')}</option>
+                    <option value="minimal">{t('website.builder.template.minimal')}</option>
                   </select>
                 </div>
                 <div>
-                  <label className="mb-2 block text-sm font-medium text-slate-700">Tone</label>
+                  <label className="mb-2 block text-sm font-medium text-slate-700">{t('website.builder.toneLabel')}</label>
                   <select
                     value={tone}
                     onChange={(event) => setTone(event.target.value as WebsiteTone)}
                     className="w-full rounded-none border border-slate-200 px-4 py-3 text-sm"
                   >
-                    <option value="balanced">Balanced</option>
-                    <option value="friendly">Friendly</option>
-                    <option value="luxury">Luxury</option>
-                    <option value="energetic">Energetic</option>
+                    <option value="balanced">{t('website.builder.tone.balanced')}</option>
+                    <option value="friendly">{t('website.builder.tone.friendly')}</option>
+                    <option value="luxury">{t('website.builder.tone.luxury')}</option>
+                    <option value="energetic">{t('website.builder.tone.energetic')}</option>
                   </select>
                 </div>
               </div>
 
               <div>
                 <div className="mb-3 flex items-center justify-between">
-                  <label className="block text-sm font-medium text-slate-700">Chọn ảnh từ storage</label>
+                  <label className="block text-sm font-medium text-slate-700">{t('website.page.pickStorageAssets')}</label>
                   <span className="rounded-none border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] text-slate-600">
-                    {selectedAssetIds.length} ảnh
+                    {selectedAssetIds.length} {t('website.page.imagesCountUnit')}
                   </span>
                 </div>
                 <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
                   {assets.length === 0 ? (
                     <div className="col-span-full rounded-none border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-500">
-                      Shop chưa có ảnh trong storage.
+                      {t('website.page.noStorageAssets')}
                     </div>
                   ) : (
                     assets.slice(0, 6).map((asset) => {
@@ -196,7 +196,7 @@ export default function ShopWebsitePage() {
                             ) : null}
                           </div>
                           <div className="p-3">
-                            <p className="truncate text-xs font-semibold text-slate-800">{asset.name || asset.type || 'Asset'}</p>
+                            <p className="truncate text-xs font-semibold text-slate-800">{asset.name || asset.type || t('website.page.assetFallback')}</p>
                           </div>
                         </button>
                       )
@@ -212,7 +212,7 @@ export default function ShopWebsitePage() {
                   disabled={creating || loading}
                   className="rounded-none bg-slate-950 px-5 py-3 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
                 >
-                  {creating ? 'Đang tạo...' : 'Tạo ngay'}
+                  {creating ? t('website.page.creating') : t('website.page.createNow')}
                 </button>
                 {message ? <p className="self-center text-sm text-slate-600">{message}</p> : null}
               </div>
@@ -220,18 +220,18 @@ export default function ShopWebsitePage() {
 
             <div className="space-y-4">
               <div className="rounded-none border border-slate-200 bg-slate-50 p-4">
-                <p className="text-xs text-slate-500">Preview dữ liệu đầu vào</p>
-                <p className="mt-2 text-sm font-semibold text-slate-900">{idea || 'Chưa có mô tả mong muốn.'}</p>
+                <p className="text-xs text-slate-500">{t('website.page.inputPreview')}</p>
+                <p className="mt-2 text-sm font-semibold text-slate-900">{idea || t('website.page.noIdeaYet')}</p>
               </div>
               <div className="rounded-none border border-slate-200 bg-slate-50 p-4">
-                <p className="text-xs text-slate-500">Prompt ban đầu</p>
-                <p className="mt-2 text-sm font-semibold text-slate-900">{promptNote || 'Chưa có prompt khởi tạo.'}</p>
+                <p className="text-xs text-slate-500">{t('website.page.initialPrompt')}</p>
+                <p className="mt-2 text-sm font-semibold text-slate-900">{promptNote || t('website.page.noInitialPrompt')}</p>
               </div>
               <div className="rounded-none border border-slate-200 bg-slate-50 p-4">
-                <p className="text-xs text-slate-500">Ảnh đã chọn</p>
+                <p className="text-xs text-slate-500">{t('website.page.selectedImages')}</p>
                 <div className="mt-3 flex flex-wrap gap-2">
                   {selectedAssetsPreview.length === 0 ? (
-                    <span className="text-sm text-slate-500">Chưa chọn ảnh.</span>
+                    <span className="text-sm text-slate-500">{t('website.page.noImageSelected')}</span>
                   ) : (
                     selectedAssetsPreview.map((asset) => (
                       <span key={asset.id} className="rounded-none border border-slate-200 bg-white px-3 py-1 text-xs text-slate-700">
@@ -247,30 +247,30 @@ export default function ShopWebsitePage() {
       ) : null}
 
       <section className="rounded-none border border-slate-200 bg-white p-6">
-        <h2 className="text-xl font-semibold text-slate-950">Website của shop</h2>
-        <p className="mt-2 text-sm text-slate-600">Một shop — một website. Muốn tạo lại từ đầu, vào Website edit và dùng Xoá web.</p>
+        <h2 className="text-xl font-semibold text-slate-950">{t('website.page.shopWebsiteTitle')}</h2>
+        <p className="mt-2 text-sm text-slate-600">{t('website.page.shopWebsiteHint')}</p>
 
         <div className="mt-5 overflow-hidden rounded-none border border-slate-200">
           <table className="min-w-full divide-y divide-slate-200">
             <thead className="bg-slate-50">
               <tr className="text-left text-sm text-slate-600">
-                <th className="px-4 py-3 font-medium">Tên</th>
-                <th className="px-4 py-3 font-medium">Link</th>
-                <th className="px-4 py-3 font-medium">Trạng thái</th>
-                <th className="px-4 py-3 font-medium">Ngày tạo</th>
-                <th className="px-4 py-3 font-medium">Ngày chạy</th>
-                <th className="px-4 py-3 font-medium">Chi tiết</th>
+                <th className="px-4 py-3 font-medium">{t('website.page.tableName')}</th>
+                <th className="px-4 py-3 font-medium">{t('website.page.tableLink')}</th>
+                <th className="px-4 py-3 font-medium">{t('website.page.tableStatus')}</th>
+                <th className="px-4 py-3 font-medium">{t('website.page.tableCreatedAt')}</th>
+                <th className="px-4 py-3 font-medium">{t('website.page.tableLaunchedAt')}</th>
+                <th className="px-4 py-3 font-medium">{t('website.page.tableDetails')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200 bg-white">
               {loading ? (
                 <tr>
-                  <td className="px-4 py-6 text-sm text-slate-500" colSpan={6}>Đang tải dữ liệu website...</td>
+                  <td className="px-4 py-6 text-sm text-slate-500" colSpan={6}>{t('website.page.loadingTable')}</td>
                 </tr>
               ) : sites.length === 0 ? (
                 <tr>
                   <td className="px-4 py-6 text-sm text-slate-500" colSpan={6}>
-                    Shop chưa có website. Dùng form phía trên để tạo (mỗi shop chỉ một website).
+                    {t('website.page.noWebsiteYet')}
                   </td>
                 </tr>
               ) : (
@@ -304,7 +304,7 @@ export default function ShopWebsitePage() {
                         to={`/shops/${id}/website/dashboard`}
                         className="inline-flex rounded-none border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
                       >
-                        Xem chi tiết
+                        {t('website.page.viewDetails')}
                       </Link>
                     </td>
                   </tr>

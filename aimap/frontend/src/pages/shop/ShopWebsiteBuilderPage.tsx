@@ -30,6 +30,13 @@ function formatDateShort(value?: string | null): string {
   return value.slice(0, 10)
 }
 
+function statusDotClass(status: string): string {
+  if (status === 'running' || status === 'deployed') return 'bg-emerald-500'
+  if (status === 'building') return 'bg-blue-500'
+  if (status === 'error') return 'bg-rose-500'
+  return 'bg-slate-400'
+}
+
 export default function ShopWebsiteBuilderPage() {
   const { t } = useLocale()
   const { token } = useAuth()
@@ -175,7 +182,7 @@ export default function ShopWebsiteBuilderPage() {
     const res = await shopWebsiteApi.restoreVersion(token, id, versionId)
     setRestoringVersionId(null)
     if (res.data?.ok) {
-      setStatusSummary(res.data.summary || 'Version restored.')
+      setStatusSummary(res.data.summary || t('website.dashboard.restoreSuccess'))
       setStatusText('website.builder.status.savedSection')
       setPublishedReloadKey((k) => k + 1)
       await refreshBuilderState()
@@ -186,7 +193,7 @@ export default function ShopWebsiteBuilderPage() {
 
   const handleDeleteWebsite = async () => {
     if (!deletePassword.trim()) {
-      setDeleteMessage('Hãy nhập mật khẩu để xác nhận xoá web.')
+      setDeleteMessage(t('website.builder.deletePasswordRequired'))
       return
     }
     setDeleting(true)
@@ -196,7 +203,7 @@ export default function ShopWebsiteBuilderPage() {
       navigate(`/shops/${id}/website`, { replace: true })
       return
     }
-    setDeleteMessage(res.error || 'Không thể xoá website.')
+    setDeleteMessage(res.error || t('website.builder.deleteFailed'))
   }
 
   const versions = builderState?.versions || []
@@ -204,7 +211,9 @@ export default function ShopWebsiteBuilderPage() {
   const runtimePreviewSrc = websiteRuntimePreviewUrl(id)
   const openPreviewHref = publicUrl || previewUrl || runtimePreviewSrc
   const websiteAddress = openPreviewHref
-  const websiteStatus = deployStatus === 'running' || deployStatus === 'deployed' ? 'Online' : 'Offline'
+  const websiteStatus = deployStatus === 'running' || deployStatus === 'deployed'
+    ? t('website.builder.online')
+    : t('website.builder.offline')
   const lastUpdated = formatDateShort(
     builderState?.site?.updated_at
       || builderState?.deploy?.updated_at
@@ -214,58 +223,58 @@ export default function ShopWebsiteBuilderPage() {
 
   return (
     <div className="flex w-full min-w-0 flex-col gap-6">
-      <section className="overflow-hidden rounded-none border border-slate-200 bg-white">
+      <section className="overflow-hidden rounded-xl border border-slate-200 bg-white">
         <div className="p-6">
-          <h1 className="text-3xl font-bold tracking-tight text-slate-950">Website edit</h1>
-          {statusSummary ? <p className="mt-3 text-sm text-slate-600">{statusSummary}</p> : <p className="mt-3 text-sm text-slate-600">{t(statusText)}</p>}
-          <div className="mt-5 overflow-hidden border border-slate-200">
-            <table className="min-w-full divide-y divide-slate-200">
-              <thead className="bg-slate-50">
-                <tr className="text-left text-sm text-slate-600">
-                  <th className="px-4 py-3 font-medium">Địa chỉ web</th>
-                  <th className="px-4 py-3 font-medium">Truy cập</th>
-                  <th className="px-4 py-3 font-medium">Trạng thái</th>
-                  <th className="px-4 py-3 font-medium">Lần cập nhật cuối</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white">
-                <tr className="text-sm text-slate-700">
-                  <td className="px-4 py-4 font-medium text-slate-950">
-                    <a href={openPreviewHref} target="_blank" rel="noreferrer" className="text-blue-600 underline break-all">
-                      {websiteAddress}
-                    </a>
-                    <p className="mt-1 text-xs font-normal text-slate-500">
-                      API preview:{' '}
-                      <a href={runtimePreviewSrc} target="_blank" rel="noreferrer" className="text-blue-600 underline">
-                        {runtimePreviewSrc}
-                      </a>
-                    </p>
-                  </td>
-                  <td className="px-4 py-4">
-                    <button
-                      type="button"
-                      onClick={() => window.open(openPreviewHref, '_blank', 'noopener,noreferrer')}
-                      className="border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-                    >
-                      Truy cập
-                    </button>
-                  </td>
-                  <td className="px-4 py-4">
-                    <span className={`border px-2.5 py-1 text-xs font-semibold ${deployBadge(deployStatus)}`}>
-                      {websiteStatus}
-                    </span>
-                  </td>
-                  <td className="px-4 py-4">{lastUpdated}</td>
-                </tr>
-              </tbody>
-            </table>
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <h1 className="text-3xl font-bold tracking-tight text-slate-950">{t('website.builder.editTitle')}</h1>
+              {statusSummary ? (
+                <p className="mt-3 text-sm text-slate-600">{statusSummary}</p>
+              ) : (
+                <p className="mt-3 text-sm text-slate-600">{t(statusText)}</p>
+              )}
+            </div>
+            <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+              <span className={`h-2.5 w-2.5 rounded-full ${statusDotClass(deployStatus)}`} />
+              <span className={`border px-2.5 py-1 text-xs font-semibold ${deployBadge(deployStatus)}`}>{websiteStatus}</span>
+            </div>
           </div>
-          <div className="mt-4 flex flex-wrap items-center gap-3">
+
+          <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+            <div className="rounded-lg border border-slate-200 p-4">
+              <p className="text-xs text-slate-500">{t('website.builder.tableAddress')}</p>
+              <a href={openPreviewHref} target="_blank" rel="noreferrer" className="mt-1 block break-all text-sm font-semibold text-blue-600 hover:underline">
+                {websiteAddress}
+              </a>
+            </div>
+            <div className="rounded-lg border border-slate-200 p-4">
+              <p className="text-xs text-slate-500">{t('website.builder.apiPreviewLabel')}</p>
+              <a href={runtimePreviewSrc} target="_blank" rel="noreferrer" className="mt-1 block break-all text-sm font-semibold text-blue-600 hover:underline">
+                {runtimePreviewSrc}
+              </a>
+            </div>
+            <div className="rounded-lg border border-slate-200 p-4">
+              <p className="text-xs text-slate-500">{t('website.builder.tableLastUpdated')}</p>
+              <p className="mt-1 text-sm font-semibold text-slate-900">{lastUpdated}</p>
+            </div>
+            <div className="rounded-lg border border-slate-200 p-4">
+              <p className="text-xs text-slate-500">{t('website.builder.tableVisit')}</p>
+              <button
+                type="button"
+                onClick={() => window.open(openPreviewHref, '_blank', 'noopener,noreferrer')}
+                className="mt-1 inline-flex rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+              >
+                {t('website.common.visit')}
+              </button>
+            </div>
+          </div>
+
+          <div className="mt-5 flex flex-wrap items-center gap-3">
             <button
               type="button"
               onClick={() => void handleDeploy()}
               disabled={deploying}
-              className="rounded-none bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
+              className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
             >
               {deploying ? t('website.builder.deploying') : t('website.builder.deploy')}
             </button>
@@ -275,11 +284,11 @@ export default function ShopWebsiteBuilderPage() {
       </section>
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.75fr)_minmax(320px,0.85fr)]">
-        <section className="rounded-none border border-slate-200 bg-white p-6">
+        <section className="rounded-xl border border-slate-200 bg-white p-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-lg font-semibold text-slate-950">{t('website.builder.previewInteraction')}</h2>
             <div className="flex flex-wrap items-center gap-2">
-              <div className="flex overflow-hidden border border-slate-200">
+              <div className="flex overflow-hidden rounded-lg border border-slate-200">
                 <button
                   type="button"
                   className={`px-3 py-2 text-xs font-medium ${previewVariant === 'interactive' ? 'bg-slate-900 text-white' : 'bg-white text-slate-700'}`}
@@ -295,7 +304,7 @@ export default function ShopWebsiteBuilderPage() {
                   {t('website.builder.previewModePublished')}
                 </button>
               </div>
-              <div className="flex overflow-hidden border border-slate-200">
+              <div className="flex overflow-hidden rounded-lg border border-slate-200">
                 <button
                   type="button"
                   className={`px-4 py-2 text-xs font-medium ${deviceMode === 'desktop' ? 'bg-slate-900 text-white' : 'bg-white text-slate-700'}`}
@@ -340,9 +349,9 @@ export default function ShopWebsiteBuilderPage() {
           </div>
         </section>
 
-        <section className="rounded-none border border-slate-200 bg-white p-6">
+        <section className="rounded-xl border border-slate-200 bg-white p-6">
           <div className="space-y-6">
-            <h2 className="text-lg font-semibold text-slate-950">Prompt</h2>
+            <h2 className="text-lg font-semibold text-slate-950">{t('website.builder.promptTitle')}</h2>
 
             <div>
               <textarea
@@ -350,26 +359,26 @@ export default function ShopWebsiteBuilderPage() {
                 value={prompt}
                 onChange={(event) => setPrompt(event.target.value)}
                 rows={12}
-                className="w-full resize-none rounded-none border border-slate-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                className="w-full resize-none rounded-lg border border-slate-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
                 placeholder={t('website.builder.promptPlaceholder')}
               />
             </div>
 
             <button
               type="button"
-              className="w-full rounded-none bg-slate-950 px-4 py-3 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
+                className="w-full rounded-lg bg-slate-950 px-4 py-3 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
               onClick={() => void handleSendPrompt()}
               disabled={sendingPrompt}
             >
-              {sendingPrompt ? t('website.builder.applying') : 'Gửi prompt'}
+              {sendingPrompt ? t('website.builder.applying') : t('website.builder.sendPrompt')}
             </button>
 
             <div className="border-t border-slate-100 pt-6">
-              <h3 className="text-sm font-semibold text-slate-950">Version rail</h3>
+              <h3 className="text-sm font-semibold text-slate-950">{t('website.builder.versionRail')}</h3>
               <div className="mt-4 space-y-2">
                 {versions.length === 0 ? (
                   <div className="rounded-none border border-dashed border-slate-300 bg-slate-50 p-4 text-xs text-slate-500">
-                    Chưa có phiên bản nào.
+                    {t('website.builder.noVersions')}
                   </div>
                 ) : (
                   versions.slice(0, 6).map((version) => (
@@ -381,7 +390,7 @@ export default function ShopWebsiteBuilderPage() {
                         type="button"
                         onClick={() => void handleRestoreVersion(version.id)}
                         disabled={restoringVersionId === version.id}
-                        className="mt-3 rounded-none border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                        className="mt-3 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
                       >
                         {restoringVersionId === version.id ? t('website.dashboard.restoring') : t('website.dashboard.restoreVersion')}
                       </button>
@@ -414,16 +423,16 @@ export default function ShopWebsiteBuilderPage() {
             </div>
 
             <div className="border-t border-slate-100 pt-6">
-              <p className="mb-3 text-xs text-slate-600">Mỗi shop chỉ một website. Xoá web để quay về màn hình tạo mới.</p>
+              <p className="mb-3 text-xs text-slate-600">{t('website.builder.singleSiteHint')}</p>
               <button
                 type="button"
                 onClick={() => {
                   setShowDeleteForm((prev) => !prev)
                   setDeleteMessage(null)
                 }}
-                className="w-full rounded-none border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700 hover:bg-rose-100"
+                className="w-full rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700 hover:bg-rose-100"
               >
-                Xoá web
+                {t('website.builder.deleteWebsite')}
               </button>
 
               {showDeleteForm ? (
@@ -432,16 +441,16 @@ export default function ShopWebsiteBuilderPage() {
                     type="password"
                     value={deletePassword}
                     onChange={(event) => setDeletePassword(event.target.value)}
-                    placeholder="Nhập mật khẩu để xác nhận xoá web"
-                    className="w-full rounded-none border border-rose-200 bg-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-rose-200"
+                    placeholder={t('website.builder.deletePasswordPlaceholder')}
+                    className="w-full rounded-lg border border-rose-200 bg-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-rose-200"
                   />
                   <button
                     type="button"
                     onClick={() => void handleDeleteWebsite()}
                     disabled={deleting}
-                    className="w-full rounded-none bg-rose-600 px-4 py-3 text-sm font-semibold text-white hover:bg-rose-700 disabled:opacity-50"
+                    className="w-full rounded-lg bg-rose-600 px-4 py-3 text-sm font-semibold text-white hover:bg-rose-700 disabled:opacity-50"
                   >
-                    {deleting ? 'Đang xoá...' : 'Xác nhận xoá web'}
+                    {deleting ? t('website.builder.deleting') : t('website.builder.confirmDeleteWebsite')}
                   </button>
                   {deleteMessage ? <p className="text-sm text-rose-700">{deleteMessage}</p> : null}
                 </div>
