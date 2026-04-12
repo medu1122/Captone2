@@ -114,8 +114,11 @@ export type WebsiteBuilderState = {
     shop_id: string
     slug: string
     status: string
+    render_mode?: RenderMode
     updated_at?: string | null
   }
+  renderMode?: RenderMode
+  bundleManifest?: BundleManifest | null
   config: WebsiteConfig
   sections: Array<{
     id: string
@@ -161,11 +164,26 @@ export type PromptPreviewBody = {
   creativity: 'safe' | 'balanced' | 'creative'
 }
 
+export type RenderMode = 'config' | 'codegen'
+
+export type BundleManifest = {
+  versionId: string
+  generatedAt: string
+  prompt: string
+  provider: string
+  title: string
+  summary: string
+  intent: string
+}
+
 type PromptPreviewResponse = {
   summary: string
   affectedSections?: string[]
   draftConfig?: WebsiteConfig
   draftPreviewUrl?: string
+  renderMode?: RenderMode
+  /** Present when renderMode === 'codegen' — full standalone HTML to show in preview iframe */
+  previewHtml?: string
 }
 
 type PromptApplyResponse = {
@@ -174,6 +192,8 @@ type PromptApplyResponse = {
   previewUrl?: string
   affectedSections?: string[]
   config?: WebsiteConfig
+  renderMode?: RenderMode
+  versionId?: string
 }
 
 export const shopWebsiteApi = {
@@ -291,8 +311,9 @@ export const shopWebsiteApi = {
       ok: boolean
       site: WebsiteBuilderState['site']
       config: WebsiteConfig
-      sections: WebsiteBuilderState['sections']
+      sections?: WebsiteBuilderState['sections']
       summary: string
+      renderMode?: RenderMode
     }>(`${SHOPS_PREFIX}/${shopId}/website/versions/${encodeURIComponent(versionId)}/restore`, {
       method: 'POST',
       headers: auth(token),

@@ -439,7 +439,6 @@ export async function ensureWebsiteTables(client) {
   `)
 
   // Keep legacy databases compatible with current website statuses.
-  // Older schemas often had sites_status_check limited to draft/deployed/archived.
   await client.query(`
     DO $$
     DECLARE
@@ -459,5 +458,12 @@ export async function ensureWebsiteTables(client) {
       ADD CONSTRAINT sites_status_check
       CHECK (status IN ('draft', 'preview_ready', 'deployed', 'building', 'error', 'archived'));
     END $$;
+  `)
+
+  // Add codegen columns if not present (idempotent).
+  await client.query(`
+    ALTER TABLE sites
+      ADD COLUMN IF NOT EXISTS render_mode VARCHAR(20) NOT NULL DEFAULT 'config',
+      ADD COLUMN IF NOT EXISTS bundle_manifest JSONB DEFAULT NULL
   `)
 }

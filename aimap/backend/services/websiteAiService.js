@@ -198,7 +198,7 @@ function colorFromPrompt(prompt) {
  * - 'page_redesign': broad request to overhaul or redo the whole page.
  * - 'section_edit': targeted edit on a specific section or element.
  */
-function classifyIntent(prompt) {
+export function classifyIntent(prompt) {
   const text = prompt.toLowerCase()
   const broadPatterns = [
     'xoá', 'xóa', 'làm lại', 'thiết kế lại', 'tạo lại', 'xây lại',
@@ -340,6 +340,15 @@ ${JSON.stringify({ prompt: promptText, scope, sectionId, creativity, intent })}`
 }
 
 // ---------- public API -------------------------------------------------------
+
+/**
+ * Low-level AI call for arbitrary system prompts.
+ * Used by websiteCodegenService to generate HTML bundles.
+ * Returns { data, error, skipped, provider }.
+ */
+export async function callWebsiteAi(systemPrompt) {
+  return generateWebsiteAiJson(systemPrompt)
+}
 
 /**
  * Expose current provider info without leaking credentials.

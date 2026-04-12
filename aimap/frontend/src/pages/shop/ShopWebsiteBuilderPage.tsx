@@ -5,6 +5,7 @@ import { useAuth } from '../../contexts/AuthContext'
 import {
   shopWebsiteApi,
   type PromptPreviewBody,
+  type RenderMode,
   type WebsiteBuilderState,
   type WebsiteConfig,
   type WebsiteDeviceMode,
@@ -65,6 +66,8 @@ export default function ShopWebsiteBuilderPage() {
   const [deploying, setDeploying] = useState(false)
   const [deployMessage, setDeployMessage] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
+  const [codegenHtml, setCodegenHtml] = useState<string | null>(null)
+  const [renderMode, setRenderMode] = useState<RenderMode>('config')
 
   if (!id) return <p className="text-sm text-slate-500">{t('website.common.missingShopId')}</p>
   if (!token) return null
@@ -84,6 +87,7 @@ export default function ShopWebsiteBuilderPage() {
     setPublicUrl(data.publicUrl)
     setPreviewUrl(data.previewUrl)
     setPublishedReloadKey((k) => k + 1)
+    if (data.renderMode) setRenderMode(data.renderMode)
     setSelectedSectionId((current) => current && config.sections.some((section) => section.id === current) ? current : (data.sections[0]?.id || null))
     return data
   }
@@ -168,14 +172,26 @@ export default function ShopWebsiteBuilderPage() {
         sectionId: resolvedSectionId,
         creativity: 'balanced',
       })
-      if (res.data?.ok && res.data.config) {
-        const config = cloneConfig(res.data.config)
-        setPreviewConfig(config)
-        setStatusText('website.builder.status.applied')
-        setStatusSummary(res.data.message || '')
+      if (res.data?.ok) {
+        const newRenderMode = res.data.renderMode || 'config'
+        setRenderMode(newRenderMode)
         pushRecent(trimmed)
         setPrompt('')
-        setPublishedReloadKey((k) => k + 1)
+        setStatusText('website.builder.status.applied')
+        setStatusSummary(res.data.message || '')
+
+        if (newRenderMode === 'codegen') {
+          // Refresh state from server; published index.html now contains the new codegen bundle
+          setPublishedReloadKey((k) => k + 1)
+          setCodegenHtml(null) // clear any stale preview HTML
+          setPreviewVariant('published') // show the server-rendered result
+        } else if (res.data.config) {
+          const config = cloneConfig(res.data.config)
+          setPreviewConfig(config)
+          setCodegenHtml(null)
+          setPublishedReloadKey((k) => k + 1)
+        }
+
         await refreshBuilderState()
         return
       }
@@ -221,9 +237,15 @@ export default function ShopWebsiteBuilderPage() {
     try {
       const res = await shopWebsiteApi.restoreVersion(token, id, versionId)
       if (res.data?.ok) {
+        const newRenderMode = res.data.renderMode || 'config'
+        setRenderMode(newRenderMode)
+        setCodegenHtml(null)
         setStatusSummary(res.data.summary || t('website.dashboard.restoreSuccess'))
         setStatusText('website.builder.status.savedSection')
         setPublishedReloadKey((k) => k + 1)
+        if (newRenderMode === 'codegen') {
+          setPreviewVariant('published')
+        }
         await refreshBuilderState()
         return
       }
@@ -395,6 +417,7 @@ export default function ShopWebsiteBuilderPage() {
                 variant={previewVariant}
                 publishedSrc={runtimePreviewSrc}
                 publishedReloadKey={publishedReloadKey}
+                codegenHtml={previewVariant === 'interactive' && renderMode === 'codegen' ? codegenHtml : null}
               />
             )}
           </div>
@@ -415,11 +438,18 @@ export default function ShopWebsiteBuilderPage() {
               />
             </div>
 
-            <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
-              <span className={`inline-block h-2 w-2 rounded-full ${currentScope === 'selected' ? 'bg-blue-500' : 'bg-emerald-500'}`} />
-              {currentScope === 'selected'
-                ? t('website.builder.scopeIndicatorSection').replace('{id}', promptSectionId || '')
-                : t('website.builder.scopeIndicatorWholePage')}
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex flex-1 items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
+                <span className={`inline-block h-2 w-2 rounded-full ${currentScope === 'selected' ? 'bg-blue-500' : 'bg-emerald-500'}`} />
+                {currentScope === 'selected'
+                  ? t('website.builder.scopeIndicatorSection').replace('{id}', promptSectionId || '')
+                  : t('website.builder.scopeIndicatorWholePage')}
+              </div>
+              {renderMode === 'codegen' && (
+                <span className="shrink-0 rounded-full border border-violet-200 bg-violet-50 px-2.5 py-1 text-xs font-semibold text-violet-700">
+                  AI Codegen
+                </span>
+              )}
             </div>
 
             <button

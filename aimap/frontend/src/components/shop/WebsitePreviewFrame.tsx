@@ -14,6 +14,8 @@ type Props = {
   publishedSrc?: string | null
   /** Đổi key để iframe tải lại sau khi apply/save */
   publishedReloadKey?: number
+  /** Raw HTML from codegen — shows full AI-generated page instead of config-rendered preview */
+  codegenHtml?: string | null
 }
 
 function escapeHtml(value: unknown): string {
@@ -332,6 +334,7 @@ export default function WebsitePreviewFrame({
   variant = 'interactive',
   publishedSrc,
   publishedReloadKey = 0,
+  codegenHtml,
 }: Props) {
   useEffect(() => {
     if (variant !== 'interactive') return
@@ -369,6 +372,13 @@ export default function WebsitePreviewFrame({
           key={publishedReloadKey}
           title="Website published preview"
           src={publishedUrl}
+          className="h-[760px] w-full rounded-none border border-slate-200 bg-white shadow-sm"
+        />
+      ) : codegenHtml ? (
+        <iframe
+          key={`codegen-${publishedReloadKey}`}
+          title="Website codegen preview"
+          srcDoc={codegenHtml}
           className="h-[760px] w-full rounded-none border border-slate-200 bg-white shadow-sm"
         />
       ) : (

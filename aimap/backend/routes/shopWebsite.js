@@ -5,7 +5,7 @@ import path from 'path'
 import pool from '../db/index.js'
 import { requireAuth } from '../middleware/auth.js'
 import { logActivity } from '../services/activityLog.js'
-import { buildPromptPatch } from '../services/websiteAiService.js'
+import { buildPromptPatch, classifyIntent } from '../services/websiteAiService.js'
 import {
   appendVersion,
   buildHistoryItems,
@@ -24,6 +24,13 @@ import {
 import { createShopContainer, getContainerStats, removeContainer } from '../services/shopDockerService.js'
 import { publishWebsiteStatic } from '../services/websiteStaticPublishService.js'
 import { getUploadRoot } from '../services/assetStorage.js'
+import {
+  applyBundle,
+  editBundle,
+  generateFullRedesign,
+  readCurrentBundleHtml,
+  restoreBundleVersion,
+} from '../services/websiteCodegenService.js'
 
 const router = Router()
 
@@ -126,33 +133,32 @@ async function getDeployment(client, shopId) {
   }
 }
 
-async function upsertSite(client, { siteId, shopId, userId, name, slug, config, status }) {
+async function upsertSite(client, { siteId, shopId, userId, name, slug, config, status, renderMode, bundleManifest }) {
   if (siteId) {
-    try {
-      const updated = await client.query(
-        `UPDATE sites
-         SET name = $1, slug = $2, config_json = $3::jsonb, status = $4, updated_at = NOW()
-         WHERE id = $5
-         RETURNING *`,
-        [name, slug, JSON.stringify(config), status, siteId]
-      )
-      return updated.rows[0]
-    } catch (error) {
-      throw error
-    }
+    const updated = await client.query(
+      `UPDATE sites
+       SET name = $1, slug = $2, config_json = $3::jsonb, status = $4,
+           render_mode = COALESCE($6, render_mode),
+           bundle_manifest = CASE WHEN $7::jsonb IS NOT NULL THEN $7::jsonb ELSE bundle_manifest END,
+           updated_at = NOW()
+       WHERE id = $5
+       RETURNING *`,
+      [name, slug, JSON.stringify(config), status, siteId,
+       renderMode || null,
+       bundleManifest ? JSON.stringify(bundleManifest) : null]
+    )
+    return updated.rows[0]
   }
 
-  try {
-    const inserted = await client.query(
-      `INSERT INTO sites (shop_id, user_id, name, slug, config_json, status)
-       VALUES ($1, $2, $3, $4, $5::jsonb, $6)
-       RETURNING *`,
-      [shopId, userId, name, slug, JSON.stringify(config), status]
-    )
-    return inserted.rows[0]
-  } catch (error) {
-    throw error
-  }
+  const inserted = await client.query(
+    `INSERT INTO sites (shop_id, user_id, name, slug, config_json, status, render_mode, bundle_manifest)
+     VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7, $8::jsonb)
+     RETURNING *`,
+    [shopId, userId, name, slug, JSON.stringify(config), status,
+     renderMode || 'config',
+     bundleManifest ? JSON.stringify(bundleManifest) : null]
+  )
+  return inserted.rows[0]
 }
 
 async function getExistingSite(client, shop) {
@@ -359,6 +365,8 @@ router.get('/:id/website/builder-state', requireAuth, async (req, res) => {
       publicUrl: payload.overview.publicUrl,
       previewUrl: payload.overview.previewUrl,
       deploy: payload.deployment,
+      renderMode: payload.site?.render_mode || 'config',
+      bundleManifest: payload.site?.bundle_manifest || null,
       shop: {
         id: shop.id,
         name: shop.name,
@@ -541,11 +549,42 @@ router.post('/:id/website/prompt/preview', requireAuth, async (req, res) => {
     if (!shop) return res.status(403).json({ error: 'Access denied' })
 
     const assets = await listAssets(client, shop.id)
-    const { config } = await ensureSite(client, shop, assets)
+    const { site, config } = await ensureSite(client, shop, assets)
     const body = req.body && typeof req.body === 'object' ? req.body : {}
+    const promptText = toText(body.prompt)
 
+    const renderMode = site.render_mode || 'config'
+    const intent = classifyIntent(promptText)
+
+    // Codegen path: broad redesign OR site already in codegen mode
+    if (intent === 'page_redesign' || renderMode === 'codegen') {
+      const { html: currentHtml } = await readCurrentBundleHtml(shop.id)
+      const codegenFn = intent === 'page_redesign'
+        ? () => generateFullRedesign({ prompt: promptText, shop, assets, creativity: body.creativity })
+        : () => editBundle({ prompt: promptText, shop, assets, currentHtml, sectionId: body.sectionId, creativity: body.creativity })
+
+      const result = await codegenFn()
+      if (!result.ok) {
+        return res.status(422).json({
+          error: result.error || 'AI is required but is not available.',
+          requiresAi: result.requiresAi,
+          intent,
+          renderMode: 'codegen',
+        })
+      }
+
+      return res.json({
+        summary: result.summary,
+        renderMode: 'codegen',
+        previewHtml: result.html,
+        draftPreviewUrl: buildPreviewUrl(shop.id),
+        affectedSections: [],
+      })
+    }
+
+    // Config-patch path: section edit in config mode
     const patch = await buildPromptPatch({
-      prompt: body.prompt,
+      prompt: promptText,
       scope: body.scope,
       sectionId: body.sectionId,
       config,
@@ -577,6 +616,7 @@ router.post('/:id/website/prompt/preview', requireAuth, async (req, res) => {
       affectedSections: merged.affectedSections.length > 0 ? merged.affectedSections : patch.affectedSections,
       draftConfig,
       draftPreviewUrl: buildPreviewUrl(shop.id),
+      renderMode: 'config',
     })
   } catch (error) {
     console.error('website prompt preview error:', error)
@@ -596,9 +636,105 @@ router.post('/:id/website/prompt/apply', requireAuth, async (req, res) => {
     const assets = await listAssets(client, shop.id)
     const { site, config } = await ensureSite(client, shop, assets)
     const body = req.body && typeof req.body === 'object' ? req.body : {}
+    const promptText = toText(body.prompt)
 
+    const renderMode = site.render_mode || 'config'
+    const intent = classifyIntent(promptText)
+
+    // ── Codegen path: broad redesign or site already in codegen mode ──────────
+    if (intent === 'page_redesign' || renderMode === 'codegen') {
+      const { html: currentHtml } = await readCurrentBundleHtml(shop.id)
+      const codegenFn = intent === 'page_redesign'
+        ? () => generateFullRedesign({ prompt: promptText, shop, assets, creativity: body.creativity })
+        : () => editBundle({ prompt: promptText, shop, assets, currentHtml, sectionId: body.sectionId, creativity: body.creativity })
+
+      const result = await codegenFn()
+      if (!result.ok) {
+        return res.status(422).json({
+          error: result.error || 'AI is required for this request but is not available.',
+          requiresAi: result.requiresAi,
+          intent,
+          renderMode: 'codegen',
+        })
+      }
+
+      const { versionId } = await applyBundle({ shopId: shop.id, html: result.html })
+
+      const bundleManifest = {
+        versionId,
+        generatedAt: new Date().toISOString(),
+        prompt: clip(promptText, 200),
+        provider: result.provider || 'unknown',
+        title: result.title,
+        summary: result.summary,
+        intent,
+      }
+
+      // Append version entry to config_json for history rail
+      let nextConfig = {
+        ...config,
+        meta: {
+          ...config.meta,
+          lastPrompt: clip(promptText),
+          updatedAt: new Date().toISOString(),
+        },
+      }
+      nextConfig = appendVersion(nextConfig, {
+        title: clip(promptText || 'Redesign'),
+        source: 'codegen',
+        summary: result.summary,
+        bundleVersionId: versionId,
+      })
+
+      const savedSite = await upsertSite(client, {
+        siteId: site.id,
+        shopId: shop.id,
+        userId: shop.user_id,
+        name: `${shop.name} website`,
+        slug: normalizeSlug(shop.slug),
+        config: nextConfig,
+        status: 'preview_ready',
+        renderMode: 'codegen',
+        bundleManifest,
+      })
+
+      await logWebsitePrompt(client, site.id, 'user', { prompt: promptText, intent, creativity: body.creativity })
+      await logWebsitePrompt(client, site.id, 'assistant', {
+        summary: result.summary,
+        source: 'codegen',
+        provider: result.provider,
+        versionId,
+      })
+
+      try {
+        await logActivity(pool, {
+          userId: req.auth.profileId,
+          action: 'edit_site_codegen',
+          entityType: 'site',
+          entityId: savedSite.id,
+          details: { prompt: clip(promptText, 120), intent, provider: result.provider, versionId },
+          severity: 'info',
+          ipAddress: req.ip || req.headers['x-forwarded-for'],
+        })
+      } catch (logError) {
+        console.warn('activity log edit_site_codegen:', logError.message)
+      }
+
+      return res.json({
+        ok: true,
+        message: result.summary,
+        renderMode: 'codegen',
+        previewUrl: buildPreviewUrl(shop.id),
+        affectedSections: [],
+        config: nextConfig,
+        site: savedSite,
+        versionId,
+      })
+    }
+
+    // ── Config-patch path: section edit in config mode ─────────────────────────
     const patch = await buildPromptPatch({
-      prompt: body.prompt,
+      prompt: promptText,
       scope: body.scope,
       sectionId: body.sectionId,
       config,
@@ -620,12 +756,12 @@ router.post('/:id/website/prompt/apply', requireAuth, async (req, res) => {
       ...merged.config,
       meta: {
         ...merged.config.meta,
-        lastPrompt: clip(body.prompt),
+        lastPrompt: clip(promptText),
         updatedAt: new Date().toISOString(),
       },
     }
     nextConfig = appendVersion(nextConfig, {
-      title: clip(body.prompt || 'Apply prompt'),
+      title: clip(promptText || 'Apply prompt'),
       source: 'prompt',
       summary: patch.summary,
     })
@@ -642,7 +778,7 @@ router.post('/:id/website/prompt/apply', requireAuth, async (req, res) => {
     await publishWebsiteStatic({ shopId: shop.id, config: nextConfig })
 
     await logWebsitePrompt(client, site.id, 'user', {
-      prompt: body.prompt,
+      prompt: promptText,
       scope: body.scope,
       sectionId: body.sectionId,
       creativity: body.creativity,
@@ -661,7 +797,7 @@ router.post('/:id/website/prompt/apply', requireAuth, async (req, res) => {
         entityType: 'site',
         entityId: savedSite.id,
         details: {
-          prompt: clip(body.prompt, 120),
+          prompt: clip(promptText, 120),
           section_id: body.sectionId || null,
           scope: body.scope || 'all',
           source: patch.source,
@@ -676,6 +812,7 @@ router.post('/:id/website/prompt/apply', requireAuth, async (req, res) => {
     res.json({
       ok: true,
       message: patch.summary,
+      renderMode: 'config',
       previewUrl: buildPreviewUrl(shop.id),
       affectedSections: merged.affectedSections.length > 0 ? merged.affectedSections : patch.affectedSections,
       config: nextConfig,
@@ -769,11 +906,44 @@ router.post('/:id/website/versions/:versionId/restore', requireAuth, async (req,
 
     const assets = await listAssets(client, shop.id)
     const { site, config } = await ensureSite(client, shop, assets)
-    const restored = restoreVersion(config, req.params.versionId)
+    const versionId = req.params.versionId
+
+    // Try codegen bundle restore first
+    const bundleRestore = await restoreBundleVersion({ shopId: shop.id, versionId })
+    if (bundleRestore.ok) {
+      const nextConfig = appendVersion(config, {
+        title: `Restore codegen version`,
+        source: 'manual',
+        summary: 'Website restored from codegen bundle snapshot.',
+        bundleVersionId: versionId,
+      })
+      nextConfig.meta = { ...nextConfig.meta, updatedAt: new Date().toISOString() }
+
+      const savedSite = await upsertSite(client, {
+        siteId: site.id,
+        shopId: shop.id,
+        userId: shop.user_id,
+        name: `${shop.name} website`,
+        slug: normalizeSlug(shop.slug),
+        config: nextConfig,
+        status: 'preview_ready',
+        renderMode: 'codegen',
+      })
+      return res.json({
+        ok: true,
+        renderMode: 'codegen',
+        site: savedSite,
+        config: nextConfig,
+        summary: 'Codegen version restored.',
+      })
+    }
+
+    // Fall back to config-based version restore
+    const restored = restoreVersion(config, versionId)
     if (!restored) return res.status(404).json({ error: 'Version not found' })
 
     const nextConfig = appendVersion(restored, {
-      title: `Restore version ${req.params.versionId}`,
+      title: `Restore version ${versionId}`,
       source: 'manual',
       summary: 'Website restored from version history.',
     })
@@ -790,6 +960,7 @@ router.post('/:id/website/versions/:versionId/restore', requireAuth, async (req,
 
     res.json({
       ok: true,
+      renderMode: 'config',
       site: savedSite,
       config: nextConfig,
       sections: getSectionList(nextConfig),
@@ -948,7 +1119,14 @@ router.post('/:id/website/deploy', requireAuth, async (req, res) => {
       source: 'deploy',
       summary: 'Website container deployed and running.',
     })
-    await publishWebsiteStatic({ shopId: shop.id, config: nextConfig })
+
+    const renderMode = site.render_mode || 'config'
+    if (renderMode !== 'codegen') {
+      // Config mode: render HTML from config before deploy
+      await publishWebsiteStatic({ shopId: shop.id, config: nextConfig })
+    }
+    // Codegen mode: index.html was already written by the last applyBundle call — no re-render needed.
+
     await upsertSite(client, {
       siteId: site.id,
       shopId: shop.id,
