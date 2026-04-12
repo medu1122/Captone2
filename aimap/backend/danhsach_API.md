@@ -977,6 +977,18 @@ Response: `insights`, `sparkline`, `commentAi`, `botEvaluation`, `capabilities`,
 
 ---
 
+**POST /shops/:shopId/facebook/pages/:pageId/posts** — Đăng bài mới lên Facebook Page.
+
+Body:
+```json
+{ "message": "Nội dung bài", "imageUrl": "https://..." }
+```
+- `message` bắt buộc. `imageUrl` tuỳ chọn — phải là URL https public; nếu có sẽ đăng lên `/{pageId}/photos`, không có thì đăng text-only `/{pageId}/feed`.
+- Response 201: `{ "ok": true, "postId": "..." }`
+- Lỗi 403 thiếu quyền `pages_manage_posts`; 401 token hết hạn.
+
+---
+
 **PATCH /shops/:shopId/facebook/posts/:postId** — Sửa `message` (chỉ khi bài do app Meta có `META_APP_ID` đăng).
 
 Body: `{ "message": "..." }` — Lỗi `409` `POST_NOT_EDITABLE_APP_ONLY`.

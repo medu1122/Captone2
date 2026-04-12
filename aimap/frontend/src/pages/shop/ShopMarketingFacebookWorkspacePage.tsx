@@ -2,7 +2,12 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { useLocale } from '../../contexts/LocaleContext'
 import { useAuth } from '../../contexts/AuthContext'
-import { facebookMarketingApi, type FbPageDetailResponse } from '../../api/facebookMarketing'
+import {
+  facebookMarketingApi,
+  type FbPageDetailResponse,
+  type FbPostDetailResponse,
+} from '../../api/facebookMarketing'
+import { assetStorageUrl } from '../../api/client'
 import aiActionsBotIcon from '../../assets/image-bot/ai-actions-bot.png'
 
 type PageRow = { id: string; name: string; followers: number; avatarUrl?: string; category?: string }
@@ -57,8 +62,6 @@ function mapFbDetailToMock(d: FbPageDetailResponse): PageDetailMock {
     aiActions: (d.aiActions || []).map((a) => ({ action: a.action, impact: a.expectedImpact || '' })),
   }
 }
-
-const STORAGE_IMAGES = ['/icons/logo-aimap.png', '/icons/logo-aimap.png', '/icons/logo-aimap.png', '/icons/logo-aimap.png']
 
 type PostViewExtraMock = {
   sparkline: number[]
@@ -136,23 +139,51 @@ function getPostViewExtra(postId: string): PostViewExtraMock {
   )
 }
 
-function PostViewModalBody({ post, t }: { post: PostRow; t: (key: string) => string }) {
+function PostViewModalBody({
+  post,
+  detail,
+  loading,
+  t,
+}: {
+  post: PostRow
+  detail: FbPostDetailResponse | null
+  loading: boolean
+  t: (key: string) => string
+}) {
   const vx = getPostViewExtra(post.id)
-  const engaged = post.reactions + post.comments + post.shares
+  const isReal = !!detail && !loading
+
+  const sparkline = isReal ? detail.sparkline : vx.sparkline
+  const commentSummary = isReal ? detail.commentAi.summary : vx.commentSummary
+  const topics = isReal ? detail.commentAi.topics : vx.topics
+  const botScore = isReal ? detail.botEvaluation.score : vx.botScore
+  const botBullets = isReal ? detail.botEvaluation.bullets : vx.botBullets
+  const reach = isReal ? detail.insights.reach : post.reach
+  const engagedCount = isReal ? detail.insights.engaged : post.reactions + post.comments + post.shares
+  const erLabel = isReal ? detail.insights.engagementRate : engagementRateLabel(post)
+  const permalinkUrl = isReal ? detail.permalinkUrl : `https://www.facebook.com/${post.id}`
+  const messageText = isReal ? detail.message : post.text
+
+  if (loading) {
+    return <p className="text-sm text-slate-500 py-8 text-center">{t('marketing.detailLoading')}</p>
+  }
+
   return (
     <div className="space-y-4">
-      <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-100 rounded-none px-2 py-1">{t('marketing.mockDataBadge')}</p>
-      <p className="text-sm text-slate-700 whitespace-pre-wrap break-words">{post.text}</p>
+      {!isReal && (
+        <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-100 rounded-none px-2 py-1">{t('marketing.mockDataBadge')}</p>
+      )}
+      <p className="text-sm text-slate-700 whitespace-pre-wrap break-words">{messageText}</p>
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-        <div className="rounded-none border border-slate-200 p-2"><p className="text-[11px] text-slate-500">{t('marketing.kpiReach')}</p><p className="text-sm font-semibold text-slate-900">{formatReachShort(post.reach)}</p></div>
-        <div className="rounded-none border border-slate-200 p-2"><p className="text-[11px] text-slate-500">{t('marketing.postEngaged')}</p><p className="text-sm font-semibold text-slate-900">{engaged}</p></div>
-        <div className="rounded-none border border-slate-200 p-2"><p className="text-[11px] text-slate-500">{t('marketing.kpiEngagementRate')}</p><p className="text-sm font-semibold text-slate-900">{engagementRateLabel(post)}</p></div>
+        <div className="rounded-none border border-slate-200 p-2"><p className="text-[11px] text-slate-500">{t('marketing.kpiReach')}</p><p className="text-sm font-semibold text-slate-900">{formatReachShort(reach)}</p></div>
+        <div className="rounded-none border border-slate-200 p-2"><p className="text-[11px] text-slate-500">{t('marketing.postEngaged')}</p><p className="text-sm font-semibold text-slate-900">{engagedCount}</p></div>
+        <div className="rounded-none border border-slate-200 p-2"><p className="text-[11px] text-slate-500">{t('marketing.kpiEngagementRate')}</p><p className="text-sm font-semibold text-slate-900">{erLabel}</p></div>
         <div className="rounded-none border border-slate-200 p-2"><p className="text-[11px] text-slate-500">{t('marketing.postReactions')}</p><p className="text-sm font-semibold text-slate-900">{post.reactions}</p></div>
       </div>
       <div className="rounded-none border border-slate-200 p-3">
         <p className="text-xs font-medium text-slate-700 mb-2">{t('marketing.postSparklineTitle')}</p>
         <div className="h-16 flex items-end gap-1">
-          {vx.sparkline.map((h, i) => (
+          {sparkline.map((h, i) => (
             <div key={i} className="flex-1 min-w-0 rounded-none bg-slate-700/80" style={{ height: `${h}%` }} />
           ))}
         </div>
@@ -162,20 +193,20 @@ function PostViewModalBody({ post, t }: { post: PostRow; t: (key: string) => str
           <img src={aiActionsBotIcon} alt="" className="h-5 w-5 object-contain" />
           <p className="text-xs font-medium text-slate-700">{t('marketing.commentAiTitle')}</p>
         </div>
-        <p className="text-sm text-slate-600">{vx.commentSummary}</p>
-        <p className="text-xs text-slate-500 mt-2">{t('marketing.commentTopics')}: {vx.topics.join(', ')}</p>
+        <p className="text-sm text-slate-600">{commentSummary || '—'}</p>
+        {topics.length > 0 && <p className="text-xs text-slate-500 mt-2">{t('marketing.commentTopics')}: {topics.join(', ')}</p>}
       </div>
       <div className="rounded-none border border-slate-200 p-3">
         <div className="flex items-center gap-2 mb-1">
           <img src={aiActionsBotIcon} alt="" className="h-5 w-5 object-contain" />
           <p className="text-xs font-medium text-slate-700">{t('marketing.botEvalTitle')}</p>
-          <span className="text-xs font-semibold text-slate-800">{vx.botScore}/100</span>
+          <span className="text-xs font-semibold text-slate-800">{botScore}/100</span>
         </div>
         <ul className="list-disc list-inside text-sm text-slate-600 space-y-1">
-          {vx.botBullets.map((b, i) => <li key={i}>{b}</li>)}
+          {botBullets.map((b, i) => <li key={i}>{b}</li>)}
         </ul>
       </div>
-      <a href={`https://www.facebook.com/${post.id}`} target="_blank" rel="noreferrer" className="inline-block text-sm text-primary hover:underline">{t('marketing.openOnFacebook')}</a>
+      <a href={permalinkUrl} target="_blank" rel="noreferrer" className="inline-block text-sm text-primary hover:underline">{t('marketing.openOnFacebook')}</a>
     </div>
   )
 }
@@ -289,6 +320,14 @@ export default function ShopMarketingFacebookWorkspacePage() {
   const [detailLoading, setDetailLoading] = useState(false)
   const [detailApi, setDetailApi] = useState<PageDetailMock | null>(null)
   const [newAccessToken, setNewAccessToken] = useState('')
+  const [postDetail, setPostDetail] = useState<FbPostDetailResponse | null>(null)
+  const [postDetailLoading, setPostDetailLoading] = useState(false)
+  const [aiLoading, setAiLoading] = useState(false)
+  const [aiSuggestion, setAiSuggestion] = useState<string | null>(null)
+  const [publishLoading, setPublishLoading] = useState(false)
+  const [editLoading, setEditLoading] = useState(false)
+  const [deleteLoading, setDeleteLoading] = useState(false)
+  const [shopAssets, setShopAssets] = useState<{ id: string; url: string; name?: string }[]>([])
 
   const selectedPage = pages.find((item) => item.id === selectedPageId) || null
   const postsByPage = useMemo(() => posts.filter((item) => item.pageId === selectedPageId), [posts, selectedPageId])
@@ -428,28 +467,106 @@ export default function ShopMarketingFacebookWorkspacePage() {
     setDetailLoading(false)
     if (data && !error) setDetailApi(mapFbDetailToMock(data))
   }
-  const applyAi = () => { const hint = aiGuide.trim() || 'Văn phong rõ ràng, ngắn gọn, có CTA.'; setWriteText(`${writeText.trim()}\n\n${hint}\n#aimap #marketing`.trim()); setAiGuide(''); setOpenAiAssist(false) }
-  const publishUiOnly = () => {
-    if (!previewText.trim()) return
-    setPosts((prev) => [
-      {
-        id: `post-${Date.now()}`,
-        pageId: selectedPageId,
-        title: previewText.slice(0, 36) || 'New post',
-        text: previewText,
-        image: previewImage,
-        reach: 0,
-        reactions: 0,
-        comments: 0,
-        shares: 0,
-        time: 'Now',
-        createdByApp: true,
-      },
-      ...prev,
-    ])
+
+  const openPostViewFetch = async (item: PostRow) => {
+    setActivePost(item)
+    setPostDetail(null)
+    setOpenPostView(true)
+    if (!token || !id) return
+    setPostDetailLoading(true)
+    const { data, error } = await facebookMarketingApi.getPostDetail(token, id, item.id)
+    setPostDetailLoading(false)
+    if (data && !error) setPostDetail(data)
   }
-  const editActivePost = () => { if (!activePost) return; setPosts((prev) => prev.map((item) => (item.id === activePost.id ? activePost : item))); setOpenEdit(false) }
-  const deleteActivePost = () => { if (!activePost) return; setPosts((prev) => prev.filter((item) => item.id !== activePost.id)); setOpenDelete(false) }
+
+  const loadShopAssets = useCallback(async () => {
+    if (!token || !id) return
+    const { data } = await fetch(`/api/shops/${id}/assets`, {
+      headers: { Authorization: `Bearer ${token}` },
+    }).then((r) => r.json().then((d: unknown) => ({ data: d as { assets?: { id: string; storage_path_or_url: string; name?: string }[] } })))
+    const list = (data?.assets || []).map((a) => ({
+      id: a.id,
+      url: assetStorageUrl(a.storage_path_or_url),
+      name: a.name,
+    }))
+    setShopAssets(list)
+  }, [token, id])
+
+  // Load shop assets khi mở image picker
+  useEffect(() => {
+    if (openImagePicker) void loadShopAssets()
+  }, [openImagePicker, loadShopAssets])
+
+  const applyAi = async () => {
+    if (!token || !id) return
+    setAiLoading(true)
+    setAiSuggestion(null)
+    const { data, error } = await facebookMarketingApi.aiAssist(token, id, {
+      draftMessage: writeText,
+      instruction: aiGuide.trim() || 'Viết rõ ràng, ngắn gọn, có CTA.',
+      locale: 'vi',
+    })
+    setAiLoading(false)
+    if (error || !data?.suggestedMessage) {
+      setBanner(error || t('marketing.aiAssistError'))
+      return
+    }
+    setAiSuggestion(data.suggestedMessage)
+  }
+
+  const applyAiSuggestion = () => {
+    if (!aiSuggestion) return
+    setWriteText(aiSuggestion)
+    setAiSuggestion(null)
+    setAiGuide('')
+    setOpenAiAssist(false)
+  }
+
+  const publishPost = async () => {
+    if (!previewText.trim() || !selectedPageId || !token || !id) return
+    setPublishLoading(true)
+    const imageUrl = previewImage && /^https?:\/\//i.test(previewImage) ? previewImage : undefined
+    const { data, error } = await facebookMarketingApi.publishPost(token, id, selectedPageId, {
+      message: previewText.trim(),
+      imageUrl,
+    })
+    setPublishLoading(false)
+    if (error || !data?.ok) {
+      setBanner(error || t('marketing.publishError'))
+      return
+    }
+    setBanner(t('marketing.publishSuccess'))
+    setPreviewText('')
+    setPreviewImage(null)
+    setWriteText('')
+    void loadPosts()
+  }
+
+  const editActivePost = async () => {
+    if (!activePost || !token || !id) return
+    setEditLoading(true)
+    const { error } = await facebookMarketingApi.updatePost(token, id, activePost.id, activePost.text)
+    setEditLoading(false)
+    if (error) {
+      setBanner(error)
+      return
+    }
+    setPosts((prev) => prev.map((item) => (item.id === activePost.id ? activePost : item)))
+    setOpenEdit(false)
+  }
+
+  const deleteActivePost = async () => {
+    if (!activePost || !token || !id) return
+    setDeleteLoading(true)
+    const { error } = await facebookMarketingApi.deletePost(token, id, activePost.id)
+    setDeleteLoading(false)
+    if (error) {
+      setBanner(error)
+      return
+    }
+    setPosts((prev) => prev.filter((item) => item.id !== activePost.id))
+    setOpenDelete(false)
+  }
 
   return (
     <div className="space-y-4">
@@ -574,7 +691,17 @@ export default function ShopMarketingFacebookWorkspacePage() {
             <div className="px-3 pb-2">{previewImage ? <img src={previewImage} alt="preview" className="w-full h-44 object-cover rounded-none border border-slate-200" /> : <button type="button" onClick={() => setOpenImagePicker(true)} className="w-full h-44 rounded-none border-2 border-dashed border-slate-300 text-3xl text-slate-500 hover:bg-slate-100">+</button>}</div>
             <div className="px-3 py-2 border-t border-slate-100 text-xs text-slate-500 flex items-center justify-between"><span>0 reactions</span><span>0 comments · 0 shares</span></div>
             <div className="grid grid-cols-3 border-t border-slate-100"><button type="button" className="py-2 text-xs text-slate-600 hover:bg-slate-50">Like</button><button type="button" className="py-2 text-xs text-slate-600 border-x border-slate-100 hover:bg-slate-50">Comment</button><button type="button" className="py-2 text-xs text-slate-600 hover:bg-slate-50">Share</button></div>
-            <div className="px-3 py-2 border-t border-slate-100 flex justify-end"><button type="button" onClick={publishUiOnly} className="px-3 py-1.5 text-xs rounded-none bg-slate-900 text-white hover:bg-slate-800">Publish (UI only)</button></div>
+            <div className="px-3 py-2 border-t border-slate-100 flex justify-end gap-2">
+              {previewImage && <button type="button" onClick={() => setPreviewImage(null)} className="px-3 py-1.5 text-xs rounded-none border border-slate-200 bg-white text-slate-600 hover:bg-slate-50">✕ Ảnh</button>}
+              <button
+                type="button"
+                disabled={publishLoading || !previewText.trim() || !selectedPageId}
+                onClick={() => void publishPost()}
+                className="px-3 py-1.5 text-xs rounded-none bg-slate-900 text-white hover:bg-slate-800 disabled:opacity-50"
+              >
+                {publishLoading ? '…' : t('marketing.publishPost')}
+              </button>
+            </div>
           </div>
         </div>
       </section>
@@ -619,10 +746,7 @@ export default function ShopMarketingFacebookWorkspacePage() {
                     <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                       <button
                         type="button"
-                        onClick={() => {
-                          setActivePost(item)
-                          setOpenPostView(true)
-                        }}
+                        onClick={() => void openPostViewFetch(item)}
                         className="text-xs text-slate-700 hover:underline"
                       >
                         {t('marketing.postViewAction')}
@@ -810,15 +934,42 @@ export default function ShopMarketingFacebookWorkspacePage() {
           </div>
         </div>
       </CenterModal>
-      <CenterModal open={openAiAssist} title={t('marketing.aiAssist')} onClose={() => setOpenAiAssist(false)}><div className="space-y-3"><textarea value={aiGuide} onChange={(e) => setAiGuide(e.target.value)} rows={4} placeholder={t('marketing.aiPromptPlaceholder')} className="w-full rounded-none border border-slate-200 px-3 py-2 text-sm" /><div className="flex justify-end"><button type="button" onClick={applyAi} className="px-3 py-2 text-sm rounded-none bg-slate-900 text-white hover:bg-slate-800">{t('marketing.applyAi')}</button></div></div></CenterModal>
-      <CenterModal open={openImagePicker} title={t('marketing.pickImage')} onClose={() => setOpenImagePicker(false)}><div className="grid grid-cols-4 gap-2">{STORAGE_IMAGES.map((img, index) => <button key={`${img}-${index}`} type="button" onClick={() => { setPreviewImage(img); setOpenImagePicker(false) }} className="rounded-none overflow-hidden border border-slate-200"><img src={img} alt="storage" className="h-16 w-full object-cover" /></button>)}</div><div className="mt-3 flex justify-end"><Link to={`/shops/${id}/image-bot`} className="text-sm text-primary hover:underline">{t('marketing.useImageBot')}</Link></div></CenterModal>
+      <CenterModal open={openAiAssist} title={t('marketing.aiAssist')} onClose={() => { setOpenAiAssist(false); setAiSuggestion(null) }}>
+        <div className="space-y-3">
+          <textarea value={aiGuide} onChange={(e) => setAiGuide(e.target.value)} rows={3} placeholder={t('marketing.aiPromptPlaceholder')} className="w-full rounded-none border border-slate-200 px-3 py-2 text-sm" />
+          {aiSuggestion && (
+            <div className="rounded-none border border-slate-200 bg-slate-50 p-3">
+              <p className="text-xs text-slate-500 mb-1">{t('marketing.aiSuggestion')}</p>
+              <p className="text-sm text-slate-800 whitespace-pre-wrap">{aiSuggestion}</p>
+            </div>
+          )}
+          <div className="flex justify-end gap-2">
+            <button type="button" disabled={aiLoading} onClick={() => void applyAi()} className="px-3 py-2 text-sm rounded-none border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-50">{aiLoading ? '…' : t('marketing.generateAi')}</button>
+            {aiSuggestion && <button type="button" onClick={applyAiSuggestion} className="px-3 py-2 text-sm rounded-none bg-slate-900 text-white hover:bg-slate-800">{t('marketing.applyAi')}</button>}
+          </div>
+        </div>
+      </CenterModal>
+      <CenterModal open={openImagePicker} title={t('marketing.pickImage')} onClose={() => setOpenImagePicker(false)}>
+        {shopAssets.length > 0 ? (
+          <div className="grid grid-cols-4 gap-2">
+            {shopAssets.map((a) => (
+              <button key={a.id} type="button" onClick={() => { setPreviewImage(a.url); setOpenImagePicker(false) }} className="rounded-none overflow-hidden border border-slate-200 hover:border-slate-400">
+                <img src={a.url} alt={a.name || ''} className="h-16 w-full object-cover" />
+              </button>
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-slate-500 py-4 text-center">{t('marketing.noAssets')}</p>
+        )}
+        <div className="mt-3 flex justify-end"><Link to={`/shops/${id}/image-bot`} className="text-sm text-primary hover:underline">{t('marketing.useImageBot')}</Link></div>
+      </CenterModal>
       <CenterModal
         open={openPostView}
         title={activePost ? `${t('marketing.postViewTitle')} · ${activePost.title}` : t('marketing.postViewTitle')}
-        onClose={() => { setOpenPostView(false); setActivePost(null) }}
+        onClose={() => { setOpenPostView(false); setActivePost(null); setPostDetail(null) }}
         size="lg"
       >
-        {activePost ? <PostViewModalBody post={activePost} t={t} /> : null}
+        {activePost ? <PostViewModalBody post={activePost} detail={postDetail} loading={postDetailLoading} t={t} /> : null}
       </CenterModal>
       <CenterModal open={openEdit} title={t('marketing.editPost')} onClose={() => setOpenEdit(false)}>
         <div className="space-y-3">
@@ -826,20 +977,22 @@ export default function ShopMarketingFacebookWorkspacePage() {
             <p className="text-xs text-amber-800 bg-amber-50 border border-amber-100 rounded-none px-2 py-2">{t('marketing.editPostApiNote')}</p>
           )}
           <div>
-            <p className="text-xs text-slate-500 mb-1">{t('marketing.postTitle')}</p>
-            <input value={activePost?.title || ''} onChange={(e) => setActivePost((prev) => (prev ? { ...prev, title: e.target.value } : prev))} className="w-full rounded-none border border-slate-200 px-3 py-2 text-sm" />
-          </div>
-          <div>
             <p className="text-xs text-slate-500 mb-1">{t('marketing.postBody')}</p>
-            <textarea value={activePost?.text || ''} onChange={(e) => setActivePost((prev) => (prev ? { ...prev, text: e.target.value } : prev))} rows={6} className="w-full rounded-none border border-slate-200 px-3 py-2 text-sm resize-y min-h-[8rem]" />
+            <textarea value={activePost?.text || ''} onChange={(e) => setActivePost((prev) => (prev ? { ...prev, text: e.target.value } : prev))} rows={7} className="w-full rounded-none border border-slate-200 px-3 py-2 text-sm resize-y min-h-[8rem]" />
           </div>
           <div className="flex justify-end gap-2">
             <button type="button" onClick={() => setOpenEdit(false)} className="px-3 py-2 text-sm rounded-none border border-slate-200 bg-white">{t('shopDetail.cancelEdit')}</button>
-            <button type="button" onClick={editActivePost} className="px-3 py-2 text-sm rounded-none bg-slate-900 text-white hover:bg-slate-800">{t('marketing.save')}</button>
+            <button type="button" disabled={editLoading} onClick={() => void editActivePost()} className="px-3 py-2 text-sm rounded-none bg-slate-900 text-white hover:bg-slate-800 disabled:opacity-50">{editLoading ? '…' : t('marketing.save')}</button>
           </div>
         </div>
       </CenterModal>
-      <CenterModal open={openDelete} title={t('marketing.deletePost')} onClose={() => setOpenDelete(false)}><p className="text-sm text-slate-700 mb-3">{t('marketing.deleteConfirm')}</p><div className="flex justify-end gap-2"><button type="button" onClick={() => setOpenDelete(false)} className="px-3 py-2 text-sm rounded-none border border-slate-200 bg-white">{t('shopDetail.cancelEdit')}</button><button type="button" onClick={deleteActivePost} className="px-3 py-2 text-sm rounded-none bg-red-600 text-white hover:bg-red-700">{t('storage.delete')}</button></div></CenterModal>
+      <CenterModal open={openDelete} title={t('marketing.deletePost')} onClose={() => setOpenDelete(false)}>
+        <p className="text-sm text-slate-700 mb-3">{t('marketing.deleteConfirm')}</p>
+        <div className="flex justify-end gap-2">
+          <button type="button" onClick={() => setOpenDelete(false)} className="px-3 py-2 text-sm rounded-none border border-slate-200 bg-white">{t('shopDetail.cancelEdit')}</button>
+          <button type="button" disabled={deleteLoading} onClick={() => void deleteActivePost()} className="px-3 py-2 text-sm rounded-none bg-red-600 text-white hover:bg-red-700 disabled:opacity-50">{deleteLoading ? '…' : t('storage.delete')}</button>
+        </div>
+      </CenterModal>
     </div>
   )
 }
