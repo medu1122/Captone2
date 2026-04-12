@@ -126,8 +126,7 @@ flowchart TB
 - **database**: PostgreSQL (hiện đang dùng **DB ngoài**, connect qua `DATABASE_URL`).
 
 **Biến môi trường:**
-- **Docker/Production:** đặt ở `aimap/.env` (mẫu: `aimap/.env.example`) → docker compose inject vào container.
-- **Chạy dev trực tiếp backend:** dùng `aimap/backend/.env` (mẫu: `aimap/backend/.env.example`).
+- **Env chính:** `aimap/.env` — backend nạp qua `loadEnv.js`, Vite dùng `envDir` trỏ `aimap/`.
 
 **Ports mặc định:**
 - Frontend: `:80` → `http://localhost`
@@ -327,7 +326,7 @@ flowchart TB
   - Cần app review cho quyền `pages_show_list`, `pages_manage_posts`, `pages_read_engagement`, `read_insights` (tùy tính năng).
   - Quota/rate limit phụ thuộc token/app/business use case; không nên giả định vô hạn.
   - Cần refresh/rotate token và log lỗi publish rõ ràng cho từng shop/page.
-  - `META_APP_ID` trên backend để nhận diện bài do app đăng (sửa bài qua API chỉ khi khớp app id).
+  - `FACEBOOK_APP_ID` trong `aimap/.env` để nhận diện bài do app đăng (sửa bài qua API chỉ khi khớp app id).
 - **Khuyến nghị model cho text marketing:**
   - **Ollama (Qwen2.5:7b) trên VPS `103.116.38.145`** — chi phí token = 0, cần vận hành máy; hoặc API OpenAI/Gemini tách khỏi image-bot.
   - Chốt một model rẻ cho volume cao + một model fallback khi lỗi.

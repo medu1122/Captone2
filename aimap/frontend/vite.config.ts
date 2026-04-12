@@ -11,6 +11,8 @@ export default defineConfig({
     alias: { '@': path.resolve(__dirname, 'src') },
   },
   root: '.',
+  /** Đọc VITE_* từ aimap/.env (cùng file backend load). */
+  envDir: path.resolve(__dirname, '..'),
   server: {
     port: 5111,
     proxy: {

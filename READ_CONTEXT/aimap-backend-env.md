@@ -1,11 +1,8 @@
-# AIMAP Backend — Biến môi trường
+# AIMAP — Biến môi trường
 
-**Nguồn mẫu (chạy trực tiếp backend):** [aimap/backend/.env.example](../aimap/backend/.env.example) — copy thành `aimap/backend/.env` và điền giá trị thật.
+**File env duy nhất cần quản:** **`aimap/.env`** — đồng bộ VPS / máy dev / Docker. Backend nạp qua `aimap/backend/loadEnv.js` (import đầu `index.js`). Frontend Vite đọc cùng file (`envDir` trỏ thư mục `aimap/` trong `vite.config.ts`).
 
-**Docker/Production (docker compose):** dùng file `aimap/.env` (nguồn mẫu: [aimap/.env.example](../aimap/.env.example)).
-Compose sẽ inject biến vào container backend (không dùng `aimap/backend/.env`).
-
-**Không commit** file `.env` lên git. Khi thêm biến env mới trong code backend, cập nhật `.env.example` và bảng dưới đây.
+**Không commit** file `.env` lên git. Khi thêm biến env mới trong code, cập nhật bảng dưới và (nếu có) `aimap/backend/danhsach_API.md`.
 
 | Biến | Mục đích |
 |------|----------|
@@ -41,13 +38,13 @@ Compose sẽ inject biến vào container backend (không dùng `aimap/backend/.
 | `VIETQR_CLIENT_PASSWORD` | (Tuỳ chọn) Password Basic Auth phía khách hàng cấu hình trong VietQR API Service |
 | `VIETQR_CALLBACK_SECRET` | (Tuỳ chọn) Secret để verify trường `sign` callback VietQR (nếu tài khoản có bật) |
 | `VIETQR_CLIENT_TOKEN_TTL_SEC` | TTL token cấp bởi endpoint `POST /vqr/api/token_generate` (mặc định `900` giây) |
-| `FB_APP_ID` | Meta App ID (OAuth / tool Meta) — có thể trùng `META_APP_ID` |
-| `FB_APP_SECRET` | Meta App Secret để exchange code lấy user token (OAuth — khi triển khai flow đầy đủ) |
-| `META_APP_ID` | **Bắt buộc nếu cần biết bài post do app nào tạo** — dùng trong `routes/shopFacebookMarketing.js` để set `canEditViaApi` / PATCH post |
-| `FACEBOOK_GRAPH_VERSION` | Version Graph API khi gọi từ backend (mặc định `v20.0`) — biến dùng trong `facebookGraphService.js` |
-| `FB_GRAPH_VERSION` | (Tuỳ chọn) Alias / tài liệu cũ; ưu tiên `FACEBOOK_GRAPH_VERSION` trong code hiện tại |
-| `FB_OAUTH_SCOPES` | Scope OAuth cho page flow (vd. `pages_show_list,pages_manage_posts,pages_read_engagement`) |
-| `FACEBOOK_OAUTH_REDIRECT_URI` | URL callback **đầy đủ** backend (vd. `https://captone2.site/api/facebook/oauth/callback` hoặc `http://localhost:4111/api/facebook/oauth/callback`) — phải khai báo y hệt trong Meta App → Facebook Login → Valid OAuth Redirect URIs |
+| `FACEBOOK_APP_ID` | Meta App ID — OAuth + so khớp app id bài post (`canEditViaApi`). Fallback trong code: `FB_APP_ID`, `META_APP_ID` |
+| `FACEBOOK_APP_SECRET` | App Secret — đổi code/token. Fallback: `FB_APP_SECRET` |
+| `FACEBOOK_GRAPH_VERSION` | Graph API (mặc định `v20.0`) |
+| `FACEBOOK_OAUTH_SCOPES` | Chuỗi scope OAuth (không khoảng trắng). Fallback: `FB_OAUTH_SCOPES`; mặc định trong `facebookEnv.js` |
+| `FACEBOOK_OAUTH_REDIRECT_URI` | Callback backend — khớp Meta → Valid OAuth Redirect URIs |
+| `VITE_FACEBOOK_APP_ID` | Cùng App ID — bật Facebook JS SDK khi build/dev |
+| `VITE_API_URL` | Base API có `/api` (vd. `http://localhost:4111/api`) — Vite đọc từ `aimap/.env` |
 | `MARKETING_AI_BASE_URL` | URL Ollama trên VPS (vd. `http://IP:11434`) — tóm tắt comment / đánh giá bài / AI assist; không set → API vẫn chạy, phần AI trả placeholder |
 | `MARKETING_AI_MODEL` | Tên model Ollama (mặc định `qwen2.5:7b`) |
 | `MARKETING_AI_TIMEOUT_MS` | Timeout gọi Ollama (mặc định `45000`) |
@@ -61,13 +58,11 @@ Compose sẽ inject biến vào container backend (không dùng `aimap/backend/.
 | `MARKETING_OPENAI_MODEL` | Model OpenAI cho draft content (vd. `gpt-4o-mini`) |
 | `MARKETING_GEMINI_MODEL` | Model Gemini cho draft content (vd. `gemini-2.5-flash`) |
 
-**Frontend:** `VITE_API_URL` trong `aimap/frontend/.env` phải trỏ tới API có suffix `/api`, vd. `http://localhost:4111/api`. Không nhầm với `API_PUBLIC_URL`.
+**Facebook (đồ án, tối thiểu trong `aimap/.env`):** `FACEBOOK_APP_ID`, `FACEBOOK_APP_SECRET`, `FACEBOOK_GRAPH_VERSION`, `FACEBOOK_OAUTH_SCOPES`, `FACEBOOK_OAUTH_REDIRECT_URI`, `VITE_FACEBOOK_APP_ID`. Tuỳ chọn: `VITE_FACEBOOK_OAUTH_SCOPES`, `VITE_FACEBOOK_GRAPH_VERSION`, `VITE_FACEBOOK_LOGIN_CONFIG_ID` (fallback tên `VITE_FB_*` trong code).
 
-**Facebook JS SDK (kết nối Page không bắt buộc redirect):** build frontend cần `VITE_FB_APP_ID` (cùng App Meta với `FB_APP_ID`/`META_APP_ID`). Tuỳ chọn: `VITE_FACEBOOK_GRAPH_VERSION` (vd. `v20.0`), `VITE_FB_OAUTH_SCOPES` (khớp `FB_OAUTH_SCOPES` trên server — mặc định backend đã gồm `read_insights` cho insights page/post), `VITE_FB_LOGIN_CONFIG_ID` (ID cấu hình đăng nhập Meta → nút `fb:login-button` dùng `config_id` thay vì `scope`).
-
-**OAuth scope mặc định (backend `FB_OAUTH_SCOPES` nếu không set env):** `pages_show_list`, `pages_read_engagement`, `pages_manage_posts`, `pages_manage_engagement`, `read_insights`, `public_profile` — đủ để thử nghiệm flow marketing + insights; nếu App Review khai thêm quyền (`pages_manage_metadata`, `business_management`, …) thì set `FB_OAUTH_SCOPES` / `VITE_FB_OAUTH_SCOPES` đúng chuỗi Meta yêu cầu.
+**OAuth scope mặc định** (khi không set `FACEBOOK_OAUTH_SCOPES`): `public_profile`, `email`, `pages_show_list`, `pages_read_engagement`, `pages_manage_posts` — xem `aimap/backend/services/facebookEnv.js`. Cần KPI insights Graph → thêm `read_insights` (và thường `pages_manage_engagement`) vào chuỗi scope.
 
 **Ghi chú Docker/Production:**
-- Backend thường gọi DB theo `DATABASE_URL` trong `aimap/.env`.
+- Backend + Vite đều đọc **`aimap/.env`**.
 - Nếu chạy sau reverse proxy (Nginx/Caddy) nên set `TRUST_PROXY=1` để log IP đúng.
 - Để VietQR API Service test pass E05: frontend nginx phải proxy thêm đường dẫn `/vqr` về backend.

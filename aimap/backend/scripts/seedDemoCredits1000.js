@@ -2,7 +2,7 @@
  * SCRIPT MỘT LẦN: +1000 CREDIT CHO USER CHƯA CÓ BẢN GHI demo_seed_v1.
  * CHẠY TỪ aimap/backend: NODE SCRIPTS/SEEDDEMOCREDITS1000.JS (CẦN DATABASE_URL).
  */
-import 'dotenv/config'
+import '../loadEnv.js'
 import pool from '../db/index.js'
 
 const REF_TYPE = 'demo_seed_v1'

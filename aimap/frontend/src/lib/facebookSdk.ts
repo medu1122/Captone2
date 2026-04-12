@@ -3,9 +3,12 @@
  * Tài liệu: https://developers.facebook.com/docs/javascript
  */
 
+const VITE_SCOPES =
+  (import.meta.env.VITE_FACEBOOK_OAUTH_SCOPES || import.meta.env.VITE_FB_OAUTH_SCOPES) as string | undefined
+
 export const FB_LOGIN_SCOPES =
-  (import.meta.env.VITE_FB_OAUTH_SCOPES as string | undefined)?.replace(/\s/g, '') ||
-  'pages_show_list,pages_read_engagement,pages_manage_posts,pages_manage_engagement,read_insights,public_profile'
+  VITE_SCOPES?.replace(/\s/g, '') ||
+  'public_profile,email,pages_show_list,pages_read_engagement,pages_manage_posts'
 
 export type FbLoginStatus = 'connected' | 'not_authorized' | 'unknown'
 

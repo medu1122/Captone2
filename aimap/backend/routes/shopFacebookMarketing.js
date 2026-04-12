@@ -15,16 +15,12 @@ import {
 } from '../services/marketingAiBot.js'
 import { logActivity } from '../services/activityLog.js'
 import { exchangeLongLivedUserToken, saveFacebookPagesForShop } from '../services/facebookOAuthService.js'
+import { getFacebookAppId, getFacebookOAuthScopes } from '../services/facebookEnv.js'
 
 const router = Router()
-const META_APP_ID = process.env.META_APP_ID || ''
-const FB_APP_ID_OAUTH = (process.env.FB_APP_ID || process.env.META_APP_ID || '').trim()
+const FACEBOOK_APP_ID = getFacebookAppId()
 const FACEBOOK_OAUTH_REDIRECT_URI = (process.env.FACEBOOK_OAUTH_REDIRECT_URI || '').trim()
-/** Mặc định khớp Graph trong route này (insights page/post, bài, tương tác). Override bằng FB_OAUTH_SCOPES. */
-const FB_OAUTH_SCOPES = (
-  process.env.FB_OAUTH_SCOPES ||
-    'pages_show_list,pages_read_engagement,pages_manage_posts,pages_manage_engagement,read_insights,public_profile'
-).replace(/\s/g, '')
+const DIALOG_OAUTH_SCOPES = getFacebookOAuthScopes()
 const GRAPH_VER_DIALOG = process.env.FACEBOOK_GRAPH_VERSION || 'v20.0'
 
 async function assertShopOwner(client, shopId, profileId) {
@@ -104,21 +100,21 @@ function engagementRate(reach, r, c, s) {
 
 /** GET .../facebook/oauth/url — URL dialog Facebook Login + state JWT */
 router.get('/:id/facebook/oauth/url', requireAuth, async (req, res) => {
-  if (!FB_APP_ID_OAUTH || !FACEBOOK_OAUTH_REDIRECT_URI) {
+  if (!FACEBOOK_APP_ID || !FACEBOOK_OAUTH_REDIRECT_URI) {
     return res.status(503).json({
       code: 'OAUTH_NOT_CONFIGURED',
-      message: 'Chưa cấu hình FB_APP_ID (hoặc META_APP_ID) hoặc FACEBOOK_OAUTH_REDIRECT_URI',
+      message: 'Chưa cấu hình FACEBOOK_APP_ID hoặc FACEBOOK_OAUTH_REDIRECT_URI',
     })
   }
   const shopId = req.params.id
   const profileId = req.auth.profileId
   const state = signToken({ purpose: 'fb_oauth', shopId, profileId }, '15m')
   const url = new URL(`https://www.facebook.com/${GRAPH_VER_DIALOG}/dialog/oauth`)
-  url.searchParams.set('client_id', FB_APP_ID_OAUTH)
+  url.searchParams.set('client_id', FACEBOOK_APP_ID)
   url.searchParams.set('redirect_uri', FACEBOOK_OAUTH_REDIRECT_URI)
   url.searchParams.set('state', state)
   url.searchParams.set('response_type', 'code')
-  url.searchParams.set('scope', FB_OAUTH_SCOPES)
+  url.searchParams.set('scope', DIALOG_OAUTH_SCOPES)
   res.json({ url: url.toString() })
 })
 
@@ -498,7 +494,7 @@ router.get('/:id/facebook/pages/:pageId/posts', requireAuth, async (req, res) =>
       const er = engagementRate(reach, reactions, comments, shares)
       const title = (p.message || '').split('\n')[0].slice(0, 80) || '(Không tiêu đề)'
       const appId = p.application?.id
-      const canEdit = META_APP_ID && appId && String(appId) === String(META_APP_ID)
+      const canEdit = FACEBOOK_APP_ID && appId && String(appId) === String(FACEBOOK_APP_ID)
       return {
         postId: p.id,
         title,
@@ -630,7 +626,7 @@ router.get('/:id/facebook/posts/:postId/detail', requireAuth, async (req, res) =
     }
 
     const appId = post.application?.id
-    const canEdit = META_APP_ID && appId && String(appId) === String(META_APP_ID)
+    const canEdit = FACEBOOK_APP_ID && appId && String(appId) === String(FACEBOOK_APP_ID)
 
     res.json({
       postId: post.id,
@@ -691,7 +687,7 @@ router.patch('/:id/facebook/posts/:postId', requireAuth, async (req, res) => {
       return res.status(400).json({ code: e.code || 'FB_GRAPH_ERROR', message: e.message })
     }
     const appId = post.application?.id
-    if (!META_APP_ID || !appId || String(appId) !== String(META_APP_ID)) {
+    if (!FACEBOOK_APP_ID || !appId || String(appId) !== String(FACEBOOK_APP_ID)) {
       return res.status(409).json({ code: 'POST_NOT_EDITABLE_APP_ONLY', message: 'Chỉ sửa được bài do app đăng' })
     }
 

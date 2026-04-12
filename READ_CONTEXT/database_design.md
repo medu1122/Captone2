@@ -1024,7 +1024,7 @@ CREATE INDEX idx_pipeline_user_id ON pipeline_runs (user_id);
 CREATE INDEX idx_pipeline_status  ON pipeline_runs (status);
 ```
 
-**Env backend (bot Ollama trên VPS — marketing):** `MARKETING_AI_BASE_URL` (vd. `http://IP:11434`), `MARKETING_AI_MODEL` (vd. `qwen2.5:7b`), tùy chọn `FACEBOOK_GRAPH_VERSION`, `META_APP_ID`. Không set `MARKETING_AI_BASE_URL` thì API marketing vẫn chạy nhưng phần AI trả placeholder.
+**Env (`aimap/.env` — marketing):** `MARKETING_AI_BASE_URL` (vd. `http://IP:11434`), `MARKETING_AI_MODEL` (vd. `qwen2.5:7b`), tùy chọn `FACEBOOK_GRAPH_VERSION`, `FACEBOOK_APP_ID`. Không set `MARKETING_AI_BASE_URL` thì API marketing vẫn chạy nhưng phần AI trả placeholder.
 
 ### 8.3 Sprint 3 — Conversation, Deploy, Activity Logs (3 bảng)
 

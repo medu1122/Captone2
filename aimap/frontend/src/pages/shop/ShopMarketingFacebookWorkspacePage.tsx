@@ -332,14 +332,21 @@ export default function ShopMarketingFacebookWorkspacePage() {
   const [aiLoading, setAiLoading] = useState(false)
   const [aiSuggestion, setAiSuggestion] = useState<string | null>(null)
   const [publishLoading, setPublishLoading] = useState(false)
+  const [lastPostLink, setLastPostLink] = useState<string | null>(null)
   const [editLoading, setEditLoading] = useState(false)
   const [deleteLoading, setDeleteLoading] = useState(false)
   const [shopAssets, setShopAssets] = useState<{ id: string; url: string; name?: string }[]>([])
   const [fbSdkReady, setFbSdkReady] = useState(false)
   const fbXfbmlRef = useRef<HTMLDivElement>(null)
 
-  const viteFbAppId = (import.meta.env.VITE_FB_APP_ID as string | undefined)?.trim()
-  const viteFbLoginConfigId = (import.meta.env.VITE_FB_LOGIN_CONFIG_ID as string | undefined)?.trim()
+  const viteFbAppId = (
+    (import.meta.env.VITE_FACEBOOK_APP_ID || import.meta.env.VITE_FB_APP_ID) as string | undefined
+  )?.trim()
+  const viteFbLoginConfigId = (
+    (import.meta.env.VITE_FACEBOOK_LOGIN_CONFIG_ID || import.meta.env.VITE_FB_LOGIN_CONFIG_ID) as
+      | string
+      | undefined
+  )?.trim()
   const viteGraphVersion = import.meta.env.VITE_FACEBOOK_GRAPH_VERSION || 'v20.0'
 
   const selectedPage = pages.find((item) => item.id === selectedPageId) || null
@@ -637,6 +644,8 @@ export default function ShopMarketingFacebookWorkspacePage() {
       setBanner(error || t('marketing.publishError'))
       return
     }
+    const link = data.postId ? `https://www.facebook.com/${data.postId}` : null
+    setLastPostLink(link)
     setBanner(t('marketing.publishSuccess'))
     setPreviewText('')
     setPreviewImage(null)
@@ -681,8 +690,15 @@ export default function ShopMarketingFacebookWorkspacePage() {
 
       {banner && (
         <div className="rounded-none border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-800 flex items-center justify-between gap-2">
-          <span>{banner}</span>
-          <button type="button" className="text-xs text-slate-600 hover:text-slate-900" onClick={() => setBanner(null)}>
+          <span className="flex items-center gap-2 flex-wrap">
+            {banner}
+            {lastPostLink && (
+              <a href={lastPostLink} target="_blank" rel="noopener noreferrer" className="text-[#1877f2] underline text-xs">
+                {t('marketing.viewOnFacebook')}
+              </a>
+            )}
+          </span>
+          <button type="button" className="text-xs text-slate-600 hover:text-slate-900" onClick={() => { setBanner(null); setLastPostLink(null) }}>
             ×
           </button>
         </div>

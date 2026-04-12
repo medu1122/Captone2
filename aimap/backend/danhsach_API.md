@@ -903,7 +903,7 @@ Response: `{ "ok": true }`
 
 Prefix: `/api/shops/:shopId/facebook/...` — `:shopId` = UUID shop. Header: `Authorization: Bearer <token>`.
 
-**Env server:** `MARKETING_AI_BASE_URL` (Ollama, vd. `http://IP_VPS:11434`), `MARKETING_AI_MODEL` (vd. `qwen2.5:7b`), `META_APP_ID` (để biết bài nào sửa được qua API), `FACEBOOK_GRAPH_VERSION` (mặc định `v20.0`). OAuth Page: `FB_APP_ID` (hoặc `META_APP_ID`), `FB_APP_SECRET`, `FACEBOOK_OAUTH_REDIRECT_URI` (phải khớp App Meta, ví dụ `https://<host>/api/facebook/oauth/callback`), `FB_OAUTH_SCOPES` (mặc định gồm `read_insights`, `pages_manage_engagement` + các scope page cơ bản; xem `shopFacebookMarketing.js`), `FRONTEND_URL` (redirect sau callback).
+**Env (`aimap/.env`):** `MARKETING_AI_BASE_URL`, `MARKETING_AI_MODEL`, `FACEBOOK_APP_ID` (so khớp app id bài post), `FACEBOOK_APP_SECRET`, `FACEBOOK_GRAPH_VERSION`, `FACEBOOK_OAUTH_SCOPES`, `FACEBOOK_OAUTH_REDIRECT_URI`, `FRONTEND_URL`. Chi tiết: `READ_CONTEXT/aimap-backend-env.md`, mặc định scope: `facebookEnv.js`.
 
 **Migration DB:** `psql $DATABASE_URL -f aimap/backend/db/migrations/006_facebook_marketing.sql`
 
@@ -911,7 +911,7 @@ Prefix: `/api/shops/:shopId/facebook/...` — `:shopId` = UUID shop. Header: `Au
 
 **GET /shops/:shopId/facebook/oauth/url** — Trả URL Facebook Login (dialog OAuth) + `state` JWT (`purpose: fb_oauth`, `shopId`, `profileId`, TTL 15 phút).
 
-- `503` + `code: OAUTH_NOT_CONFIGURED` nếu thiếu `FB_APP_ID`/`META_APP_ID` hoặc `FACEBOOK_OAUTH_REDIRECT_URI`.
+- `503` + `code: OAUTH_NOT_CONFIGURED` nếu thiếu `FACEBOOK_APP_ID` (hoặc fallback `FB_APP_ID`/`META_APP_ID`) hoặc `FACEBOOK_OAUTH_REDIRECT_URI`.
 
 Response: `{ "url": "https://www.facebook.com/v20.0/dialog/oauth?..." }`
 
@@ -999,7 +999,7 @@ Body:
 
 ---
 
-**PATCH /shops/:shopId/facebook/posts/:postId** — Sửa `message` (chỉ khi bài do app Meta có `META_APP_ID` đăng).
+**PATCH /shops/:shopId/facebook/posts/:postId** — Sửa `message` (chỉ khi bài do app có `FACEBOOK_APP_ID` khớp app id Graph).
 
 Body: `{ "message": "..." }` — Lỗi `409` `POST_NOT_EDITABLE_APP_ONLY`.
 

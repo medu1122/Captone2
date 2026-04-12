@@ -2,7 +2,7 @@
  * BACKEND AIMAP — KHỞI ĐỘNG EXPRESS, KẾT NỐI DB, POLL EXPIRE PAYMENT.
  * CHẠY: NODE INDEX.JS HOẶC NPM RUN DEV
  */
-import 'dotenv/config'
+import './loadEnv.js'
 import express from 'express'
 import cors from 'cors'
 import { connectDB } from './db/index.js'
@@ -19,6 +19,7 @@ import creditsRoutes from './routes/credits.js'
 import webhooksRoutes from './routes/webhooks.js'
 import { getUploadRoot } from './services/assetStorage.js'
 import { startPaymentPollLoop } from './services/paymentPoll.js'
+import { getFacebookAppId } from './services/facebookEnv.js'
 
 const app = express()
 const PORT = process.env.PORT ?? 4111
@@ -50,6 +51,14 @@ app.use('/vqr', webhooksRoutes)
 
 await connectDB()
 startPaymentPollLoop()
+
+const fbOAuthId = getFacebookAppId()
+const fbOAuthRedirect = (process.env.FACEBOOK_OAUTH_REDIRECT_URI || '').trim()
+if (!fbOAuthId || !fbOAuthRedirect) {
+  console.warn(
+    '[aimap] GET .../facebook/oauth/url sẽ trả 503: thiếu FACEBOOK_APP_ID hoặc FACEBOOK_OAUTH_REDIRECT_URI'
+  )
+}
 
 // NGHE 0.0.0.0 ĐỂ TRUY CẬP TỪ MẠNG / DOCKER
 app.listen(PORT, '0.0.0.0', () => {

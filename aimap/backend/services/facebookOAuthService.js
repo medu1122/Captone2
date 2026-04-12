@@ -3,20 +3,19 @@
  * Tài liệu: https://developers.facebook.com/docs/facebook-login/guides/advanced/manual-flow
  */
 import { graphGet, mapFacebookError } from './facebookGraphService.js'
+import { getFacebookAppId, getFacebookAppSecret } from './facebookEnv.js'
 
 const GRAPH_VERSION = process.env.FACEBOOK_GRAPH_VERSION || 'v20.0'
 
 function getAppCredentials() {
-  const clientId = (process.env.FB_APP_ID || process.env.META_APP_ID || '').trim()
-  const clientSecret = (process.env.FB_APP_SECRET || '').trim()
-  return { clientId, clientSecret }
+  return { clientId: getFacebookAppId(), clientSecret: getFacebookAppSecret() }
 }
 
 /** Bước 2–3: code → short-lived user access_token */
 export async function exchangeCodeForUserAccessToken(code, redirectUri) {
   const { clientId, clientSecret } = getAppCredentials()
   if (!clientId || !clientSecret) {
-    const e = new Error('Chưa cấu hình FB_APP_ID / FB_APP_SECRET')
+    const e = new Error('Chưa cấu hình FACEBOOK_APP_ID / FACEBOOK_APP_SECRET')
     e.code = 'OAUTH_NOT_CONFIGURED'
     throw e
   }
@@ -36,7 +35,7 @@ export async function exchangeCodeForUserAccessToken(code, redirectUri) {
 export async function exchangeLongLivedUserToken(shortLivedToken) {
   const { clientId, clientSecret } = getAppCredentials()
   if (!clientId || !clientSecret) {
-    const e = new Error('Chưa cấu hình FB_APP_ID / FB_APP_SECRET')
+    const e = new Error('Chưa cấu hình FACEBOOK_APP_ID / FACEBOOK_APP_SECRET')
     e.code = 'OAUTH_NOT_CONFIGURED'
     throw e
   }

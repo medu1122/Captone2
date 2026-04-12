@@ -3,7 +3,7 @@
  * Run: node scripts/seedPromptImages.js (from aimap/backend)
  * Env: DATABASE_URL
  */
-import 'dotenv/config'
+import '../loadEnv.js'
 import fs from 'fs/promises'
 import path from 'path'
 import { fileURLToPath } from 'url'
