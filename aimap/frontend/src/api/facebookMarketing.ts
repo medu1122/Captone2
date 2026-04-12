@@ -74,6 +74,14 @@ export const facebookMarketingApi = {
       headers: auth(token),
     }),
 
+  /** Token user từ Facebook JS SDK → backend lưu Page tokens. */
+  connectWithJsUserToken: (token: string, shopId: string, userAccessToken: string) =>
+    apiFetch<{ ok: boolean; pages: number }>(`/shops/${shopId}/facebook/oauth/js-token`, {
+      method: 'POST',
+      headers: auth(token),
+      body: { userAccessToken } as unknown as Record<string, unknown>,
+    }),
+
   listPages: (token: string, shopId: string, sync = false) =>
     apiFetch<{ pages: FbPageItem[] }>(`/shops/${shopId}/facebook/pages${sync ? '?sync=true' : ''}`, {
       method: 'GET',

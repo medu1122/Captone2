@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { useLocale } from '../../contexts/LocaleContext'
 import { useAuth } from '../../contexts/AuthContext'
@@ -8,6 +8,13 @@ import {
   type FbPostDetailResponse,
 } from '../../api/facebookMarketing'
 import { assetStorageUrl } from '../../api/client'
+import {
+  loadAndInitFacebookSdk,
+  getFacebookLoginStatus,
+  facebookLoginWithScopes,
+  FB_LOGIN_SCOPES,
+  parseXfbml,
+} from '../../lib/facebookSdk'
 import aiActionsBotIcon from '../../assets/image-bot/ai-actions-bot.png'
 
 type PageRow = { id: string; name: string; followers: number; avatarUrl?: string; category?: string }
@@ -285,7 +292,7 @@ function shortTimeLabel(iso: string | undefined): string {
 }
 
 export default function ShopMarketingFacebookWorkspacePage() {
-  const { t } = useLocale()
+  const { t, locale } = useLocale()
   const { id } = useParams<{ id: string }>()
   const { token } = useAuth()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -328,6 +335,12 @@ export default function ShopMarketingFacebookWorkspacePage() {
   const [editLoading, setEditLoading] = useState(false)
   const [deleteLoading, setDeleteLoading] = useState(false)
   const [shopAssets, setShopAssets] = useState<{ id: string; url: string; name?: string }[]>([])
+  const [fbSdkReady, setFbSdkReady] = useState(false)
+  const fbXfbmlRef = useRef<HTMLDivElement>(null)
+
+  const viteFbAppId = (import.meta.env.VITE_FB_APP_ID as string | undefined)?.trim()
+  const viteFbLoginConfigId = (import.meta.env.VITE_FB_LOGIN_CONFIG_ID as string | undefined)?.trim()
+  const viteGraphVersion = import.meta.env.VITE_FACEBOOK_GRAPH_VERSION || 'v20.0'
 
   const selectedPage = pages.find((item) => item.id === selectedPageId) || null
   const postsByPage = useMemo(() => posts.filter((item) => item.pageId === selectedPageId), [posts, selectedPageId])
@@ -413,10 +426,86 @@ export default function ShopMarketingFacebookWorkspacePage() {
     void loadPosts()
   }, [loadPosts])
 
-  if (!id) return null
+  const loadShopAssets = useCallback(async () => {
+    if (!token || !id) return
+    const { data } = await fetch(`/api/shops/${id}/assets`, {
+      headers: { Authorization: `Bearer ${token}` },
+    }).then((r) => r.json().then((d: unknown) => ({ data: d as { assets?: { id: string; storage_path_or_url: string; name?: string }[] } })))
+    const list = (data?.assets || []).map((a) => ({
+      id: a.id,
+      url: assetStorageUrl(a.storage_path_or_url),
+      name: a.name,
+    }))
+    setShopAssets(list)
+  }, [token, id])
+
+  useEffect(() => {
+    if (openImagePicker) void loadShopAssets()
+  }, [openImagePicker, loadShopAssets])
+
+  useEffect(() => {
+    if (!viteFbAppId || !id || !token) {
+      setFbSdkReady(false)
+      return
+    }
+    let cancelled = false
+    void (async () => {
+      try {
+        await loadAndInitFacebookSdk(
+          viteFbAppId,
+          viteGraphVersion,
+          locale === 'vi' ? 'vi_VN' : 'en_US'
+        )
+        if (!cancelled) {
+          setFbSdkReady(true)
+          void getFacebookLoginStatus().catch(() => null)
+        }
+      } catch {
+        if (!cancelled) setFbSdkReady(false)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [viteFbAppId, viteGraphVersion, locale, id, token])
+
+  useEffect(() => {
+    if (!fbSdkReady || !viteFbAppId || !fbXfbmlRef.current) return
+    const safeConfig = viteFbLoginConfigId?.replace(/"/g, '') || ''
+    const scope = FB_LOGIN_SCOPES.replace(/"/g, '')
+    const attrs = safeConfig
+      ? `config_id="${safeConfig}"`
+      : `scope="${scope}"`
+    fbXfbmlRef.current.innerHTML = `<fb:login-button size="large" button_type="login_with" ${attrs} onlogin="window.__aimapAfterFbLogin&&window.__aimapAfterFbLogin()"></fb:login-button>`
+    parseXfbml(fbXfbmlRef.current)
+  }, [fbSdkReady, viteFbAppId, viteFbLoginConfigId])
+
+  useEffect(() => {
+    window.__aimapAfterFbLogin = () => {
+      void (async () => {
+        if (!token || !id) return
+        try {
+          const s = await getFacebookLoginStatus()
+          if (s.status !== 'connected' || !s.authResponse?.accessToken) return
+          const { data, error } = await facebookMarketingApi.connectWithJsUserToken(token, id, s.authResponse.accessToken)
+          if (error || !data?.ok) {
+            setBanner(error || t('marketing.fbBannerError'))
+            return
+          }
+          setBanner(t('marketing.fbBannerConnected').replace('{{count}}', String(data.pages ?? 0)))
+          void loadPages(false)
+        } catch {
+          setBanner(t('marketing.fbBannerError'))
+        }
+      })()
+    }
+    return () => {
+      delete window.__aimapAfterFbLogin
+    }
+  }, [token, id, loadPages, t])
 
   const startFacebookOAuth = async () => {
-    if (!token) return
+    if (!token || !id) return
     setOauthLoading(true)
     const { data, error, status } = await facebookMarketingApi.getOAuthUrl(token, id)
     setOauthLoading(false)
@@ -427,8 +516,39 @@ export default function ShopMarketingFacebookWorkspacePage() {
     window.location.href = data.url
   }
 
+  const connectFacebookSdk = async () => {
+    if (!token || !id || !viteFbAppId) return
+    setOauthLoading(true)
+    try {
+      await loadAndInitFacebookSdk(
+        viteFbAppId,
+        viteGraphVersion,
+        locale === 'vi' ? 'vi_VN' : 'en_US'
+      )
+      let r = await getFacebookLoginStatus()
+      if (r.status !== 'connected' || !r.authResponse?.accessToken) {
+        r = await facebookLoginWithScopes(FB_LOGIN_SCOPES)
+      }
+      if (r.status !== 'connected' || !r.authResponse?.accessToken) {
+        setBanner(t('marketing.fbLoginCancelled'))
+        return
+      }
+      const { data, error } = await facebookMarketingApi.connectWithJsUserToken(token, id, r.authResponse.accessToken)
+      if (error || !data?.ok) {
+        setBanner(error || t('marketing.fbBannerError'))
+        return
+      }
+      setBanner(t('marketing.fbBannerConnected').replace('{{count}}', String(data.pages ?? 0)))
+      void loadPages(false)
+    } catch (e) {
+      setBanner(e instanceof Error ? e.message : t('marketing.fbBannerError'))
+    } finally {
+      setOauthLoading(false)
+    }
+  }
+
   const connectManual = async () => {
-    if (!token || !newPageName.trim() || !newPageId.trim() || !newAccessToken.trim()) return
+    if (!token || !id || !newPageName.trim() || !newPageId.trim() || !newAccessToken.trim()) return
     setManualLoading(true)
     const { error } = await facebookMarketingApi.connectPage(token, id, {
       pageId: newPageId.trim(),
@@ -448,7 +568,7 @@ export default function ShopMarketingFacebookWorkspacePage() {
   }
 
   const disconnectPage = async (pageId: string) => {
-    if (!token) return
+    if (!token || !id) return
     const { error } = await facebookMarketingApi.disconnectPage(token, id, pageId)
     if (error) {
       setBanner(error)
@@ -478,24 +598,6 @@ export default function ShopMarketingFacebookWorkspacePage() {
     setPostDetailLoading(false)
     if (data && !error) setPostDetail(data)
   }
-
-  const loadShopAssets = useCallback(async () => {
-    if (!token || !id) return
-    const { data } = await fetch(`/api/shops/${id}/assets`, {
-      headers: { Authorization: `Bearer ${token}` },
-    }).then((r) => r.json().then((d: unknown) => ({ data: d as { assets?: { id: string; storage_path_or_url: string; name?: string }[] } })))
-    const list = (data?.assets || []).map((a) => ({
-      id: a.id,
-      url: assetStorageUrl(a.storage_path_or_url),
-      name: a.name,
-    }))
-    setShopAssets(list)
-  }, [token, id])
-
-  // Load shop assets khi mở image picker
-  useEffect(() => {
-    if (openImagePicker) void loadShopAssets()
-  }, [openImagePicker, loadShopAssets])
 
   const applyAi = async () => {
     if (!token || !id) return
@@ -568,6 +670,8 @@ export default function ShopMarketingFacebookWorkspacePage() {
     setOpenDelete(false)
   }
 
+  if (!id) return null
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -602,14 +706,36 @@ export default function ShopMarketingFacebookWorkspacePage() {
             >
               {t('marketing.syncPages')}
             </button>
-            <button
-              type="button"
-              onClick={() => void startFacebookOAuth()}
-              disabled={oauthLoading}
-              className="px-3 py-1.5 text-sm rounded-none bg-[#1877f2] text-white hover:bg-[#166fe5] disabled:opacity-50"
-            >
-              {oauthLoading ? '…' : t('marketing.connectFacebookOAuth')}
-            </button>
+            {viteFbAppId ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => void connectFacebookSdk()}
+                  disabled={oauthLoading || !fbSdkReady}
+                  className="px-3 py-1.5 text-sm rounded-none bg-[#1877f2] text-white hover:bg-[#166fe5] disabled:opacity-50"
+                  title={!fbSdkReady ? t('marketing.fbSdkLoading') : undefined}
+                >
+                  {oauthLoading ? '…' : t('marketing.connectFacebookSdk')}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void startFacebookOAuth()}
+                  disabled={oauthLoading}
+                  className="px-3 py-1.5 text-sm rounded-none border border-slate-300 bg-white text-slate-800 hover:bg-slate-50 disabled:opacity-50"
+                >
+                  {t('marketing.connectFacebookRedirect')}
+                </button>
+              </>
+            ) : (
+              <button
+                type="button"
+                onClick={() => void startFacebookOAuth()}
+                disabled={oauthLoading}
+                className="px-3 py-1.5 text-sm rounded-none bg-[#1877f2] text-white hover:bg-[#166fe5] disabled:opacity-50"
+              >
+                {oauthLoading ? '…' : t('marketing.connectFacebookOAuth')}
+              </button>
+            )}
             <button type="button" onClick={() => setOpenConnect(true)} className="px-3 py-1.5 text-sm rounded-none border border-slate-200 bg-white hover:bg-slate-50">
               {t('marketing.connectPageManual')}
             </button>
@@ -618,6 +744,12 @@ export default function ShopMarketingFacebookWorkspacePage() {
             </button>
           </div>
         </div>
+        {viteFbAppId && fbSdkReady && (
+          <div className="mb-3 px-1">
+            <p className="text-xs text-slate-500 mb-1">{t('marketing.fbLoginButtonTitle')}</p>
+            <div ref={fbXfbmlRef} className="min-h-[44px]" />
+          </div>
+        )}
         <div className="max-h-[12.5rem] overflow-y-auto rounded-none border border-slate-200">
           <table className="w-full text-sm">
             <thead className="bg-slate-50 sticky top-0 z-10 shadow-[0_1px_0_0_rgb(226_232_240)]">

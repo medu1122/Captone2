@@ -85,3 +85,47 @@ export async function fetchPageProfileForStorage(pageId, pageAccessToken) {
     cat: typeof data.category === 'string' ? data.category : data.category?.name || null,
   }
 }
+
+/** userAccessToken = user token (đã long-lived nếu caller đổi xong) → /me/accounts → upsert facebook_page_tokens. */
+export async function saveFacebookPagesForShop(client, shopId, profileId, userAccessToken) {
+  const userToken = String(userAccessToken || '').trim()
+  if (!userToken) throw new Error('Thiếu user access token')
+
+  const accounts = await fetchAllManagedPages(userToken)
+  let saved = 0
+  for (const acc of accounts) {
+    const pageId = acc.id ? String(acc.id).trim() : ''
+    const pageTok = acc.access_token ? String(acc.access_token).trim() : ''
+    if (!pageId || !pageTok) continue
+
+    let name = acc.name || null
+    let fan = null
+    let pic = null
+    let cat = null
+    try {
+      const prof = await fetchPageProfileForStorage(pageId, pageTok)
+      name = prof.name || name
+      fan = prof.fan
+      pic = prof.pic
+      cat = prof.cat
+    } catch (e) {
+      console.warn('[facebook] page profile', pageId, e.message)
+    }
+
+    await client.query(
+      `INSERT INTO facebook_page_tokens (user_id, shop_id, page_id, page_name, access_token, expires_at, followers_count, picture_url, page_category, updated_at)
+       VALUES ($1, $2, $3, $4, $5, NULL, $6, $7, $8, NOW())
+       ON CONFLICT (user_id, shop_id, page_id) DO UPDATE SET
+         page_name = EXCLUDED.page_name,
+         access_token = EXCLUDED.access_token,
+         expires_at = EXCLUDED.expires_at,
+         followers_count = EXCLUDED.followers_count,
+         picture_url = EXCLUDED.picture_url,
+         page_category = EXCLUDED.page_category,
+         updated_at = NOW()`,
+      [profileId, shopId, pageId, name, pageTok, fan, pic, cat]
+    )
+    saved += 1
+  }
+  return saved
+}

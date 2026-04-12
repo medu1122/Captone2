@@ -903,7 +903,7 @@ Response: `{ "ok": true }`
 
 Prefix: `/api/shops/:shopId/facebook/...` — `:shopId` = UUID shop. Header: `Authorization: Bearer <token>`.
 
-**Env server:** `MARKETING_AI_BASE_URL` (Ollama, vd. `http://IP_VPS:11434`), `MARKETING_AI_MODEL` (vd. `qwen2.5:7b`), `META_APP_ID` (để biết bài nào sửa được qua API), `FACEBOOK_GRAPH_VERSION` (mặc định `v20.0`). OAuth Page: `FB_APP_ID` (hoặc `META_APP_ID`), `FB_APP_SECRET`, `FACEBOOK_OAUTH_REDIRECT_URI` (phải khớp App Meta, ví dụ `https://<host>/api/facebook/oauth/callback`), `FB_OAUTH_SCOPES` (mặc định `pages_show_list,pages_read_engagement,pages_manage_posts,public_profile`), `FRONTEND_URL` (redirect sau callback).
+**Env server:** `MARKETING_AI_BASE_URL` (Ollama, vd. `http://IP_VPS:11434`), `MARKETING_AI_MODEL` (vd. `qwen2.5:7b`), `META_APP_ID` (để biết bài nào sửa được qua API), `FACEBOOK_GRAPH_VERSION` (mặc định `v20.0`). OAuth Page: `FB_APP_ID` (hoặc `META_APP_ID`), `FB_APP_SECRET`, `FACEBOOK_OAUTH_REDIRECT_URI` (phải khớp App Meta, ví dụ `https://<host>/api/facebook/oauth/callback`), `FB_OAUTH_SCOPES` (mặc định gồm `read_insights`, `pages_manage_engagement` + các scope page cơ bản; xem `shopFacebookMarketing.js`), `FRONTEND_URL` (redirect sau callback).
 
 **Migration DB:** `psql $DATABASE_URL -f aimap/backend/db/migrations/006_facebook_marketing.sql`
 
@@ -916,6 +916,16 @@ Prefix: `/api/shops/:shopId/facebook/...` — `:shopId` = UUID shop. Header: `Au
 Response: `{ "url": "https://www.facebook.com/v20.0/dialog/oauth?..." }`
 
 **Test Postman:** `GET {{base}}/shops/<shopId>/facebook/oauth/url` + Bearer token → mở `url` trên trình duyệt (hoặc frontend `window.location = url`).
+
+---
+
+**POST /shops/:shopId/facebook/oauth/js-token** — Facebook JS SDK: gửi **user** `access_token` (từ `FB.login` / Login Button), server đổi long-lived (best effort), `GET /me/accounts` → upsert Page như OAuth redirect.
+
+- Body: `{ "userAccessToken": "<token từ authResponse>" }`
+- `201`: `{ "ok": true, "pages": <số page đã lưu> }`
+- Lỗi: `400` thiếu token, `500` Graph / DB
+
+**Test Postman:** `POST {{base}}/shops/<shopId>/facebook/oauth/js-token` + `Authorization: Bearer <jwt>` + `Content-Type: application/json` + body trên (token lấy từ trình duyệt sau khi login SDK).
 
 ---
 

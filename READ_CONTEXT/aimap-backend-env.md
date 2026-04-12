@@ -63,6 +63,10 @@ Compose sẽ inject biến vào container backend (không dùng `aimap/backend/.
 
 **Frontend:** `VITE_API_URL` trong `aimap/frontend/.env` phải trỏ tới API có suffix `/api`, vd. `http://localhost:4111/api`. Không nhầm với `API_PUBLIC_URL`.
 
+**Facebook JS SDK (kết nối Page không bắt buộc redirect):** build frontend cần `VITE_FB_APP_ID` (cùng App Meta với `FB_APP_ID`/`META_APP_ID`). Tuỳ chọn: `VITE_FACEBOOK_GRAPH_VERSION` (vd. `v20.0`), `VITE_FB_OAUTH_SCOPES` (khớp `FB_OAUTH_SCOPES` trên server — mặc định backend đã gồm `read_insights` cho insights page/post), `VITE_FB_LOGIN_CONFIG_ID` (ID cấu hình đăng nhập Meta → nút `fb:login-button` dùng `config_id` thay vì `scope`).
+
+**OAuth scope mặc định (backend `FB_OAUTH_SCOPES` nếu không set env):** `pages_show_list`, `pages_read_engagement`, `pages_manage_posts`, `pages_manage_engagement`, `read_insights`, `public_profile` — đủ để thử nghiệm flow marketing + insights; nếu App Review khai thêm quyền (`pages_manage_metadata`, `business_management`, …) thì set `FB_OAUTH_SCOPES` / `VITE_FB_OAUTH_SCOPES` đúng chuỗi Meta yêu cầu.
+
 **Ghi chú Docker/Production:**
 - Backend thường gọi DB theo `DATABASE_URL` trong `aimap/.env`.
 - Nếu chạy sau reverse proxy (Nginx/Caddy) nên set `TRUST_PROXY=1` để log IP đúng.

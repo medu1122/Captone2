@@ -14,13 +14,16 @@ import {
   aiWriteAssist,
 } from '../services/marketingAiBot.js'
 import { logActivity } from '../services/activityLog.js'
+import { exchangeLongLivedUserToken, saveFacebookPagesForShop } from '../services/facebookOAuthService.js'
 
 const router = Router()
 const META_APP_ID = process.env.META_APP_ID || ''
 const FB_APP_ID_OAUTH = (process.env.FB_APP_ID || process.env.META_APP_ID || '').trim()
 const FACEBOOK_OAUTH_REDIRECT_URI = (process.env.FACEBOOK_OAUTH_REDIRECT_URI || '').trim()
+/** Mặc định khớp Graph trong route này (insights page/post, bài, tương tác). Override bằng FB_OAUTH_SCOPES. */
 const FB_OAUTH_SCOPES = (
-  process.env.FB_OAUTH_SCOPES || 'pages_show_list,pages_read_engagement,pages_manage_posts,public_profile'
+  process.env.FB_OAUTH_SCOPES ||
+    'pages_show_list,pages_read_engagement,pages_manage_posts,pages_manage_engagement,read_insights,public_profile'
 ).replace(/\s/g, '')
 const GRAPH_VER_DIALOG = process.env.FACEBOOK_GRAPH_VERSION || 'v20.0'
 
@@ -117,6 +120,54 @@ router.get('/:id/facebook/oauth/url', requireAuth, async (req, res) => {
   url.searchParams.set('response_type', 'code')
   url.searchParams.set('scope', FB_OAUTH_SCOPES)
   res.json({ url: url.toString() })
+})
+
+// POST .../facebook/oauth/js-token — Facebook JS SDK: user access_token → long-lived → lưu Page (không cần redirect URI)
+router.post('/:id/facebook/oauth/js-token', requireAuth, async (req, res) => {
+  const raw = req.body?.userAccessToken
+  if (!raw || typeof raw !== 'string' || !raw.trim()) {
+    return res.status(400).json({ code: 'VALIDATION', message: 'userAccessToken là bắt buộc' })
+  }
+  const { id: shopId } = req.params
+  const profileId = req.auth.profileId
+  const client = await pool.connect()
+  try {
+    const own = await assertShopOwner(client, shopId, profileId)
+    if (own.err) return res.status(own.err).json(own.body)
+
+    let userToken = raw.trim()
+    try {
+      userToken = await exchangeLongLivedUserToken(userToken)
+    } catch (e) {
+      console.warn('[facebook js-token] long-lived:', e.message)
+    }
+
+    const saved = await saveFacebookPagesForShop(client, shopId, profileId, userToken)
+
+    await logActivity(pool, {
+      userId: profileId,
+      action: 'facebook_oauth_connect',
+      entityType: 'shop',
+      entityId: shopId,
+      details: { pages: saved, source: 'js_sdk' },
+    })
+
+    res.status(201).json({ ok: true, pages: saved })
+  } catch (err) {
+    console.error('POST facebook/oauth/js-token:', err)
+    const code = err.code || 'INTERNAL'
+    const status =
+      code === 'FB_PERMISSION_MISSING'
+        ? 403
+        : code === 'FB_TOKEN_EXPIRED'
+          ? 401
+          : code === 'OAUTH_NOT_CONFIGURED'
+            ? 503
+            : 500
+    res.status(status).json({ code, message: err.message })
+  } finally {
+    client.release()
+  }
 })
 
 // — GET .../facebook/pages
