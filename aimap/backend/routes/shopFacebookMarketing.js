@@ -691,6 +691,57 @@ router.delete('/:id/facebook/posts/:postId', requireAuth, async (req, res) => {
   }
 })
 
+// POST .../facebook/pages/:pageId/posts — đăng bài mới lên Facebook Page
+router.post('/:id/facebook/pages/:pageId/posts', requireAuth, async (req, res) => {
+  const { id: shopId, pageId } = req.params
+  const profileId = req.auth.profileId
+  const { message, imageUrl } = req.body || {}
+
+  if (!message || typeof message !== 'string' || !message.trim()) {
+    return res.status(400).json({ code: 'VALIDATION', message: 'message là bắt buộc' })
+  }
+
+  const client = await pool.connect()
+  try {
+    const own = await assertShopOwner(client, shopId, profileId)
+    if (own.err) return res.status(own.err).json(own.body)
+
+    const tok = await getPageTokenRow(client, shopId, profileId, pageId)
+    if (!tok) return res.status(404).json({ code: 'PAGE_NOT_FOUND', message: 'Chưa kết nối Page này' })
+
+    let result
+    if (imageUrl && typeof imageUrl === 'string' && /^https?:\/\//i.test(imageUrl.trim())) {
+      result = await graphPostForm(`/${pageId}/photos`, tok.access_token, {
+        message: message.trim(),
+        url: imageUrl.trim(),
+      })
+    } else {
+      result = await graphPostForm(`/${pageId}/feed`, tok.access_token, {
+        message: message.trim(),
+      })
+    }
+
+    const newPostId = result.post_id || result.id || null
+
+    await logActivity(pool, {
+      userId: profileId,
+      action: 'facebook_post_create',
+      entityType: 'shop',
+      entityId: shopId,
+      details: { pageId, postId: newPostId },
+    })
+
+    res.status(201).json({ ok: true, postId: newPostId })
+  } catch (err) {
+    console.error('POST facebook/pages/:pageId/posts:', err)
+    const code = err.code || 'INTERNAL'
+    const status = code === 'FB_PERMISSION_MISSING' ? 403 : code === 'FB_TOKEN_EXPIRED' ? 401 : 500
+    res.status(status).json({ code, message: err.message })
+  } finally {
+    client.release()
+  }
+})
+
 router.post('/:id/facebook/assist', requireAuth, async (req, res) => {
   const { id: shopId } = req.params
   const profileId = req.auth.profileId

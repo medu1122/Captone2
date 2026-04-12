@@ -46,6 +46,27 @@ export interface FbPostItem {
   permalinkUrl: string
 }
 
+export interface FbPostDetailResponse {
+  postId: string
+  pageId: string
+  message: string
+  permalinkUrl: string
+  createdTime: string
+  insights: { reach: number; engaged: number; engagementRate: string }
+  sparkline: number[]
+  commentAi: { summary: string; topics: string[]; sentiment: string }
+  botEvaluation: { score: number; bullets: string[] }
+  capabilities: { canEditViaApi: boolean; canDeleteViaApi: boolean; reasons: string[] }
+  isPartial: boolean
+}
+
+export interface FbAssistResponse {
+  suggestedMessage?: string
+  skipped: boolean
+  error?: string
+  cached: boolean
+}
+
 export const facebookMarketingApi = {
   getOAuthUrl: (token: string, shopId: string) =>
     apiFetch<{ url: string }>(`/shops/${shopId}/facebook/oauth/url`, {
@@ -91,6 +112,57 @@ export const facebookMarketingApi = {
       {
         method: 'GET',
         headers: auth(token),
+      }
+    ),
+
+  getPostDetail: (token: string, shopId: string, postId: string) =>
+    apiFetch<FbPostDetailResponse>(
+      `/shops/${shopId}/facebook/posts/${encodeURIComponent(postId)}/detail`,
+      { method: 'GET', headers: auth(token) }
+    ),
+
+  updatePost: (token: string, shopId: string, postId: string, message: string) =>
+    apiFetch<{ ok: boolean }>(
+      `/shops/${shopId}/facebook/posts/${encodeURIComponent(postId)}`,
+      {
+        method: 'PATCH',
+        headers: auth(token),
+        body: { message } as unknown as Record<string, unknown>,
+      }
+    ),
+
+  deletePost: (token: string, shopId: string, postId: string) =>
+    apiFetch<{ ok: boolean }>(
+      `/shops/${shopId}/facebook/posts/${encodeURIComponent(postId)}`,
+      { method: 'DELETE', headers: auth(token) }
+    ),
+
+  aiAssist: (
+    token: string,
+    shopId: string,
+    body: { draftMessage: string; instruction: string; locale?: string }
+  ) =>
+    apiFetch<FbAssistResponse>(
+      `/shops/${shopId}/facebook/assist`,
+      {
+        method: 'POST',
+        headers: auth(token),
+        body: body as unknown as Record<string, unknown>,
+      }
+    ),
+
+  publishPost: (
+    token: string,
+    shopId: string,
+    pageId: string,
+    body: { message: string; imageUrl?: string }
+  ) =>
+    apiFetch<{ ok: boolean; postId?: string }>(
+      `/shops/${shopId}/facebook/pages/${encodeURIComponent(pageId)}/posts`,
+      {
+        method: 'POST',
+        headers: auth(token),
+        body: body as unknown as Record<string, unknown>,
       }
     ),
 }
