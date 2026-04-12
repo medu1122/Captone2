@@ -556,7 +556,7 @@ router.post('/:id/website/prompt/preview', requireAuth, async (req, res) => {
 
     if (patch.requiresAi) {
       return res.status(422).json({
-        error: patch.summary || 'Broad redesign requires AI. Configure WEBSITE_AI_BASE_URL to enable.',
+        error: patch.summary || 'AI is required for this request but is not available. Configure WEBSITE_AI_PROVIDER and matching credentials.',
         requiresAi: true,
         intent: patch.intent,
       })
@@ -609,7 +609,7 @@ router.post('/:id/website/prompt/apply', requireAuth, async (req, res) => {
 
     if (patch.requiresAi) {
       return res.status(422).json({
-        error: patch.summary || 'Broad redesign requires AI. Configure WEBSITE_AI_BASE_URL to enable.',
+        error: patch.summary || 'AI is required for this request but is not available. Configure WEBSITE_AI_PROVIDER and matching credentials.',
         requiresAi: true,
         intent: patch.intent,
       })

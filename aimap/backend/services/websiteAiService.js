@@ -1,16 +1,41 @@
 /**
- * WEBSITE AI ASSIST — ưu tiên model local/Ollama; lỗi thì fallback heuristic.
- * Env mới:
- * - WEBSITE_AI_BASE_URL (fallback MARKETING_AI_BASE_URL)
- * - WEBSITE_AI_MODEL (fallback MARKETING_AI_MODEL hoặc qwen2.5:7b)
- * - WEBSITE_AI_TIMEOUT_MS (fallback MARKETING_AI_TIMEOUT_MS)
+ * WEBSITE AI ASSIST
+ *
+ * Provider selection via WEBSITE_AI_PROVIDER:
+ *   'openai'  — OpenAI Chat Completions (gpt-4o-mini default, requires OPENAI_API_KEY)
+ *   'ollama'  — local/remote Ollama (requires WEBSITE_AI_BASE_URL or MARKETING_AI_BASE_URL)
+ *   'auto'    — (default) prefer OpenAI when OPENAI_API_KEY is set, else Ollama
+ *
+ * Shared env:
+ *   WEBSITE_AI_PROVIDER        openai | ollama | auto (default: auto)
+ *   WEBSITE_AI_MODEL           model name for the selected provider
+ *   WEBSITE_AI_TIMEOUT_MS      request timeout in ms (5 000–120 000, default 60 000)
+ *
+ * OpenAI-specific:
+ *   OPENAI_API_KEY             required when provider resolves to openai
+ *
+ * Ollama-specific:
+ *   WEBSITE_AI_BASE_URL        Ollama server (fallback: MARKETING_AI_BASE_URL)
  */
 
-const DEFAULT_MODEL = process.env.WEBSITE_AI_MODEL || process.env.MARKETING_AI_MODEL || 'qwen2.5:7b'
+const PROVIDER_RAW = (process.env.WEBSITE_AI_PROVIDER || 'auto').trim().toLowerCase()
 const TIMEOUT_MS = Math.min(
   120000,
-  Math.max(5000, parseInt(process.env.WEBSITE_AI_TIMEOUT_MS || process.env.MARKETING_AI_TIMEOUT_MS || '45000', 10))
+  Math.max(5000, parseInt(process.env.WEBSITE_AI_TIMEOUT_MS || process.env.MARKETING_AI_TIMEOUT_MS || '60000', 10))
 )
+
+function resolvedProvider() {
+  if (PROVIDER_RAW === 'openai') return 'openai'
+  if (PROVIDER_RAW === 'ollama') return 'ollama'
+  // auto: prefer OpenAI when key present, else Ollama
+  const openaiKey = (process.env.OPENAI_API_KEY || '').trim()
+  if (openaiKey) return 'openai'
+  const ollamaBase = (process.env.WEBSITE_AI_BASE_URL || process.env.MARKETING_AI_BASE_URL || '').trim()
+  if (ollamaBase) return 'ollama'
+  return 'none'
+}
+
+// ---------- helpers ----------------------------------------------------------
 
 function toText(value, fallback = '') {
   if (value == null) return fallback
@@ -41,20 +66,75 @@ function safeJsonParse(text) {
   }
 }
 
-async function ollamaGenerateJson(prompt) {
-  const base = (process.env.WEBSITE_AI_BASE_URL || process.env.MARKETING_AI_BASE_URL || '').trim().replace(/\/$/, '')
-  if (!base) return { skipped: true, data: null }
+// ---------- provider clients -------------------------------------------------
 
+async function openaiGenerateJson(systemPrompt) {
+  const key = (process.env.OPENAI_API_KEY || '').trim()
+  if (!key) return { skipped: true, data: null, error: 'OPENAI_API_KEY not configured' }
+
+  const model = (process.env.WEBSITE_AI_MODEL || 'gpt-4o-mini').trim()
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS)
+
+  try {
+    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${key}`,
+      },
+      signal: controller.signal,
+      body: JSON.stringify({
+        model,
+        response_format: { type: 'json_object' },
+        messages: [
+          {
+            role: 'system',
+            content: systemPrompt,
+          },
+        ],
+        temperature: 0.7,
+      }),
+    })
+
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok) {
+      return {
+        skipped: false,
+        data: null,
+        error: data?.error?.message || res.statusText || `OpenAI HTTP ${res.status}`,
+      }
+    }
+
+    const content = data?.choices?.[0]?.message?.content || ''
+    return { skipped: false, data: safeJsonParse(content) }
+  } catch (error) {
+    return {
+      skipped: false,
+      data: null,
+      error: error instanceof Error ? error.message : 'OpenAI request failed',
+    }
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+async function ollamaGenerateJson(promptText) {
+  const base = (process.env.WEBSITE_AI_BASE_URL || process.env.MARKETING_AI_BASE_URL || '').trim().replace(/\/$/, '')
+  if (!base) return { skipped: true, data: null, error: 'WEBSITE_AI_BASE_URL not configured' }
+
+  const model = (process.env.WEBSITE_AI_MODEL || process.env.MARKETING_AI_MODEL || 'qwen2.5:7b').trim()
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS)
+
   try {
     const res = await fetch(`${base}/api/generate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       signal: controller.signal,
       body: JSON.stringify({
-        model: DEFAULT_MODEL,
-        prompt,
+        model,
+        prompt: promptText,
         stream: false,
         format: 'json',
       }),
@@ -65,11 +145,42 @@ async function ollamaGenerateJson(prompt) {
     }
     return { skipped: false, data: safeJsonParse(data?.response || '') }
   } catch (error) {
-    return { skipped: false, data: null, error: error instanceof Error ? error.message : 'AI request failed' }
+    return {
+      skipped: false,
+      data: null,
+      error: error instanceof Error ? error.message : 'Ollama request failed',
+    }
   } finally {
     clearTimeout(timer)
   }
 }
+
+/**
+ * Unified AI call — delegates to the configured provider.
+ * Returns { skipped, data, error, provider }.
+ */
+async function generateWebsiteAiJson(promptText) {
+  const provider = resolvedProvider()
+
+  if (provider === 'openai') {
+    const result = await openaiGenerateJson(promptText)
+    return { ...result, provider: 'openai' }
+  }
+
+  if (provider === 'ollama') {
+    const result = await ollamaGenerateJson(promptText)
+    return { ...result, provider: 'ollama' }
+  }
+
+  return {
+    skipped: true,
+    data: null,
+    provider: 'none',
+    error: 'No AI provider configured. Set WEBSITE_AI_PROVIDER and matching credentials.',
+  }
+}
+
+// ---------- intent + heuristic -----------------------------------------------
 
 function colorFromPrompt(prompt) {
   const text = prompt.toLowerCase()
@@ -109,7 +220,7 @@ function heuristicPromptPatch({ prompt, scope, sectionId, config, intent }) {
   // Return a no-op with a clear message instead of pasting the raw prompt into the page.
   if (resolvedIntent === 'page_redesign' || scope === 'all') {
     return {
-      summary: 'Broad redesign requires AI. No content changes were made.',
+      summary: 'AI is required for this request but is currently unavailable. No content changes were made.',
       affectedSections: [],
       updates: { theme: {}, sections: [] },
       source: 'fallback',
@@ -174,6 +285,8 @@ function heuristicPromptPatch({ prompt, scope, sectionId, config, intent }) {
   }
 }
 
+// ---------- prompt text builder ----------------------------------------------
+
 function buildAiPromptText({ promptText, scope, sectionId, intent, config, shop, assets, creativity }) {
   const isRedesign = intent === 'page_redesign'
 
@@ -226,6 +339,23 @@ User request:
 ${JSON.stringify({ prompt: promptText, scope, sectionId, creativity, intent })}`.trim()
 }
 
+// ---------- public API -------------------------------------------------------
+
+/**
+ * Expose current provider info without leaking credentials.
+ * Used by /api/config/website-ai.
+ */
+export function getWebsiteAiInfo() {
+  const provider = resolvedProvider()
+  const model = (process.env.WEBSITE_AI_MODEL || (provider === 'openai' ? 'gpt-4o-mini' : 'qwen2.5:7b')).trim()
+  return {
+    provider,
+    configured: provider !== 'none',
+    model,
+    timeoutMs: TIMEOUT_MS,
+  }
+}
+
 export async function buildPromptPatch({ prompt, scope, sectionId, config, shop, assets, creativity }) {
   const promptText = toText(prompt)
   const intent = classifyIntent(promptText)
@@ -245,7 +375,7 @@ export async function buildPromptPatch({ prompt, scope, sectionId, config, shop,
     creativity,
   })
 
-  const ai = await ollamaGenerateJson(aiPrompt)
+  const ai = await generateWebsiteAiJson(aiPrompt)
   if (ai.data?.updates) {
     return {
       summary: clip(ai.data.summary || 'Prompt patch generated.'),
@@ -253,6 +383,7 @@ export async function buildPromptPatch({ prompt, scope, sectionId, config, shop,
       updates: ai.data.updates,
       source: 'ai',
       intent,
+      provider: ai.provider,
     }
   }
 

@@ -51,9 +51,10 @@ Compose sẽ inject biến vào container backend (không dùng `aimap/backend/.
 | `MARKETING_AI_BASE_URL` | URL Ollama trên VPS (vd. `http://IP:11434`) — tóm tắt comment / đánh giá bài / AI assist; không set → API vẫn chạy, phần AI trả placeholder |
 | `MARKETING_AI_MODEL` | Tên model Ollama (mặc định `qwen2.5:7b`) |
 | `MARKETING_AI_TIMEOUT_MS` | Timeout gọi Ollama (mặc định `45000`) |
-| `WEBSITE_AI_BASE_URL` | URL model local/Ollama cho website builder; nếu không set thì fallback `MARKETING_AI_BASE_URL` |
-| `WEBSITE_AI_MODEL` | Model dùng cho website builder (vd. `qwen2.5:7b`, model local `ogwwen` của team); nếu không set thì fallback `MARKETING_AI_MODEL` |
-| `WEBSITE_AI_TIMEOUT_MS` | Timeout route website AI (mặc định fallback `MARKETING_AI_TIMEOUT_MS`) |
+| `WEBSITE_AI_PROVIDER` | Provider cho website builder: `openai` / `ollama` / `auto` (mặc định `auto` — ưu tiên OpenAI nếu có `OPENAI_API_KEY`, không thì Ollama) |
+| `WEBSITE_AI_MODEL` | Tên model theo provider (OpenAI: `gpt-4o-mini`; Ollama: `qwen2.5:7b`) |
+| `WEBSITE_AI_TIMEOUT_MS` | Timeout gọi AI (mặc định `60000` ms) |
+| `WEBSITE_AI_BASE_URL` | URL Ollama server — chỉ dùng khi `WEBSITE_AI_PROVIDER=ollama`; fallback `MARKETING_AI_BASE_URL` |
 | `WEBSITE_PUBLIC_BASE_DOMAIN` | Domain gốc public website shop (mặc định `captone2.site`), dùng build host `slug.domain` trong website module |
 | `WEBSITE_PREVIEW_BASE_URL` | Base URL preview website (mặc định `https://preview.captone2.site`), backend build `.../sites/:shopId` |
 | `MARKETING_MODEL_PROVIDER` | (Tùy module khác) Provider text marketing `openai` / `gemini` nếu có route tách |
