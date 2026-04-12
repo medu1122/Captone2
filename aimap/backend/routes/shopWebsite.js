@@ -553,6 +553,15 @@ router.post('/:id/website/prompt/preview', requireAuth, async (req, res) => {
       assets,
       creativity: body.creativity,
     })
+
+    if (patch.requiresAi) {
+      return res.status(422).json({
+        error: patch.summary || 'Broad redesign requires AI. Configure WEBSITE_AI_BASE_URL to enable.',
+        requiresAi: true,
+        intent: patch.intent,
+      })
+    }
+
     const merged = mergePromptUpdates(config, patch.updates || {})
     const draftConfig = {
       ...merged.config,
@@ -597,6 +606,15 @@ router.post('/:id/website/prompt/apply', requireAuth, async (req, res) => {
       assets,
       creativity: body.creativity,
     })
+
+    if (patch.requiresAi) {
+      return res.status(422).json({
+        error: patch.summary || 'Broad redesign requires AI. Configure WEBSITE_AI_BASE_URL to enable.',
+        requiresAi: true,
+        intent: patch.intent,
+      })
+    }
+
     const merged = mergePromptUpdates(config, patch.updates || {})
     let nextConfig = {
       ...merged.config,

@@ -147,17 +147,25 @@ export default function ShopWebsiteBuilderPage() {
     })
   }
 
+  // Derive scope and sectionId from the current prompt text — not from the selectedSectionId state.
+  // This means removing the @section: tag from the prompt automatically switches to whole-page mode.
+  const promptSectionMatch = /\@section:([\w-]+)/.exec(prompt)
+  const promptSectionId = promptSectionMatch ? promptSectionMatch[1] : null
+  const currentScope: PromptScope = promptSectionId ? 'selected' : 'all'
+
   const handleSendPrompt = async () => {
     const trimmed = prompt.trim()
     if (!trimmed) return
-    const scope: PromptScope = selectedSectionId ? 'selected' : 'all'
+    const sectionTagMatch = /\@section:([\w-]+)/.exec(trimmed)
+    const resolvedSectionId = sectionTagMatch ? sectionTagMatch[1] : null
+    const scope: PromptScope = resolvedSectionId ? 'selected' : 'all'
     setActionError(null)
     setSendingPrompt(true)
     try {
       const res = await shopWebsiteApi.applyPrompt(token, id, {
         prompt: trimmed,
         scope,
-        sectionId: selectedSectionId,
+        sectionId: resolvedSectionId,
         creativity: 'balanced',
       })
       if (res.data?.ok && res.data.config) {
@@ -407,9 +415,16 @@ export default function ShopWebsiteBuilderPage() {
               />
             </div>
 
+            <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
+              <span className={`inline-block h-2 w-2 rounded-full ${currentScope === 'selected' ? 'bg-blue-500' : 'bg-emerald-500'}`} />
+              {currentScope === 'selected'
+                ? t('website.builder.scopeIndicatorSection').replace('{id}', promptSectionId || '')
+                : t('website.builder.scopeIndicatorWholePage')}
+            </div>
+
             <button
               type="button"
-                className="w-full rounded-lg bg-slate-950 px-4 py-3 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
+              className="w-full rounded-lg bg-slate-950 px-4 py-3 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
               onClick={() => void handleSendPrompt()}
               disabled={sendingPrompt || loading || !prompt.trim()}
             >

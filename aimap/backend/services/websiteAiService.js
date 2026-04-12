@@ -82,10 +82,40 @@ function colorFromPrompt(prompt) {
   return null
 }
 
-function heuristicPromptPatch({ prompt, scope, sectionId, config }) {
+/**
+ * Classify the user's intent:
+ * - 'page_redesign': broad request to overhaul or redo the whole page.
+ * - 'section_edit': targeted edit on a specific section or element.
+ */
+function classifyIntent(prompt) {
   const text = prompt.toLowerCase()
+  const broadPatterns = [
+    'xoá', 'xóa', 'làm lại', 'thiết kế lại', 'tạo lại', 'xây lại',
+    'redesign', 'rebuild', 'redo', 'start over', 'from scratch', 'overhaul',
+    'new design', 'toàn bộ', 'toàn trang', 'từ đầu', 'bắt đầu lại',
+    'thay đổi toàn', 'thay toàn bộ', 'làm mới toàn', 'làm lại giao diện',
+  ]
+  const isBroad = broadPatterns.some((k) => text.includes(k))
+  return isBroad ? 'page_redesign' : 'section_edit'
+}
+
+function heuristicPromptPatch({ prompt, scope, sectionId, config, intent }) {
+  const text = prompt.toLowerCase()
+  const resolvedIntent = intent || classifyIntent(prompt)
   const affectedSections = []
   const updates = { theme: {}, sections: [] }
+
+  // For broad redesigns we cannot safely generate content without AI.
+  // Return a no-op with a clear message instead of pasting the raw prompt into the page.
+  if (resolvedIntent === 'page_redesign' || scope === 'all') {
+    return {
+      summary: 'Broad redesign requires AI. No content changes were made.',
+      affectedSections: [],
+      updates: { theme: {}, sections: [] },
+      source: 'fallback',
+      requiresAi: true,
+    }
+  }
 
   const primary = colorFromPrompt(prompt)
   if (primary) {
@@ -111,23 +141,17 @@ function heuristicPromptPatch({ prompt, scope, sectionId, config }) {
     affectedSections.push('testimonials')
   }
 
-  const targetSectionId =
-    scope === 'selected' && sectionId
-      ? sectionId
-      : text.includes('hero')
-        ? 'hero'
-        : text.includes('footer') || text.includes('contact')
-          ? 'footer'
-          : text.includes('gallery') || text.includes('image')
-            ? 'gallery'
-            : 'hero'
+  const targetSectionId = sectionId
+    || (text.includes('hero') ? 'hero'
+      : text.includes('footer') || text.includes('contact') ? 'footer'
+        : text.includes('gallery') || text.includes('image') ? 'gallery'
+          : 'hero')
 
   const selected = config.sections.find((section) => section.id === targetSectionId)
   if (selected) {
     const props = { ...(selected.props || {}) }
-    if ('title' in props) props.title = clip(`${toText(props.title)} — refined`, 80)
-    if ('subtitle' in props) props.subtitle = clip(prompt, 140)
-    if ('body' in props) props.body = clip(prompt, 160)
+    // Only update structural/interactive props — never paste the raw prompt into text fields.
+    if (primary && 'bgColor' in props) props.bgColor = primary
     if ('primaryButtonText' in props && (text.includes('cta') || text.includes('button'))) {
       props.primaryButtonText = 'Get in touch'
     }
@@ -150,18 +174,27 @@ function heuristicPromptPatch({ prompt, scope, sectionId, config }) {
   }
 }
 
-export async function buildPromptPatch({ prompt, scope, sectionId, config, shop, assets, creativity }) {
-  const promptText = toText(prompt)
-  const aiPrompt = `
-You are an assistant for a website builder. Return valid JSON only.
+function buildAiPromptText({ promptText, scope, sectionId, intent, config, shop, assets, creativity }) {
+  const isRedesign = intent === 'page_redesign'
 
-Rules:
-- Respect the user's scope. If scope is "selected", update only the chosen section.
-- Keep the site structure stable.
-- Do not deploy anything.
-- Reply in this JSON shape:
+  const instructions = isRedesign
+    ? `You are a website redesign assistant. The user wants to completely overhaul or redo the page.
+- Regenerate meaningful content for the hero, features, and at least one other section.
+- Update the theme primary color if appropriate.
+- Keep the same section IDs but replace their props with fresh, relevant content based on the shop context.
+- Do NOT copy the user's request text into any content field.
+- Reply ONLY with the JSON shape below.`
+    : `You are an assistant for a website builder.
+- Respect the user's scope. If scope is "selected", update ONLY the section with id "${sectionId}".
+- Keep the site structure stable and do not add new sections unless explicitly asked.
+- Do NOT copy the user's request text into content fields — generate real content.
+- Reply ONLY with the JSON shape below.`
+
+  return `${instructions}
+
+JSON shape:
 {
-  "summary": "short summary",
+  "summary": "short summary of what changed",
   "affectedSections": ["hero"],
   "updates": {
     "theme": { "primary": "#2563eb" },
@@ -178,30 +211,39 @@ Rules:
   }
 }
 
-Shop:
-${JSON.stringify({
-    name: shop.name,
-    industry: shop.industry,
-    description: shop.description,
-    contact: shop.contact_info,
-  })}
+Shop context:
+${JSON.stringify({ name: shop.name, industry: shop.industry, description: shop.description, contact: shop.contact_info })}
 
 Assets:
 ${JSON.stringify(
-    (Array.isArray(assets) ? assets : []).slice(0, 6).map((asset) => ({
-      id: asset.id,
-      type: asset.type,
-      name: asset.name,
-      url: asset.storage_path_or_url,
-    }))
+    (Array.isArray(assets) ? assets : []).slice(0, 6).map((a) => ({ id: a.id, type: a.type, name: a.name, url: a.storage_path_or_url }))
   )}
 
-Current config:
+Current page config:
 ${JSON.stringify(config)}
 
-Edit request:
-${JSON.stringify({ prompt: promptText, scope, sectionId, creativity })}
-  `.trim()
+User request:
+${JSON.stringify({ prompt: promptText, scope, sectionId, creativity, intent })}`.trim()
+}
+
+export async function buildPromptPatch({ prompt, scope, sectionId, config, shop, assets, creativity }) {
+  const promptText = toText(prompt)
+  const intent = classifyIntent(promptText)
+
+  // For broad redesign prompts, always treat scope as 'all' regardless of what the frontend sent.
+  const effectiveScope = intent === 'page_redesign' ? 'all' : (scope || 'all')
+  const effectiveSectionId = effectiveScope === 'all' ? null : sectionId
+
+  const aiPrompt = buildAiPromptText({
+    promptText,
+    scope: effectiveScope,
+    sectionId: effectiveSectionId,
+    intent,
+    config,
+    shop,
+    assets,
+    creativity,
+  })
 
   const ai = await ollamaGenerateJson(aiPrompt)
   if (ai.data?.updates) {
@@ -210,8 +252,9 @@ ${JSON.stringify({ prompt: promptText, scope, sectionId, creativity })}
       affectedSections: Array.isArray(ai.data.affectedSections) ? ai.data.affectedSections.map(String) : [],
       updates: ai.data.updates,
       source: 'ai',
+      intent,
     }
   }
 
-  return heuristicPromptPatch({ prompt: promptText, scope, sectionId, config })
+  return heuristicPromptPatch({ prompt: promptText, scope: effectiveScope, sectionId: effectiveSectionId, config, intent })
 }

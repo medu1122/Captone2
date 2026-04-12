@@ -60,6 +60,15 @@ Không mở rộng:
 - [x] Harden frontend flow website (entry/dashboard/builder):
   - hiển thị lỗi backend chi tiết cho prompt/apply/deploy/load thay vì lỗi chung chung
   - giữ trạng thái loading/action rõ ràng để tránh cảm giác "bấm nút không chạy"
+- [x] Harden prompt scope + intent cho website builder:
+  - Frontend: scope lấy từ prompt hiện tại (parse `@section:<id>`) thay vì `selectedSectionId` state cũ
+  - Frontend: hiển thị scope indicator (toàn trang / section cụ thể) ngay dưới prompt textarea
+  - Backend `websiteAiService.js`: thêm `classifyIntent()` phân loại `page_redesign` vs `section_edit`
+  - Backend: prompt broad redesign (xoá, làm lại, redesign...) luôn đi theo scope `all` dù frontend gửi gì
+  - Backend: fallback heuristic không còn copy prompt thô vào `subtitle`/`body` — chỉ patch props an toàn
+  - Backend: khi broad redesign + AI không khả dụng, trả 422 `requiresAi: true` thay vì save nội dung rác
+  - Backend: `buildAiPromptText()` tách riêng instruction cho `page_redesign` vs `section_edit`
+  - Preview và apply đều dùng chung `buildPromptPatch` với logic intent đồng nhất
 - [ ] Thêm health endpoint per shop (proxy/container) cho dashboard.
 
 ---
